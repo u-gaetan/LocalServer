@@ -64,7 +64,11 @@ router.post('/', collecteLimiter, validateCollecteData, async (req, res) => {
             participantId,
             newEvents: insertedCount,
             duplicatesIgnored: duplicateCount,
-            totalEvents
+            totalEvents,
+            // Infos de filtrage pour debug
+            receivedCount: req.originalCount,
+            filteredOut: req.originalCount - req.body.length,
+            warnings: (req.validationWarnings || []).slice(0, 5)
         });
 
     } catch (err) {

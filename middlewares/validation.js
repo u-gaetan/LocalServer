@@ -1,8 +1,5 @@
 // middlewares/validation.js
 
-// ─────────────────────────────────────────────
-// Types d'événements autorisés par l'extension
-// ─────────────────────────────────────────────
 const ALLOWED_EVENT_TYPES = new Set([
     // Générés par background.js
     'navigation',
@@ -12,34 +9,28 @@ const ALLOWED_EVENT_TYPES = new Set([
     'clic',
     'scroll',
     'page_quittee',
-    'copier',
+    'copie',
     'selection_texte',
     'frappe_clavier',
     'temps_lecture',
     'formulaire',
-    'media'
-    // Ajoutez ici tout nouveau type si vous en créez
+    'media',
+    // Générés par le questionnaire via content script
+    'questionnaire_event',
+    'study_marker'
 ]);
 
 const MAX_EVENTS_PER_REQUEST = 5000;
 const MAX_URL_LENGTH = 2048;
 const MAX_STRING_FIELD_LENGTH = 500;
-
-// ─────────────────────────────────────────────
-// Formats réels générés par background.js
-// ─────────────────────────────────────────────
-// sessionId : "session_1713200000000_a3f8x2"
-//   → session_ + timestamp décimal (13 chiffres) + _ + 6 chars base36
 const SESSION_ID_PATTERN = /^session_\d{12,15}_[a-z0-9]{6}$/;
-
-// participantId : "P-mnruh94h-e2md"
-//   → P- + timestamp base36 (7-10 chars) + - + 4 chars base36
 const PARTICIPANT_ID_PATTERN = /^P-[a-z0-9]{7,10}-[a-z0-9]{4}$/;
 
 
 /**
  * Middleware de validation pour POST /api/collecte
- * Vérifie la structure, les types, la cohérence et les limites des données.
+ * Valide la structure globale, puis FILTRE les événements invalides
+ * au lieu de rejeter tout le lot.
  */
 function validateCollecteData(req, res, next) {
     const data = req.body;
@@ -54,7 +45,7 @@ function validateCollecteData(req, res, next) {
     // --- 2. Limite de taille ---
     if (data.length > MAX_EVENTS_PER_REQUEST) {
         return res.status(400).json({
-            erreur: `Trop d'événements (${data.length}). Maximum autorisé : ${MAX_EVENTS_PER_REQUEST}.`
+            erreur: `Trop d'événements (${data.length}). Maximum : ${MAX_EVENTS_PER_REQUEST}.`
         });
     }
 
@@ -66,7 +57,6 @@ function validateCollecteData(req, res, next) {
             erreur: 'sessionId manquant ou invalide dans le premier événement.'
         });
     }
-
     if (!participantId || typeof participantId !== 'string') {
         return res.status(400).json({
             erreur: 'participantId manquant ou invalide dans le premier événement.'
@@ -76,76 +66,99 @@ function validateCollecteData(req, res, next) {
     // --- 4. Format du sessionId et participantId ---
     if (!SESSION_ID_PATTERN.test(sessionId)) {
         return res.status(400).json({
-            erreur: `Format de sessionId invalide : "${sessionId}". Attendu : session_<timestamp>_<6chars>.`
+            erreur: `Format de sessionId invalide : "${sessionId}".`
         });
     }
-
     if (!PARTICIPANT_ID_PATTERN.test(participantId)) {
         return res.status(400).json({
-            erreur: `Format de participantId invalide : "${participantId}". Attendu : P-<base36>-<4chars>.`
+            erreur: `Format de participantId invalide : "${participantId}".`
         });
     }
 
-    // --- 5. Valider chaque événement ---
-    const errors = [];
+    // --- 5. Filtrer les événements (au lieu de tout rejeter) ---
+    const validEvents = [];
+    const warnings = [];
 
     for (let i = 0; i < data.length; i++) {
         const event = data[i];
+        let isValid = true;
+        const eventWarnings = [];
 
         // 5a. Cohérence sessionId / participantId
-        if (event.sessionId !== sessionId) {
-            errors.push(`[${i}] sessionId incohérent ("${event.sessionId}" ≠ "${sessionId}")`);
-            continue;
-        }
-        if (event.participantId !== participantId) {
-            errors.push(`[${i}] participantId incohérent`);
-            continue;
+        if (event.sessionId !== sessionId || event.participantId !== participantId) {
+            eventWarnings.push(`[${i}] IDs incohérents — ignoré`);
+            isValid = false;
         }
 
         // 5b. Type d'événement
-        if (!event.type || !ALLOWED_EVENT_TYPES.has(event.type)) {
-            errors.push(`[${i}] type invalide ou manquant : "${event.type}"`);
+        if (!event.type || typeof event.type !== 'string') {
+            eventWarnings.push(`[${i}] type manquant — ignoré`);
+            isValid = false;
+        } else if (!ALLOWED_EVENT_TYPES.has(event.type)) {
+            // Type inconnu → on le garde quand même (pour ne pas perdre de données)
+            // mais on log un warning pour investigation
+            eventWarnings.push(`[${i}] type inconnu : "${event.type}" — conservé avec warning`);
+            // On ne met PAS isValid = false → l'événement est gardé
         }
 
         // 5c. Timestamp
         if (!event.timestamp || isNaN(Date.parse(event.timestamp))) {
-            errors.push(`[${i}] timestamp invalide : "${event.timestamp}"`);
+            eventWarnings.push(`[${i}] timestamp invalide : "${event.timestamp}" — ignoré`);
+            isValid = false;
         }
 
-        // 5d. URL (si présente)
-        if (event.url && (typeof event.url !== 'string' || event.url.length > MAX_URL_LENGTH)) {
-            errors.push(`[${i}] url trop longue ou invalide`);
+        // 5d. URL (si présente, tronquer si trop longue plutôt que rejeter)
+        if (event.url && typeof event.url === 'string' && event.url.length > MAX_URL_LENGTH) {
+            event.url = event.url.substring(0, MAX_URL_LENGTH) + '...[tronqué]';
+            eventWarnings.push(`[${i}] url tronquée (dépassait ${MAX_URL_LENGTH} chars)`);
         }
 
-        // 5e. visitId (si présent, doit être une string raisonnable)
+        // 5e. visitId
         if (event.visitId && (typeof event.visitId !== 'string' || event.visitId.length > MAX_STRING_FIELD_LENGTH)) {
-            errors.push(`[${i}] visitId invalide`);
+            eventWarnings.push(`[${i}] visitId invalide — ignoré`);
+            isValid = false;
         }
 
-        // Arrêter tôt si trop d'erreurs
-        if (errors.length >= 10) {
-            errors.push(`... et potentiellement d'autres erreurs (arrêt après 10).`);
-            break;
+        if (isValid) {
+            validEvents.push(event);
+        }
+
+        if (eventWarnings.length > 0) {
+            warnings.push(...eventWarnings);
         }
     }
 
-    if (errors.length > 0) {
+    // Log les warnings côté serveur (toujours utile pour debug)
+    if (warnings.length > 0) {
+        console.warn(`⚠️  Validation collecte | Session: ${sessionId} | ${warnings.length} warnings:`);
+        warnings.slice(0, 20).forEach(w => console.warn(`   ${w}`));
+        if (warnings.length > 20) {
+            console.warn(`   ... et ${warnings.length - 20} autres warnings`);
+        }
+    }
+
+    // Si AUCUN événement valide → là on rejette
+    if (validEvents.length === 0) {
         return res.status(400).json({
-            erreur: 'Données invalides.',
-            details: errors
+            erreur: 'Aucun événement valide dans le lot.',
+            totalReceived: data.length,
+            warnings: warnings.slice(0, 10)
         });
     }
 
-    // --- 6. Attacher les IDs au req pour usage dans la route ---
+    // --- 6. Remplacer le body par les événements filtrés ---
+    req.body = validEvents;
     req.validatedSessionId = sessionId;
     req.validatedParticipantId = participantId;
+    req.validationWarnings = warnings;
+    req.originalCount = data.length;
 
     next();
 }
 
+
 /**
- * Validation basique des paramètres :id dans les routes GET
- * Empêche les injections NoSQL type { "$gt": "" }
+ * Validation des paramètres :id dans les routes GET
  */
 function validateParamId(paramName) {
     return (req, res, next) => {
@@ -154,11 +167,9 @@ function validateParamId(paramName) {
         if (!value || typeof value !== 'string') {
             return res.status(400).json({ erreur: `Paramètre ${paramName} manquant.` });
         }
-
         if (value.includes('$') || value.includes('{')) {
             return res.status(400).json({ erreur: `Paramètre ${paramName} invalide.` });
         }
-
         if (value.length > 200) {
             return res.status(400).json({ erreur: `Paramètre ${paramName} trop long.` });
         }

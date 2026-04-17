@@ -1,135 +1,93 @@
-// ═══════════════════════════════════════════════════════════
-// server.js — API Tracker ULaval v2.0
-// Collecte navigation (extension) + réponses formulaires
-// ═══════════════════════════════════════════════════════════
-
-
+// server.js
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const path = require('path');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const path = require('path');
-
-const connectDB = require('./config/db');
-
-// Routes
-const collecteRoutes = require('./routes/collecte');
-const authRoutes = require('./routes/authRoutes');
-
-// Route publique (pas de middleware auth)
-
-
-
-
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// ═══════════════════════════════════════════════════════════
-// SÉCURITÉ
-// ═══════════════════════════════════════════════════════════
+// =========================================================
+// MIDDLEWARES GLOBAUX
+// =========================================================
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
 
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            connectSrc: ["'self'"],
-            imgSrc: ["'self'", "data:"],
-            fontSrc: ["'self'"]
-        }
-    }
-}));
-
-app.use(cors({
-    origin: (origin, callback) => {
-        // Autorise : pas d'origin (même serveur), extensions Chrome, localhost
-        if (!origin
-            || origin.startsWith('chrome-extension://')
-            || origin.startsWith('http://localhost')
-            || origin.startsWith('https://localhost')) {
-            callback(null, true);
-        } else {
-            callback(new Error('Origine non autorisée par CORS'));
-        }
-    }
-}));
-
-
-
-app.use(express.json({ limit: '50mb' }));
-
-// ═══════════════════════════════════════════════════════════
-// LOGGING
-// ═══════════════════════════════════════════════════════════
-
+// Logger global — toutes les requêtes
 app.use((req, res, next) => {
-    if (req.path.startsWith('/api/')) {
-        const now = new Date().toISOString();
-        console.log(`[${now}] ${req.method} ${req.path}`);
-    }
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
     next();
 });
 
-app.use('/admin', express.static(path.join(__dirname, 'admin')));
-// ═══════════════════════════════════════════════════════════
-// ROUTES API
-// ═══════════════════════════════════════════════════════════
+// Rate limiter global (filet de sécurité)
+const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false
+});
+app.use('/api/', globalLimiter);
 
+// =========================================================
+// FICHIERS STATIQUES (aucune auth)
+// =========================================================
+app.use('/questionnaire', express.static(path.join(__dirname, 'questionnaire')));
+app.use('/admin', express.static(path.join(__dirname, 'admin')));
+
+// =========================================================
+// ROUTES API
+// =========================================================
+
+// Auth (login admin) — pas de protection, c'est le point d'entrée
+const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
-// Route existante : collecte navigation (extension Chrome)
+
+// Questionnaire — le POST /reponse est PUBLIC (participant)
+//                  les GET /resultats sont protégés (admin, via auth dans le router)
+const questionnaireRoutes = require('./routes/questionnaire');
+app.use('/api/questionnaire', questionnaireRoutes);
+
+// Collecte — TOUTES les routes sont protégées par auth (dans le router)
+const collecteRoutes = require('./routes/collecte');
 app.use('/api/collecte', collecteRoutes);
 
-
-// ═══════════════════════════════════════════════════════════
-// GESTION DES ERREURS
-// ═══════════════════════════════════════════════════════════
-
-// 404 pour les routes API non trouvées
-app.use('/api/*', (req, res) => {
-    res.status(404).json({
-        erreur: 'Route non trouvée',
-        chemin: req.originalUrl,
-        methode: req.method
+// =========================================================
+// ROUTE PAR DÉFAUT
+// =========================================================
+app.get('/', (req, res) => {
+    res.json({
+        status: 'ok',
+        endpoints: {
+            questionnaire: '/questionnaire/',
+            admin: '/admin/',
+            api_collecte: '/api/collecte/',
+            api_questionnaire: '/api/questionnaire/',
+            api_auth: '/api/auth/login'
+        }
     });
 });
 
-
-// Erreurs globales
-app.use((err, req, res, next) => {
-    console.error('❌ Erreur serveur:', err.message);
-    console.error(err.stack);
-    res.status(500).json({
-        erreur: 'Erreur interne du serveur',
-        message: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
-});
-
-// ═══════════════════════════════════════════════════════════
-// DÉMARRAGE
-// ═══════════════════════════════════════════════════════════
-
-async function startServer() {
-    try {
-        // Connexion MongoDB
-        await connectDB();
+// =========================================================
+// CONNEXION MONGODB + DÉMARRAGE
+// =========================================================
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => {
+        console.log('✅ Connecté à MongoDB Atlas !');
         console.log('✅ MongoDB connecté');
 
-        // Démarrer le serveur
+        const PORT = process.env.PORT || 3000;
         app.listen(PORT, () => {
-            console.log('');
-            console.log('═══════════════════════════════════════════');
+            console.log(`\n═══════════════════════════════════════════`);
             console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-            console.log('═══════════════════════════════════════════');
-
+            console.log(`   📋 Questionnaire : http://localhost:${PORT}/questionnaire/`);
+            console.log(`   🔧 Admin         : http://localhost:${PORT}/admin/`);
+            console.log(`   📡 API Collecte  : http://localhost:${PORT}/api/collecte`);
+            console.log(`   📝 API Quest.    : http://localhost:${PORT}/api/questionnaire`);
+            console.log(`═══════════════════════════════════════════\n`);
         });
-    } catch (err) {
-        console.error('❌ Impossible de démarrer le serveur:', err.message);
+    })
+    .catch(err => {
+        console.error('❌ Erreur de connexion MongoDB:', err.message);
         process.exit(1);
-    }
-}
-
-
-startServer();
+    });

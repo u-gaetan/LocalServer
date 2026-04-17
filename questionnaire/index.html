@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Étude — Questionnaire</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Timer (visible uniquement pendant les questions de recherche) -->
+    <div id="timer" class="timer hidden">00:00</div>
+
+    <!-- Barre de progression -->
+    <div id="progressBar" class="progress-bar hidden">
+        <div id="progressFill" class="progress-fill"></div>
+        <span id="progressText" class="progress-text"></span>
+    </div>
+
+    <!-- Conteneur principal SPA -->
+    <div id="app" class="container">
+        <p>Chargement...</p>
+    </div>
+
+    <script src="questions.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
