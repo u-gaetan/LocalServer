@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard — Analyse de session</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8fafc;color:#1e293b;font-size:14px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:16px}
+.drop-box{width:500px;max-width:90vw;border:3px dashed #cbd5e1;border-radius:16px;padding:60px 40px;text-align:center;cursor:pointer;transition:.3s}
+.drop-box:hover,.drop-box.over{border-color:#3b82f6;background:#eff6ff}
+.drop-box h2{font-size:20px;margin-bottom:8px;color:#334155}
+.drop-box p{font-size:13px;color:#64748b}
+.drop-box input{display:none}
+.drop-or{font-size:13px;color:#94a3b8;margin-top:8px}
+.drop-loading{font-size:14px;color:#3b82f6;font-weight:600}
+.hd{background:#1e293b;color:#f1f5f9;padding:16px 24px;border-bottom:3px solid #3b82f6}
+.hd h1{font-size:17px;font-weight:700}.hd-m{font-size:12px;color:#94a3b8;display:flex;gap:16px;margin-top:4px;flex-wrap:wrap}
+.hd-m span{white-space:nowrap}
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e2e8f0;padding:0 16px;flex-wrap:wrap;gap:4px}
+.tb{padding:11px 18px;border:none;background:none;font-size:13px;font-weight:500;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
+.tb:hover{color:#1e293b}.tb.on{color:#3b82f6;border-bottom-color:#3b82f6}
+.pan{display:none;padding:20px}.pan.on{display:block}
+.sr{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.sc{background:#fff;border-radius:10px;padding:12px 16px;box-shadow:0 1px 2px rgba(0,0,0,.05);border:1px solid #e2e8f0}
+.sl{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.sv{font-size:20px;font-weight:700;margin-top:2px}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.cb{background:#fff;border-radius:10px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.05);border:1px solid #e2e8f0}
+.cb h3{font-size:13px;font-weight:600;margin-bottom:8px;color:#334155}.cf{grid-column:span 2}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f1f5f9;padding:9px 10px;text-align:left;font-weight:600;color:#334155;border-bottom:2px solid #e2e8f0;position:sticky;top:0;z-index:1}
+td{padding:7px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+tr:hover td{background:#f8fafc}
+.r{text-align:right}.m{font-family:monospace;font-size:12px}
+.lk{color:#3b82f6;text-decoration:none}.lk:hover{text-decoration:underline}
+.w{max-width:350px;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#475569}
+.qb{display:inline-block;padding:2px 9px;border-radius:4px;font-size:11px;font-weight:700;color:#fff}
+.tg{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;background:#eff6ff;color:#1d4ed8}
+.qf{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#f1f5f9;border-radius:8px;margin-bottom:10px;flex-wrap:wrap}
+.qft{font-size:12px;font-weight:600;color:#334155}
+.qfc{font-size:12px;color:#475569;cursor:pointer;display:flex;align-items:center;gap:4px}
+.qd{display:inline-block;width:10px;height:10px;border-radius:50%}
+.bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+.bt{padding:7px 14px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.bp{background:#3b82f6;color:#fff}.bp:hover{background:#2563eb}
+.bs{background:#e2e8f0;color:#334155}.bg{background:#059669;color:#fff}
+.tw{max-height:70vh;overflow:auto;border-radius:8px;border:1px solid #e2e8f0}
+.cnt{font-size:12px;color:#64748b}
+.lg{background:#fff;border-radius:10px;padding:14px;margin-top:14px;box-shadow:0 1px 2px rgba(0,0,0,.05);border:1px solid #e2e8f0;display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:#475569}
+.li{display:flex;align-items:center;gap:5px}
+.lc{width:13px;height:13px;border-radius:50%}
+.new-btn{position:fixed;top:12px;right:20px;z-index:100}
+</style>
+</head>
+<body>
+<div id="drop" class="drop">
+  <div class="drop-box" id="dropbox">
+    <h2>📊 Dashboard de session</h2>
+    <p>Glissez un fichier JSON ici ou cliquez pour choisir</p>
+    <input type="file" id="filein" accept=".json">
+  </div>
+  <div class="drop-or" id="loading"></div>
+</div>
+<div id="dash" style="display:none">
+  <button class="bt bs new-btn" onclick="resetDash()">↩ Nouveau fichier</button>
+  <div class="hd"><h1>Analyse de session</h1><div class="hd-m" id="header-meta"></div></div>
+  <div class="tabs" id="tabbar"></div>
+  <div id="p-tree" class="pan on"></div>
+  <div id="p-met" class="pan"></div>
+  <div id="p-det" class="pan"></div>
+  <div id="p-agg" class="pan"></div>
+  <div id="p-rep" class="pan"></div>
+</div>
+<script src="dashboard.js"></script>
+</body>
+</html>

@@ -14,10 +14,7 @@ const ALLOWED_EVENT_TYPES = new Set([
     'frappe_clavier',
     'temps_lecture',
     'formulaire',
-    'media',
-    // Générés par le questionnaire via content script
-    'questionnaire_event',
-    'study_marker'
+    'media'
 ]);
 
 const MAX_EVENTS_PER_REQUEST = 5000;

@@ -33,6 +33,7 @@ app.use('/api/', globalLimiter);
 // FICHIERS STATIQUES (aucune auth)
 // =========================================================
 app.use('/questionnaire', express.static(path.join(__dirname, 'questionnaire')));
+
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
 // =========================================================
@@ -51,6 +52,12 @@ app.use('/api/questionnaire', questionnaireRoutes);
 // Collecte — TOUTES les routes sont protégées par auth (dans le router)
 const collecteRoutes = require('./routes/collecte');
 app.use('/api/collecte', collecteRoutes);
+
+
+
+app.get('/questionnaire/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, 'questionnaire', 'index.html'));
+});
 
 // =========================================================
 // ROUTE PAR DÉFAUT

@@ -180,11 +180,20 @@ async function refreshData() {
             const btnS = document.createElement('button');
             btnS.className = 'btn btn-gray';
             btnS.textContent = '📥 Session';
+            
             btnS.style.marginLeft = '5px';
             btnS.addEventListener('click', function() { downloadSession(sid); });
 
+
+            const btnV = document.createElement('button');
+            btnV.className = 'btn btn-green';
+            btnV.textContent = '📊 Visualiser';
+            btnV.style.marginLeft = '5px';
+            btnV.addEventListener('click', function() { viewSession(sid); });
+
             cellActions.appendChild(btnP);
             cellActions.appendChild(btnS);
+            cellActions.appendChild(btnV);
             row.appendChild(cellPid);
             row.appendChild(cellSid);
             row.appendChild(cellEvents);
@@ -217,21 +226,28 @@ async function downloadAll() {
     }
 }
 
-async function downloadParticipant(pid) {
+async function downloadSession(sid) {
     try {
-        const response = await apiCall('/export/participant/' + pid);
+        const response = await apiCall('/export/session/' + sid + '?include_responses=true');
         const data = await response.json();
-        downloadJSON(data, 'participant_' + pid);
+        downloadJSON(data, 'session_' + sid);
+        var nbEvents = data.events ? data.events.length : data.length;
+        var nbReponses = data.reponses ? data.reponses.length : 0;
+        showStatus('✅ Session: ' + nbEvents + ' événements + ' + nbReponses + ' réponses', 'ok');
     } catch (e) { showStatus('❌ ' + e.message, 'err'); }
 }
 
-async function downloadSession(sid) {
+async function downloadParticipant(pid) {
     try {
-        const response = await apiCall('/export/session/' + sid);
+        const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
         const data = await response.json();
-        downloadJSON(data, 'session_' + sid);
+        downloadJSON(data, 'participant_' + pid);
+        var nbEvents = data.events ? data.events.length : data.length;
+        var nbReponses = data.reponses ? data.reponses.length : 0;
+        showStatus('✅ Participant: ' + nbEvents + ' événements + ' + nbReponses + ' réponses', 'ok');
     } catch (e) { showStatus('❌ ' + e.message, 'err'); }
 }
+
 
 function downloadJSON(data, filename) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -248,4 +264,28 @@ function downloadJSON(data, filename) {
 function showStatus(text, type) {
     statusBar.textContent = text;
     statusBar.className = 'status-' + type;
+}
+
+async function viewSession(sid) {
+    try {
+        // Charger les données depuis l'API (avec les bons headers d'auth)
+        const response = await apiCall('/export/session/' + sid + '?include_responses=true');
+        const data = await response.json();
+
+        // Stocker dans sessionStorage pour que dashboard.js puisse les lire
+        sessionStorage.setItem('dashboard_data', JSON.stringify(data));
+        sessionStorage.setItem('dashboard_session_id', sid);
+
+        // Ouvrir le dashboard
+        window.open('/admin/dashboard.html?session=' + encodeURIComponent(sid), '_blank');
+    } catch (e) {
+        showStatus('❌ Erreur chargement session : ' + e.message, 'err');
+    }
+}
+
+// Ouvre le dashboard en mode glisser-déposer (fichier libre)
+function openDashboard() {
+    sessionStorage.removeItem('dashboard_data');
+    sessionStorage.removeItem('dashboard_session_id');
+    window.open('/admin/dashboard.html', '_blank');
 }

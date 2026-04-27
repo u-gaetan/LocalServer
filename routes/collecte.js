@@ -20,24 +20,58 @@ router.post('/', collecteLimiter, validateCollecteData, async (req, res) => {
         const sessionId = req.validatedSessionId;
         const participantId = req.validatedParticipantId;
 
-        // --- Insertion avec déduplication par MongoDB ---
+        // ── Pré-filtrage applicatif (robuste même sans index unique) ──
+        const existingEvents = await Evenement.find(
+            { sessionId, participantId },
+            { timestamp: 1, type: 1, visitId: 1, tabId: 1, _id: 0 }
+        ).lean();
+
+        const existingSet = new Set(
+            existingEvents.map(e =>
+                `${e.timestamp}|${e.type}|${e.visitId || ''}|${e.tabId || ''}`
+            )
+        );
+
+        const newData = [];
+        let preFilterDuplicates = 0;
+
+        for (const e of data) {
+            const key = `${e.timestamp}|${e.type}|${e.visitId || ''}|${e.tabId || ''}`;
+            if (existingSet.has(key)) {
+                preFilterDuplicates++;
+            } else {
+                existingSet.add(key); // évite aussi les doublons intra-batch
+                newData.push(e);
+            }
+        }
+
+        if (newData.length === 0) {
+            const totalEvents = await Evenement.countDocuments({ sessionId });
+            console.log(`📥 Données déjà à jour | Participant: ${participantId} | Session: ${sessionId} | ${preFilterDuplicates} doublons ignorés`);
+            return res.status(200).json({
+                message: "Données déjà à jour.",
+                sessionId,
+                newEvents: 0,
+                duplicatesIgnored: preFilterDuplicates,
+                totalEvents
+            });
+        }
+
+        // ── Insertion avec protection supplémentaire par l'index ──
         let insertedCount = 0;
-        let duplicateCount = 0;
+        let duplicateCount = preFilterDuplicates;
 
         try {
-            const result = await Evenement.insertMany(data, { ordered: false });
+            const result = await Evenement.insertMany(newData, { ordered: false });
             insertedCount = result.length;
         } catch (err) {
             if (err.code === 11000 || (err.writeErrors && err.insertedDocs)) {
-                // BulkWriteError — doublons rejetés, nouveaux insérés
                 insertedCount = err.insertedDocs ? err.insertedDocs.length : 0;
-
                 if (err.result && typeof err.result.insertedCount === 'number') {
                     insertedCount = err.result.insertedCount;
                 }
-
-                duplicateCount = data.length - insertedCount;
-                console.log(`♻️  ${duplicateCount} doublons ignorés | Session: ${sessionId}`);
+                duplicateCount += newData.length - insertedCount;
+                console.log(`♻️  ${duplicateCount} doublons ignorés (total) | Session: ${sessionId}`);
             } else {
                 throw err;
             }
@@ -45,18 +79,7 @@ router.post('/', collecteLimiter, validateCollecteData, async (req, res) => {
 
         const totalEvents = await Evenement.countDocuments({ sessionId });
 
-        if (insertedCount === 0) {
-            console.log(`📥 Données déjà à jour | Participant: ${participantId} | Session: ${sessionId}`);
-            return res.status(200).json({
-                message: "Données déjà à jour.",
-                sessionId,
-                newEvents: 0,
-                duplicatesIgnored: duplicateCount,
-                totalEvents
-            });
-        }
-
-        console.log(`📥 +${insertedCount} événements | Participant: ${participantId} | Session: ${sessionId}`);
+        console.log(`📥 +${insertedCount} événements | Participant: ${participantId} | Session: ${sessionId} | ${duplicateCount} doublons`);
 
         res.status(200).json({
             message: `${insertedCount} nouveaux événements ajoutés.`,
@@ -65,7 +88,6 @@ router.post('/', collecteLimiter, validateCollecteData, async (req, res) => {
             newEvents: insertedCount,
             duplicatesIgnored: duplicateCount,
             totalEvents,
-            // Infos de filtrage pour debug
             receivedCount: req.originalCount,
             filteredOut: req.originalCount - req.body.length,
             warnings: (req.validationWarnings || []).slice(0, 5)
@@ -74,9 +96,9 @@ router.post('/', collecteLimiter, validateCollecteData, async (req, res) => {
     } catch (err) {
         console.error("❌ Erreur insertion :", err.message);
         res.status(500).json({ erreur: "Erreur serveur." });
-        // NB: ne pas exposer err.message en production
     }
 });
+
 
 
 // =========================================================
@@ -139,11 +161,24 @@ router.get('/export/participant/:id', adminLimiter, validateParamId('id'), async
         if (events.length === 0) {
             return res.status(404).json({ erreur: "Participant non trouvé." });
         }
+
+        if (req.query.include_responses === 'true') {
+            const Reponse = require('../models/Reponse');
+            const reponses = await Reponse.find({ participantId: req.params.id })
+                .sort({ timestamp: 1 }).lean();
+            return res.json({
+                participantId: req.params.id,
+                events,
+                reponses
+            });
+        }
+
         res.json(events);
     } catch (err) {
         res.status(500).json({ erreur: err.message });
     }
 });
+
 
 router.get('/export/session/:id', adminLimiter, validateParamId('id'), async (req, res) => {
     try {
@@ -152,11 +187,26 @@ router.get('/export/session/:id', adminLimiter, validateParamId('id'), async (re
         if (events.length === 0) {
             return res.status(404).json({ erreur: "Session non trouvée." });
         }
+
+        // ── Inclure les réponses si demandé ──
+        if (req.query.include_responses === 'true') {
+            const Reponse = require('../models/Reponse');
+            const reponses = await Reponse.find({ sessionId: req.params.id })
+                .sort({ timestamp: 1 }).lean();
+            return res.json({
+                sessionId: req.params.id,
+                participantId: events[0].participantId,
+                events,
+                reponses
+            });
+        }
+
         res.json(events);
     } catch (err) {
         res.status(500).json({ erreur: err.message });
     }
 });
+
 
 
 // =========================================================

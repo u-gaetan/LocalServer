@@ -67,6 +67,16 @@
         }
 
         renderPhase();
+
+        const initSlug = getSlugForPhase(state.phase);
+        const initUrl = '/questionnaire/' + initSlug
+                    + '?pid=' + encodeURIComponent(state.participantId)
+                    + '&sid=' + encodeURIComponent(state.sessionId);
+        history.replaceState({
+            phase: state.phase,
+            currentResearchIndex: state.currentResearchIndex,
+            currentMemoryIndex: state.currentMemoryIndex
+        }, '', initUrl);
     }
 
     function saveProgress() {
@@ -91,12 +101,65 @@
         updateProgress();
     }
 
+    function getSlugForPhase(phase) {
+        switch (phase) {
+            case 'welcome':
+                return 'welcome';
+            case 'demographics':
+                return 'demographics';
+            case 'instructions':
+                return 'instructions';
+            case 'research_question': {
+                const q = state.researchQuestions[state.currentResearchIndex];
+                return q && q.slug ? q.slug : 'question-' + state.currentResearchIndex;
+            }
+            case 'self_assessment': {
+                const q = state.researchQuestions[state.currentResearchIndex];
+                return q && q.slug ? 'eval-' + q.slug : 'eval-' + state.currentResearchIndex;
+            }
+            case 'memory_intro':
+                return 'memory-intro';
+            case 'memory_question': {
+                const mq = state.memoryQuestions[state.currentMemoryIndex];
+                return mq && mq.slug ? mq.slug : 'memory-' + state.currentMemoryIndex;
+            }
+            case 'end':
+                return 'fin';
+            default:
+                return phase;
+        }
+    }
+
     function goTo(phase) {
         state.phase = phase;
         saveProgress();
+
+        const slug = getSlugForPhase(phase);
+        const url = '/questionnaire/' + slug
+                + '?pid=' + encodeURIComponent(state.participantId)
+                + '&sid=' + encodeURIComponent(state.sessionId);
+
+        history.pushState({
+            phase: phase,
+            currentResearchIndex: state.currentResearchIndex,
+            currentMemoryIndex: state.currentMemoryIndex
+        }, '', url);
+
         renderPhase();
         window.scrollTo(0, 0);
     }
+
+    window.addEventListener('popstate', function (e) {
+        if (e.state && e.state.phase) {
+            state.phase = e.state.phase;
+            if (typeof e.state.currentResearchIndex === 'number')
+                state.currentResearchIndex = e.state.currentResearchIndex;
+            if (typeof e.state.currentMemoryIndex === 'number')
+                state.currentMemoryIndex = e.state.currentMemoryIndex;
+            saveProgress();
+            renderPhase();
+        }
+    });
 
     // =========================================================
     // PROGRESS BAR
