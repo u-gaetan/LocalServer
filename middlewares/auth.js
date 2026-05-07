@@ -17,11 +17,17 @@ function auth(req, res, next) {
 
     // Récupérer les secrets (déjà chargés au démarrage)
     const secrets = getSecrets();
-
+    // ═══════ LOG DE DÉBOGAGE (à retirer après) ═══════
+    const apiKey = req.headers['x-api-key'] || req.query.key;
+    console.log('🔍 DEBUG AUTH:');
+    console.log('   Clé reçue (header):', apiKey ? apiKey.substring(0, 8) + '...' : 'ABSENTE');
+    console.log('   Clé attendue (KV) :', secrets.apiKey ? secrets.apiKey.substring(0, 8) + '...' : 'UNDEFINED ⚠️');
+    console.log('   Match:', apiKey === secrets.apiKey);
+    // ═════════════════════════════════════════════════
     // ──────────────────────────────────────────────
     // Option 1 : Clé API (pour l'extension Chrome)
     // ──────────────────────────────────────────────
-    const apiKey = req.headers['x-api-key'] || req.query.key;
+    //const apiKey = req.headers['x-api-key'] || req.query.key;
     if (apiKey && apiKey === secrets.apiKey) {
         return next();  // ✅ Extension autorisée
     }
