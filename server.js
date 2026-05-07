@@ -80,11 +80,15 @@ async function startServer() {
 
         // 3. Connexion à Cosmos DB (compatible Mongoose !)
         await mongoose.connect(secrets.mongoUri, {
-            // Options recommandées pour Cosmos DB
-            retryWrites: false,       // Cosmos DB ne supporte pas retryWrites
-            serverSelectionTimeoutMS: 10000,
-            family: 4
+            dbName: secrets.mongoDbName,         // Force la DB "effort_cognitif_db"
+            retryWrites: false,                  // Cosmos DB ne supporte pas retryWrites
+            directConnection: true,              // Contourne la résolution DNS SRV
+            tls: true,                           // Connexion chiffrée (obligatoire Cosmos)
+            serverSelectionTimeoutMS: 15000,     // 15s timeout
+            socketTimeoutMS: 45000,              // 45s timeout socket
+            family: 4                            // Force IPv4
         });
+
         console.log('✅ Connecté à Azure Cosmos DB !');
 
         // 4. Démarrer le serveur HTTP
