@@ -6,6 +6,9 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+// 🆕 Import du module Key Vault
+const { loadSecrets } = require('./config/keyVault');
+
 const app = express();
 
 // =========================================================
@@ -14,13 +17,11 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Logger global — toutes les requêtes
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
     next();
 });
 
-// Rate limiter global (filet de sécurité)
 const globalLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 120,
@@ -30,41 +31,31 @@ const globalLimiter = rateLimit({
 app.use('/api/', globalLimiter);
 
 // =========================================================
-// FICHIERS STATIQUES (aucune auth)
+// FICHIERS STATIQUES
 // =========================================================
 app.use('/questionnaire', express.static(path.join(__dirname, 'questionnaire')));
-
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
 // =========================================================
 // ROUTES API
 // =========================================================
-
-// Auth (login admin) — pas de protection, c'est le point d'entrée
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
-// Questionnaire — le POST /reponse est PUBLIC (participant)
-//                  les GET /resultats sont protégés (admin, via auth dans le router)
 const questionnaireRoutes = require('./routes/questionnaire');
 app.use('/api/questionnaire', questionnaireRoutes);
 
-// Collecte — TOUTES les routes sont protégées par auth (dans le router)
 const collecteRoutes = require('./routes/collecte');
 app.use('/api/collecte', collecteRoutes);
-
-
 
 app.get('/questionnaire/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'questionnaire', 'index.html'));
 });
 
-// =========================================================
-// ROUTE PAR DÉFAUT
-// =========================================================
 app.get('/', (req, res) => {
     res.json({
         status: 'ok',
+        environment: process.env.NODE_ENV || 'development',
         endpoints: {
             questionnaire: '/questionnaire/',
             admin: '/admin/',
@@ -76,25 +67,41 @@ app.get('/', (req, res) => {
 });
 
 // =========================================================
-// CONNEXION MONGODB + DÉMARRAGE
+// 🆕 DÉMARRAGE ASYNCHRONE (Key Vault → MongoDB → Serveur)
 // =========================================================
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => {
-        console.log('✅ Connecté à MongoDB Atlas !');
-        console.log('✅ MongoDB connecté');
+async function startServer() {
+    try {
+        // 1. Charger les secrets depuis Key Vault (ou .env en local)
+        const secrets = await loadSecrets();
 
-        const PORT = process.env.PORT || 3000;
-        app.listen(PORT, () => {
-            console.log(`\n═══════════════════════════════════════════`);
-            console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-            console.log(`   📋 Questionnaire : http://localhost:${PORT}/questionnaire/`);
-            console.log(`   🔧 Admin         : http://localhost:${PORT}/admin/`);
-            console.log(`   📡 API Collecte  : http://localhost:${PORT}/api/collecte`);
-            console.log(`   📝 API Quest.    : http://localhost:${PORT}/api/questionnaire`);
-            console.log(`═══════════════════════════════════════════\n`);
+        // 2. Rendre les secrets accessibles globalement via app.locals
+        //    (pour que les middlewares puissent y accéder)
+        app.locals.secrets = secrets;
+
+        // 3. Connexion à Cosmos DB (compatible Mongoose !)
+        await mongoose.connect(secrets.mongoUri, {
+            // Options recommandées pour Cosmos DB
+            retryWrites: false,       // Cosmos DB ne supporte pas retryWrites
+            serverSelectionTimeoutMS: 10000,
+            family: 4
         });
-    })
-    .catch(err => {
-        console.error('❌ Erreur de connexion MongoDB:', err.message);
+        console.log('✅ Connecté à Azure Cosmos DB !');
+
+        // 4. Démarrer le serveur HTTP
+        const PORT = process.env.PORT || 8080;
+        app.listen(PORT, () => {
+            console.log(`\n🚀 Serveur démarré sur le port ${PORT}`);
+            console.log(`   📋 Questionnaire : /questionnaire/`);
+            console.log(`   🌐 Admin         : /admin/`);
+            console.log(`   📡 API Collecte  : /api/collecte`);
+            console.log(`   📝 API Quest.    : /api/questionnaire\n`);
+        });
+
+    } catch (error) {
+        console.error('❌ Erreur au démarrage :', error.message);
         process.exit(1);
-    });
+    }
+}
+
+// Lancer !
+startServer();
