@@ -600,6 +600,8 @@
                 </div>
             </div>`;
 
+        window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
+        
         // Nettoyer la progression sauvegardée
         sessionStorage.removeItem('questionnaire_progress');
 
