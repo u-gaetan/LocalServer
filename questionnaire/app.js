@@ -53,7 +53,7 @@
         }
 
         // Restaurer la progression si existante
-        const saved = sessionStorage.getItem('questionnaire_progress');
+        const saved = localStorage.getItem('questionnaire_progress')
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
@@ -80,7 +80,7 @@
     }
 
     function saveProgress() {
-        sessionStorage.setItem('questionnaire_progress', JSON.stringify(state));
+        localStorage.setItem('questionnaire_progress', JSON.stringify(state));
     }
 
     // =========================================================
@@ -601,9 +601,9 @@
             </div>`;
 
         window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
-        
+
         // Nettoyer la progression sauvegardée
-        sessionStorage.removeItem('questionnaire_progress');
+        localStorage.removeItem('questionnaire_progress');
 
         // Envoyer un événement de fin
         sendToServer('questionnaire_event', null, null, {
@@ -649,9 +649,9 @@
         } catch (err) {
             console.error('❌ Erreur réseau:', err.message);
             // Sauvegarde locale en cas d'échec réseau
-            const fallback = JSON.parse(sessionStorage.getItem('questionnaire_fallback') || '[]');
+            const fallback = JSON.parse(localStorage.getItem('questionnaire_fallback') || '[]');
             fallback.push(payload);
-            sessionStorage.setItem('questionnaire_fallback', JSON.stringify(fallback));
+            localStorage.setItem('questionnaire_fallback', JSON.stringify(fallback));
         }
     }
 
