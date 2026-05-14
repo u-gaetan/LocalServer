@@ -401,15 +401,26 @@
 
         btnConsent.addEventListener('click', function () {
             state.consentGiven = true;
-            sendToServer('consent', null, null, {
+            sendToServer('consent', 'CONSENT_1', null, {
                 consent: true,
+                questionLabel: "Consentement Initial",
                 timestamp: new Date().toISOString()
             });
+
+            window.postMessage({ type: 'START_TRACKING', participantId: state.participantId, sessionId: state.sessionId }, '*');
+
             goTo('demographics');
         });
 
         document.getElementById('btnRefuse').addEventListener('click', function (e) {
             e.preventDefault();
+
+            sendToServer('consent', 'CONSENT_1', null, {
+                consent: false,
+                questionLabel: "Consentement Initial",
+                timestamp: new Date().toISOString()
+            });
+
             app.innerHTML =
                 '<div style="text-align:center;padding:60px 0;">' +
                 '<h1>Merci</h1>' +
@@ -833,17 +844,19 @@
 
             if (selected === 'maintain') {
                 state.deceptionConsentGiven = true;
-                sendToServer('deception_consent', null, null, {
+                sendToServer('deception_consent', 'CONSENT_2', null, {
                     consent: true,
                     decision: 'maintain',
+                    questionLabel: "Consentement Post-Expérimental (Maintenu)",
                     timestamp: new Date().toISOString()
                 });
                 goTo('end');
             } else {
                 state.deceptionConsentGiven = false;
-                sendToServer('deception_consent', null, null, {
+                sendToServer('deception_consent', 'CONSENT_2', null, {
                     consent: false,
                     decision: 'withdraw',
+                    questionLabel: "Consentement Post-Expérimental (Retiré)",
                     timestamp: new Date().toISOString()
                 });
                 app.innerHTML =

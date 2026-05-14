@@ -92,6 +92,8 @@ function mkPeriods(reps) {
         else if (r.type === 'self_assessment') { lb = 'Q' + rc + '.5'; }
         else if (r.type === 'demographics') { lb = 'Démo'; }
         else if (r.type === 'memory_answer') { lb = 'Mém'; }
+        else if (r.type === 'consent') { lb = 'Consentement 1'; }
+        else if (r.type === 'deception_consent') { lb = 'Consentement 2'; }
         else { lb = 'R' + (i + 1); }
         periods.push({
             label: lb, type: r.type, qid: r.questionId || '',
@@ -209,6 +211,16 @@ function process(raw) {
 
     var nrep = reps.filter(function(r) { return r.type !== 'questionnaire_event'; }).length;
 
+    var consent1 = "Non spécifié", consent2 = "Non spécifié";
+    reps.forEach(function(r) {
+        if (r.type === 'consent') {
+            consent1 = (r.data && r.data.consent) ? "✅ Accepté" : "❌ Refusé";
+        }
+        if (r.type === 'deception_consent') {
+            consent2 = (r.data && r.data.decision === 'maintain') ? "✅ Maintenu" : "🚨 RETIRÉ (À SUPPRIMER)";
+        }
+    });
+
     S = { vis: vis, reps: reps, periods: periods, qc: qc, vr: vr, tot: tot,
         duree: duree, allQ: allQ, nrep: nrep };
     return S;
@@ -317,6 +329,12 @@ function renderHeader() {
     h += '<span>Durée : ' + S.duree + '</span>';
     h += '<span>' + t.back + ' back / ' + t.fwd + ' fwd</span>';
     if (S.nrep) h += '<span>' + S.nrep + ' réponses</span>';
+    var c1Color = S.consent1.includes('✅') ? '#059669' : '#dc2626';
+    var c2Color = S.consent2.includes('✅') ? '#059669' : '#dc2626';
+    var bg2Color = S.consent2.includes('🚨') ? '#fee2e2' : 'transparent';
+    
+    h += '<span style="margin-left:auto; color:'+c1Color+'; font-weight:700;">C1: ' + S.consent1 + '</span>';
+    h += '<span style="background:'+bg2Color+'; color:'+c2Color+'; font-weight:700; padding:2px 8px; border-radius:4px;">C2: ' + S.consent2 + '</span>';
     document.getElementById('header-meta').innerHTML = h;
 }
 
