@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 const EvenementSchema = new mongoose.Schema({
-    sessionId:      { type: String, required: true, index: true },
     participantId:  { type: String, required: true, index: true },
     type:           { type: String, required: true },
     visitId:        String,
@@ -24,7 +23,7 @@ const EvenementSchema = new mongoose.Schema({
 
 // Index plus spécifique pour éviter les faux positifs ET les vrais doublons
 EvenementSchema.index(
-    { participantId: 1, sessionId: 1, timestamp: 1, type: 1, visitId: 1, tabId: 1 },
+    { participantId: 1, timestamp: 1, type: 1, visitId: 1, tabId: 1 },
     { unique: true }
 );
 

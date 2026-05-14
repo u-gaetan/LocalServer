@@ -19,6 +19,7 @@ const participantLimiter = rateLimit({
 const PARTICIPANT_ID_RE = /^P-[a-z0-9]{7,10}-[a-z0-9]{4}$/;
 const SESSION_ID_RE = /^session_\d{12,15}_[a-z0-9]{6}$/;
 const ALLOWED_TYPES = new Set([
+    'consent', 'deception_consent',
     'demographics', 'research_answer', 'self_assessment',
     'memory_answer', 'questionnaire_event'
 ]);
@@ -29,16 +30,12 @@ const ALLOWED_TYPES = new Set([
 // =========================================================
 router.post('/reponse', participantLimiter, async (req, res) => {
     try {
-        const { participantId, sessionId, type, questionId, difficulty, data, timestamp } = req.body;
+        const { participantId, type, questionId, difficulty, data, timestamp } = req.body;
 
         // --- Validation ---
         if (!participantId || !PARTICIPANT_ID_RE.test(participantId)) {
             console.warn('⚠️  Rejet questionnaire: participantId invalide:', participantId);
             return res.status(400).json({ erreur: 'participantId invalide.' });
-        }
-        if (!sessionId || !SESSION_ID_RE.test(sessionId)) {
-            console.warn('⚠️  Rejet questionnaire: sessionId invalide:', sessionId);
-            return res.status(400).json({ erreur: 'sessionId invalide.' });
         }
         if (!type || !ALLOWED_TYPES.has(type)) {
             console.warn('⚠️  Rejet questionnaire: type invalide:', type);
@@ -54,12 +51,12 @@ router.post('/reponse', participantLimiter, async (req, res) => {
         }
 
         // --- Insertion (upsert pour éviter les doublons) ---
-        const filter = { participantId, sessionId, type };
+        const filter = { participantId, type };
         if (questionId) filter.questionId = questionId;
 
         const reponse = await Reponse.findOneAndUpdate(
             filter,
-            { participantId, sessionId, type, questionId, difficulty, data, timestamp },
+            { participantId, type, questionId, difficulty, data, timestamp },
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
@@ -89,7 +86,7 @@ router.get('/resultats', auth, adminLimiter, async (req, res) => {
         const summary = await Reponse.aggregate([
             {
                 $group: {
-                    _id: { participant: "$participantId", session: "$sessionId" },
+                    _id: { participant: "$participantId" },
                     nbReponses: { $sum: 1 },
                     types: { $addToSet: "$type" },
                     debut: { $min: "$timestamp" }
