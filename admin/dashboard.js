@@ -328,13 +328,23 @@ function renderHeader() {
     h += '<span>' + t.tabCount + ' onglets</span>';
     h += '<span>Durée : ' + S.duree + '</span>';
     h += '<span>' + t.back + ' back / ' + t.fwd + ' fwd</span>';
-    if (S.nrep) h += '<span>' + S.nrep + ' réponses</span>';
-    var c1Color = S.consent1.includes('✅') ? '#059669' : '#dc2626';
-    var c2Color = S.consent2.includes('✅') ? '#059669' : '#dc2626';
-    var bg2Color = S.consent2.includes('🚨') ? '#fee2e2' : 'transparent';
     
-    h += '<span style="margin-left:auto; color:'+c1Color+'; font-weight:700;">C1: ' + S.consent1 + '</span>';
-    h += '<span style="background:'+bg2Color+'; color:'+c2Color+'; font-weight:700; padding:2px 8px; border-radius:4px;">C2: ' + S.consent2 + '</span>';
+    // Toujours afficher le nombre total de réponses (même à 0)
+    var totalReps = S.reps ? S.reps.length : 0;
+    h += '<span>' + totalReps + ' réponses</span>';
+    
+    // Fallback de sécurité
+    var c1 = S.consent1 || "Non spécifié";
+    var c2 = S.consent2 || "Non spécifié";
+    
+    // Couleurs dynamiques (gris si non spécifié)
+    var c1Color = c1.includes('✅') ? '#059669' : (c1.includes('❌') ? '#dc2626' : '#94a3b8');
+    var c2Color = c2.includes('✅') ? '#059669' : (c2.includes('🚨') ? '#dc2626' : '#94a3b8');
+    var bg2Color = c2.includes('🚨') ? '#fee2e2' : 'transparent';
+    
+    h += '<span style="margin-left:auto; color:'+c1Color+'; font-weight:700;">C1: ' + c1 + '</span>';
+    h += '<span style="background:'+bg2Color+'; color:'+c2Color+'; font-weight:700; padding:2px 8px; border-radius:4px;">C2: ' + c2 + '</span>';
+    
     document.getElementById('header-meta').innerHTML = h;
 }
 
@@ -343,10 +353,13 @@ function renderTabs() {
     h += '<button class="tb" onclick="sw(\'met\',this)">Métriques</button>';
     h += '<button class="tb" onclick="sw(\'det\',this)">Détail</button>';
     h += '<button class="tb" onclick="sw(\'agg\',this)">Agrégé</button>';
-    if (S.nrep) h += '<button class="tb" onclick="sw(\'rep\',this)">Réponses (' + S.nrep + ')</button>';
+    
+    // Toujours afficher l'onglet "Réponses", même s'il y en a 0
+    var totalReps = S.reps ? S.reps.length : 0;
+    h += '<button class="tb" onclick="sw(\'rep\',this)">Réponses (' + totalReps + ')</button>';
+    
     document.getElementById('tabbar').innerHTML = h;
 }
-
 // ═══════════════════════════════════════════════════════
 // ARBRE DE NAVIGATION
 // ═══════════════════════════════════════════════════════
