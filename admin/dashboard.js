@@ -222,7 +222,7 @@ function process(raw) {
     });
 
     S = { vis: vis, reps: reps, periods: periods, qc: qc, vr: vr, tot: tot,
-        duree: duree, allQ: allQ, nrep: nrep };
+        duree: duree, allQ: allQ, nrep: nrep, consent1: consent1, consent2: consent2 };
     return S;
 }
 
