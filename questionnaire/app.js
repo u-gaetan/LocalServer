@@ -42,8 +42,8 @@
         if (!state.participantId ) {
             app.innerHTML =
                 '<div style="text-align:center; padding:60px 0;">' +
-                '<h1>Acces invalide</h1>' +
-                '<p>Veuillez demarrer l\'etude depuis l\'extension Chrome.<br>' +
+                '<h1>Accès invalide</h1>' +
+                '<p>Veuillez démarrer l\'étude depuis l\'extension Chrome.<br>' +
                 'Le questionnaire s\'ouvrira automatiquement.</p>' +
                 '</div>';
             return;
@@ -237,14 +237,14 @@
     // =========================================================
     function renderLanguage() {
         app.innerHTML =
-            '<h1 style="text-align:center;">Preferred Language / Langue preferentielle</h1>' +
+            '<h1 style="text-align:center;">Preferred Language / Langue préférentielle</h1>' +
             '<p style="text-align:center; color:#64748b;">Please select your preferred language for this study.<br>' +
-            'Veuillez selectionner votre langue preferentielle pour cette etude.</p>' +
+            'Veuillez sélectionner votre langue préférentielle pour cette étude.</p>' +
 
             '<div class="form-group" style="max-width:400px; margin:30px auto;">' +
             '<select id="languageSelect" required>' +
-            '<option value="">-- Selectionnez / Select --</option>' +
-            '<option value="french">Francais / French</option>' +
+            '<option value="">-- Sélectionnez / Select --</option>' +
+            '<option value="french">Français / French</option>' +
             '<option value="english" disabled>English / Anglais (coming soon)</option>' +
             '</select>' +
             '</div>' +
@@ -276,90 +276,90 @@
     function renderConsent() {
         app.innerHTML =
             '<h1 style="text-align:center;">Formulaire de consentement</h1>' +
-            '<p style="text-align:center;color:#64748b;">Veuillez lire attentivement les informations suivantes avant de participer a l\'etude.</p>' +
+            '<p style="text-align:center;color:#64748b;">Veuillez lire attentivement les informations suivantes avant de participer à l\'étude.</p>' +
 
             '<div class="consent-box">' +
 
-            '<h3>Presentation du chercheur</h3>' +
-            '<p>Cette recherche est realisee dans le cadre d\'une subvention du Conseil de recherche en sciences ' +
-            'naturelles et en genie, dirigee par Alexandre Marois, professeur adjoint a l\'Ecole de psychologie de ' +
-            'l\'Universite Laval et directeur du Laboratoire d\'etudes interdisciplinaires sur les limites et ' +
+            '<h3>Présentation du chercheur</h3>' +
+            '<p>Cette recherche est réalisée dans le cadre d\'une subvention du Conseil de recherche en sciences ' +
+            'naturelles et en génie, dirigée par Alexandre Marois, professeur adjoint à l\'École de psychologie de ' +
+            'l\'Université Laval et directeur du Laboratoire d\'études interdisciplinaires sur les limites et ' +
             'l\'augmentation humaines (LEILAH).</p>' +
 
             '<h3>Introduction</h3>' +
-            '<p>Avant d\'accepter de participer a cette etude, veuillez prendre le temps de lire et de comprendre ' +
-            'les renseignements qui suivent. Ce document vous explique le but de cette recherche, ses procedures, ' +
-            'avantages et inconvenients. Si vous avez des questions sur la recherche ou sur les implications de votre ' +
+            '<p>Avant d\'accepter de participer à cette étude, veuillez prendre le temps de lire et de comprendre ' +
+            'les renseignements qui suivent. Ce document vous explique le but de cette recherche, ses procédures, ' +
+            'avantages et inconvénients. Si vous avez des questions sur la recherche ou sur les implications de votre ' +
             'participation, veuillez communiquer avec le laboratoire par courriel au ' +
             '<a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>' +
 
-            '<h3>Nature de l\'etude</h3>' +
-            '<p>La recherche vise a mieux comprendre la facon dont les individus interagissent avec des technologies ' +
-            'de l\'information pour la recherche documentaire, plus specifiquement des technologies web.</p>' +
+            '<h3>Nature de l\'étude</h3>' +
+            '<p>La recherche vise à mieux comprendre la façon dont les individus interagissent avec des technologies ' +
+            'de l\'information pour la recherche documentaire, plus spécifiquement des technologies web.</p>' +
 
-            '<h3>Deroulement de la participation</h3>' +
-            '<p>Une fois cette fiche de consentement lue, vous serez amene(e) a remplir une fiche sur laquelle vous ' +
-            'devez preciser quelques-unes de vos caracteristiques sociodemographiques. Nous vous demanderons ensuite ' +
-            'd\'effectuer une tache de recherche documentaire. Pour ce faire, nous vous inviterons a repondre a des ' +
-            'questions a developpement long sur differents sujets de culture generale.</p>' +
-            '<p>Afin de vous soutenir dans votre tache, vous serez encourage(e) a utiliser des moteurs de recherche ' +
+            '<h3>Déroulement de la participation</h3>' +
+            '<p>Une fois cette fiche de consentement lue, vous serez amené(e) à remplir une fiche sur laquelle vous ' +
+            'devez préciser quelques-unes de vos caractéristiques sociodémographiques. Nous vous demanderons ensuite ' +
+            'd\'effectuer une tâche de recherche documentaire. Pour ce faire, nous vous inviterons à répondre à des ' +
+            'questions à développement long sur différents sujets de culture générale.</p>' +
+            '<p>Afin de vous soutenir dans votre tâche, vous serez encouragé(e) à utiliser des moteurs de recherche ' +
             'classiques (p. ex. Google). Nous vous demandons de <strong>ne pas utiliser d\'outil d\'intelligence ' +
-            'artificielle</strong> (p. ex. Gemini, ChatGPT ou Copilot) pour realiser la tache. Votre navigation sera ' +
-            'enregistree tout au long de l\'etude et, consequemment, l\'equipe de recherche devra invalider vos donnees ' +
+            'artificielle</strong> (p. ex. Gemini, ChatGPT ou Copilot) pour réaliser la tâche. Votre navigation sera ' +
+            'enregistrée tout au long de l\'étude et, conséquemment, l\'équipe de recherche devra invalider vos données ' +
             'si vous utilisez ces outils.</p>' +
-            '<p>Apres chacune des questions a developpement long, quelques questions vous seront posees quant aux ' +
-            'processus que vous avez mis en branle lors de la recherche d\'information que vous avez effectuee. ' +
-            'A la fin, vous aurez egalement a remplir deux autres questionnaires par rapport a votre experience.</p>' +
-            '<p>Vos questionnaires ne seront consideres comme complets que si vous consentez a participer a la ' +
-            'recherche en selectionnant l\'option correspondante.</p>' +
+            '<p>Après chacune des questions à développement long, quelques questions vous seront posées quant aux ' +
+            'processus que vous avez mis en branle lors de la recherche d\'information que vous avez effectuée. ' +
+            'À la fin, vous aurez également à remplir deux autres questionnaires par rapport à votre expérience.</p>' +
+            '<p>Vos questionnaires ne seront considérés comme complets que si vous consentez à participer à la ' +
+            'recherche en sélectionnant l\'option correspondante.</p>' +
 
-            '<h3>Avantages et inconvenients</h3>' +
-            '<p>Un avantage a cette etude est que vous contribuerez aux avancements des connaissances liees a ' +
+            '<h3>Avantages et inconvénients</h3>' +
+            '<p>Un avantage à cette étude est que vous contribuerez aux avancements des connaissances liées à ' +
             'l\'usage des technologies de l\'information afin de soutenir la performance humaine. Ce projet permettra ' +
-            'de mettre en lumiere les processus mis en branle lors de la recherche documentaire. L\'etude permettra ' +
-            'aussi de valider et de produire des normes de reponse pour les differentes questions auxquelles vous ' +
-            'repondrez.</p>' +
-            '<p>Un inconvenient a ce projet est l\'induction d\'une certaine fatigue cognitive. Vous aurez en effet ' +
-            'a effectuer un effort mental modere pendant environ 60 min. Le temps consacre au projet peut egalement ' +
-            'representer un inconvenient. Vous aurez la possibilite de prendre une pause a tout moment si la fatigue ' +
-            'que vous ressentez devient trop difficile mais vous devrez tout de meme terminer l\'etude en une seule ' +
-            'periode.</p>' +
+            'de mettre en lumière les processus mis en branle lors de la recherche documentaire. L\'étude permettra ' +
+            'aussi de valider et de produire des normes de réponse pour les différentes questions auxquelles vous ' +
+            'répondrez.</p>' +
+            '<p>Un inconvénient à ce projet est l\'induction d\'une certaine fatigue cognitive. Vous aurez en effet ' +
+            'à effectuer un effort mental modéré pendant environ 60 min. Le temps consacré au projet peut également ' +
+            'représenter un inconvénient. Vous aurez la possibilité de prendre une pause à tout moment si la fatigue ' +
+            'que vous ressentez devient trop difficile mais vous devrez tout de même terminer l\'étude en une seule ' +
+            'période.</p>' +
 
             '<h3>Participation volontaire et droit de retrait</h3>' +
-            '<p>Vous etes libre de participer ou non a cette etude. Le simple retour du questionnaire rempli sera ' +
-            'considere comme l\'expression implicite de votre consentement a participer au projet. Si vous desirez ' +
-            'vous retirer de l\'etude une fois le questionnaire soumis, veuillez communiquer avec le laboratoire par ' +
+            '<p>Vous êtes libre de participer ou non à cette étude. Le simple retour du questionnaire rempli sera ' +
+            'considéré comme l\'expression implicite de votre consentement à participer au projet. Si vous désirez ' +
+            'vous retirer de l\'étude une fois le questionnaire soumis, veuillez communiquer avec le laboratoire par ' +
             'courriel au <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Nous pourrons retirer vos ' +
-            'resultats sans prejudice, en gardant votre compensation et sans avoir a justifier votre decision.</p>' +
+            'résultats sans préjudice, en gardant votre compensation et sans avoir à justifier votre décision.</p>' +
 
-            '<h3>Confidentialite et gestion des donnees</h3>' +
-            '<p>Les donnees recueillies pendant cette etude sont entierement confidentielles et ne pourront en aucun ' +
-            'cas mener a votre identification. Votre confidentialite sera assuree par l\'attribution d\'un code ' +
-            'numerique qui ne figure pas au present formulaire a toutes les donnees de recherche collectees. ' +
-            'Les donnees ne seront accessibles qu\'aux membres de l\'equipe de recherche, chacun d\'eux ayant signe ' +
-            'un engagement a la confidentialite.</p>' +
-            '<p>Les donnees seront conservees par l\'equipe de recherche pour utilisation ulterieure sous forme codee ' +
-            'de maniere irreversible dans une base de donnees anonyme, c\'est-a-dire a la suite de la destruction du ' +
-            'materiel de recherche (liste de nom des personnes participantes et tout document permettant de les ' +
-            'identifier), jusqu\'au plus tard en <strong>decembre 2035</strong>. Les resultats de la recherche, qui ' +
-            'pourront etre diffuses sous forme d\'article scientifique, de rapport de recherche, de presentation a un ' +
-            'congres scientifique et/ou d\'une these doctorale, ne permettront pas d\'identifier les personnes ' +
+            '<h3>Confidentialité et gestion des données</h3>' +
+            '<p>Les données recueillies pendant cette étude sont entièrement confidentielles et ne pourront en aucun ' +
+            'cas mener à votre identification. Votre confidentialité sera assurée par l\'attribution d\'un code ' +
+            'numérique qui ne figure pas au présent formulaire à toutes les données de recherche collectées. ' +
+            'Les données ne seront accessibles qu\'aux membres de l\'équipe de recherche, chacun d\'eux ayant signé ' +
+            'un engagement à la confidentialité.</p>' +
+            '<p>Les données seront conservées par l\'équipe de recherche pour utilisation ultérieure sous forme codée ' +
+            'de manière irréversible dans une base de données anonyme, c\'est-à-dire à la suite de la destruction du ' +
+            'matériel de recherche (liste de nom des personnes participantes et tout document permettant de les ' +
+            'identifier), jusqu\'au plus tard en <strong>décembre 2035</strong>. Les résultats de la recherche, qui ' +
+            'pourront être diffusés sous forme d\'article scientifique, de rapport de recherche, de présentation à un ' +
+            'congrès scientifique et/ou d\'une thèse doctorale, ne permettront pas d\'identifier les personnes ' +
             'participantes.</p>' +
 
-            '<h3>Renseignements supplementaires</h3>' +
+            '<h3>Renseignements supplémentaires</h3>' +
             '<p>Si vous avez des questions sur la recherche ou sur les implications de votre participation, veuillez ' +
             'communiquer avec le laboratoire par courriel au ' +
             '<a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>' +
 
             '<h3>Plaintes ou critiques</h3>' +
-            '<p>Toute plainte ou critique sur cette etude pourra etre adressee au Bureau de l\'Ombudsman de ' +
-            'l\'Universite Laval :</p>' +
+            '<p>Toute plainte ou critique sur cette étude pourra être adressée au Bureau de l\'Ombudsman de ' +
+            'l\'Université Laval :</p>' +
             '<p style="font-size:0.9em; color:#64748b; line-height:1.8;">' +
             'Pavillon Alphonse-Desjardins, bureau 3320<br>' +
-            '2325, rue de l\'Universite<br>' +
-            'Universite Laval<br>' +
-            'Quebec (Quebec) G1V 0A6<br>' +
-            'Renseignements - Secretariat : 1 418 656-3081<br>' +
+            '2325, rue de l\'Université<br>' +
+            'Université Laval<br>' +
+            'Québec (Québec) G1V 0A6<br>' +
+            'Renseignements - Secrétariat : 1 418 656-3081<br>' +
             'Ligne sans frais : 1 866 323-2271<br>' +
             'Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>' +
 
@@ -369,8 +369,8 @@
             '<div class="consent-checks">' +
             '<label class="consent-label">' +
             '<input type="checkbox" id="consent1">' +
-            '<span>J\'ai lu et compris les informations ci-dessus et je souhaite participer a l\'etude. ' +
-            'Je confirme etre age(e) de 18 ans ou plus.</span>' +
+            '<span>J\'ai lu et compris les informations ci-dessus et je souhaite participer à l\'étude. ' +
+            'Je confirme être âgé(e) de 18 ans ou plus.</span>' +
             '</label>' +
             '</div>' +
 
@@ -419,9 +419,9 @@
             app.innerHTML =
                 '<div style="text-align:center;padding:60px 0;">' +
                 '<h1>Merci</h1>' +
-                '<p>Nous comprenons votre decision. Vous pouvez fermer cette page.</p>' +
+                '<p>Nous comprenons votre décision. Vous pouvez fermer cette page.</p>' +
                 '<p style="color:#94a3b8;margin-top:20px;">Si vous changez d\'avis, vous pouvez ' +
-                'relancer l\'etude depuis l\'extension Chrome.</p>' +
+                'relancer l\'étude depuis l\'extension Chrome.</p>' +
                 '</div>';
         });
     }
@@ -432,24 +432,24 @@
     function renderDemographics() {
         app.innerHTML =
             '<h2>Informations personnelles</h2>' +
-            '<p>Ces informations sont anonymisees et utilisees uniquement a des fins de recherche.</p>' +
+            '<p>Ces informations sont anonymisées et utilisées uniquement à des fins de recherche.</p>' +
 
             '<div class="form-group">' +
-            '<label for="email">Adresse courriel (celle utilisee pour l\'inscription a l\'etude)</label>' +
+            '<label for="email">Adresse courriel (celle utilisée pour l\'inscription à l\'étude)</label>' +
             '<input type="email" id="email" placeholder="votre.email@exemple.com" required>' +
             '</div>' +
             '<div class="form-group">' +
-            '<label for="age">Age</label>' +
+            '<label for="age">Âge</label>' +
             '<input type="number" id="age" min="18" max="99" placeholder="Ex: 25" required>' +
             '</div>' +
             '<div class="form-group">' +
-            '<label for="niveau_etudes">Niveau d\'etudes</label>' +
+            '<label for="niveau_etudes">Niveau d\'études</label>' +
             '<select id="niveau_etudes" required>' +
-            '<option value="">-- Selectionnez --</option>' +
-            '<option value="secondaire">Secondaire (lycee)</option>' +
-            '<option value="cegep">Cegep / DEC</option>' +
-            '<option value="baccalaureat">Baccalaureat universitaire</option>' +
-            '<option value="maitrise">Maitrise</option>' +
+            '<option value="">-- Sélectionnez --</option>' +
+            '<option value="secondaire">Secondaire (lycée)</option>' +
+            '<option value="cegep">Cégep / DEC</option>' +
+            '<option value="baccalaureat">Baccalauréat universitaire</option>' +
+            '<option value="maitrise">Maîtrise</option>' +
             '<option value="doctorat">Doctorat</option>' +
             '<option value="autre">Autre</option>' +
             '</select>' +
@@ -502,17 +502,17 @@
     function renderInstructions() {
         app.innerHTML =
             '<h2>Instructions</h2>' +
-            '<p>Vous allez repondre a <strong>' + state.researchQuestions.length + ' questions de recherche</strong>.</p>' +
+            '<p>Vous allez répondre à <strong>' + state.researchQuestions.length + ' questions de recherche</strong>.</p>' +
             '<p>Pour chaque question :</p>' +
             '<ol class="instructions-list">' +
-            '<li>Lisez attentivement la question affichee.</li>' +
-            '<li><strong>Naviguez librement sur Internet</strong> dans d\'autres onglets pour trouver la reponse.</li>' +
-            '<li>Revenez sur cet onglet et redigez votre reponse.</li>' +
-            '<li>Evaluez vos connaissances et votre effort.</li>' +
+            '<li>Lisez attentivement la question affichée.</li>' +
+            '<li><strong>Naviguez librement sur Internet</strong> dans d\'autres onglets pour trouver la réponse.</li>' +
+            '<li>Revenez sur cet onglet et rédigez votre réponse.</li>' +
+            '<li>Évaluez vos connaissances et votre effort.</li>' +
             '</ol>' +
-            '<p>Un <strong>chronometre</strong> sera affiche en haut a droite. ' +
-            'Essayez de repondre en <strong>moins de 10 minutes</strong> par question.</p>' +
-            '<p style="margin-top:20px;"><strong>Repondez le plus precisement possible.</strong></p>' +
+            '<p>Un <strong>chronomètre</strong> sera affiché en haut à droite. ' +
+            'Essayez de répondre en <strong>moins de 10 minutes</strong> par question.</p>' +
+            '<p style="margin-top:20px;"><strong>Répondez le plus précisément possible.</strong></p>' +
             '<button class="btn btn-success" id="btnStartQuestions">Commencer les questions</button>';
 
         document.getElementById('btnStartQuestions').addEventListener('click', function () {
@@ -539,12 +539,12 @@
             '</div>' +
 
             '<p style="color:#64748b; font-size:0.9em; margin-bottom:12px;">' +
-            'Vous pouvez ouvrir d\'autres onglets pour chercher la reponse sur Internet.' +
+            'Vous pouvez ouvrir d\'autres onglets pour chercher la réponse sur Internet.' +
             '</p>' +
 
-            '<textarea id="answerText" placeholder="Redigez votre reponse ici..."></textarea>' +
+            '<textarea id="answerText" placeholder="Rédigez votre réponse ici..."></textarea>' +
 
-            '<button class="btn btn-primary" id="btnSubmitAnswer" disabled>Valider ma reponse</button>' +
+            '<button class="btn btn-primary" id="btnSubmitAnswer" disabled>Valider ma réponse</button>' +
             '<div class="status-saving" id="savingStatus"></div>';
 
         var textarea = document.getElementById('answerText');
@@ -597,14 +597,14 @@
         var q = state.researchQuestions[idx];
 
         app.innerHTML =
-            '<h2>Auto-evaluation</h2>' +
+            '<h2>Auto-évaluation</h2>' +
             '<p>Concernant la question que vous venez de traiter :</p>' +
             '<div class="question-box">' +
             '<p style="font-size:0.95em;">' + q.text + '</p>' +
             '</div>' +
 
             '<div class="slider-group">' +
-            '<label class="slider-label">Avant de faire votre recherche, comment evalueriez-vous ' +
+            '<label class="slider-label">Avant de faire votre recherche, comment évalueriez-vous ' +
             'votre <strong>niveau de connaissance</strong> sur ce sujet ?</label>' +
             '<div class="slider-container">' +
             '<input type="range" id="sliderKnowledge" class="slider" min="0" max="100" value="50">' +
@@ -618,7 +618,7 @@
 
             '<div class="slider-group">' +
             '<label class="slider-label">Quel <strong>niveau d\'effort</strong> avez-vous ' +
-            'deploye pour rechercher et formuler votre reponse ?</label>' +
+            'déployé pour rechercher et formuler votre réponse ?</label>' +
             '<div class="slider-container">' +
             '<input type="range" id="sliderEffort" class="slider" min="0" max="100" value="50">' +
             '<div class="slider-value" id="sliderEffortVal">50</div>' +
@@ -675,13 +675,13 @@
     function renderMemoryIntro() {
         app.innerHTML =
             '<div style="text-align:center;">' +
-            '<h1>Test de memoire</h1>' +
+            '<h1>Test de mémoire</h1>' +
             '<p style="font-size:1.1em; margin:20px 0;">' +
-            'Vous allez maintenant repondre a <strong>' + state.memoryQuestions.length +
-            ' questions a choix multiples</strong> portant sur les informations que vous avez consultees.' +
+            'Vous allez maintenant répondre à <strong>' + state.memoryQuestions.length +
+            ' questions à choix multiples</strong> portant sur les informations que vous avez consultées.' +
             '</p>' +
-            '<p>Repondez <strong>de memoire</strong>, sans retourner sur Internet.</p>' +
-            '<p style="color:#64748b;">Il n\'y a pas de chronometre pour cette partie.</p>' +
+            '<p>Répondez <strong>de mémoire</strong>, sans retourner sur Internet.</p>' +
+            '<p style="color:#64748b;">Il n\'y a pas de chronomètre pour cette partie.</p>' +
             '<button class="btn btn-primary" id="btnStartMemory">Commencer le test</button>' +
             '</div>';
 
@@ -711,7 +711,7 @@
 
         app.innerHTML =
             '<div style="display:flex; justify-content:space-between; align-items:center;">' +
-            '<h2>Memoire ' + (idx + 1) + ' / ' + total + '</h2>' +
+            '<h2>Mémoire ' + (idx + 1) + ' / ' + total + '</h2>' +
             '</div>' +
             '<div class="question-box" style="margin-top:16px;">' +
             '<p>' + mq.text + '</p>' +
@@ -766,47 +766,47 @@
     // =========================================================
     function renderDeceptionConsent() {
         app.innerHTML =
-            '<h1 style="text-align:center;">Formulaire d\'information et de consentement post-experimental</h1>' +
-            '<p style="text-align:center;color:#64748b;">Validation de questions de connaissances generales pour l\'etude des processus de recherche d\'information sur le Web</p>' +
+            '<h1 style="text-align:center;">Formulaire d\'information et de consentement post-expérimental</h1>' +
+            '<p style="text-align:center;color:#64748b;">Validation de questions de connaissances générales pour l\'étude des processus de recherche d\'information sur le Web</p>' +
 
             '<div class="consent-box">' +
 
             '<h3>Introduction</h3>' +
-            '<p>Suite a la divulgation de la duperie a laquelle vous avez ete expose(e), nous vous ' +
-            'fournissons un addendum post-experimental au formulaire d\'information et de consentement ' +
-            'que vous avez signe avant le debut de l\'experience. Ce document explique les elements qui ' +
-            'ont ete dissimules dans le formulaire original et reitere les informations liees a votre ' +
-            'consentement. Vous etes invite(e) a contacter l\'equipe du laboratoire si vous avez des ' +
+            '<p>Suite à la divulgation de la duperie à laquelle vous avez été exposé(e), nous vous ' +
+            'fournissons un addendum post-expérimental au formulaire d\'information et de consentement ' +
+            'que vous avez signé avant le début de l\'expérience. Ce document explique les éléments qui ' +
+            'ont été dissimulés dans le formulaire original et réitère les informations liées à votre ' +
+            'consentement. Vous êtes invité(e) à contacter l\'équipe du laboratoire si vous avez des ' +
             'questions que vous jugez utiles.</p>' +
 
-            '<h3>Nature de l\'etude</h3>' +
-            '<p>Initialement, nous avons indique que le but de cette recherche etait de mieux comprendre ' +
-            'comment les individus interagissent avec les technologies de l\'information a des fins de ' +
-            'recherche d\'information, plus specifiquement les technologies web. Les veritables objectifs ' +
-            'de l\'etude sont de mieux comprendre comment les <strong>strategies de recherche sur le web ' +
-            'peuvent affecter la memorisation du contenu</strong> rencontre dans un contexte de recherche ' +
+            '<h3>Nature de l\'étude</h3>' +
+            '<p>Initialement, nous avons indiqué que le but de cette recherche était de mieux comprendre ' +
+            'comment les individus interagissent avec les technologies de l\'information à des fins de ' +
+            'recherche d\'information, plus spécifiquement les technologies web. Les véritables objectifs ' +
+            'de l\'étude sont de mieux comprendre comment les <strong>stratégies de recherche sur le web ' +
+            'peuvent affecter la mémorisation du contenu</strong> rencontré dans un contexte de recherche ' +
             'd\'information.</p>' +
 
             '<h3>Participation volontaire et droit de retrait</h3>' +
-            '<p>Vous etes libre de maintenir ou de retirer votre consentement suite a la divulgation de ' +
-            'cette information. Vous pouvez mettre fin a votre participation sans prejudice, conserver ' +
-            'votre compensation, et sans avoir a justifier votre decision. Toutes les informations ' +
-            'personnelles vous concernant ainsi que vos reponses seront alors detruites.</p>' +
-            '<p>Veuillez selectionner l\'option qui reflete le mieux votre decision suite a la divulgation ' +
+            '<p>Vous êtes libre de maintenir ou de retirer votre consentement suite à la divulgation de ' +
+            'cette information. Vous pouvez mettre fin à votre participation sans préjudice, conserver ' +
+            'votre compensation, et sans avoir à justifier votre décision. Toutes les informations ' +
+            'personnelles vous concernant ainsi que vos réponses seront alors détruites.</p>' +
+            '<p>Veuillez sélectionner l\'option qui reflète le mieux votre décision suite à la divulgation ' +
             'de cette duperie.</p>' +
 
-            '<h3>Informations supplementaires</h3>' +
-            '<p>Pour toute question, veuillez contacter le laboratoire a ' +
+            '<h3>Informations supplémentaires</h3>' +
+            '<p>Pour toute question, veuillez contacter le laboratoire à ' +
             '<a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>' +
 
             '<h3>Plaintes ou critiques</h3>' +
-            '<p>Les plaintes peuvent etre adressees au Bureau de l\'ombudsman de l\'Universite Laval :</p>' +
+            '<p>Les plaintes peuvent être adressées au Bureau de l\'ombudsman de l\'Université Laval :</p>' +
             '<p style="font-size:0.9em; color:#64748b; line-height:1.8;">' +
             'Pavillon Alphonse-Desjardins, bureau 3320<br>' +
-            '2325, rue de l\'Universite<br>' +
-            'Universite Laval<br>' +
-            'Quebec (Quebec) G1V 0A6<br>' +
-            'Renseignements - Secretariat : 1 418 656-3081<br>' +
+            '2325, rue de l\'Université<br>' +
+            'Université Laval<br>' +
+            'Québec (Québec) G1V 0A6<br>' +
+            'Renseignements - Secrétariat : 1 418 656-3081<br>' +
             'Ligne sans frais : 1 866 323-2271<br>' +
             'Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>' +
 
@@ -815,11 +815,11 @@
             '<div class="consent-checks">' +
             '<label class="consent-label">' +
             '<input type="radio" name="deceptionChoice" value="maintain">' +
-            '<span>Je souhaite <strong>maintenir</strong> ma participation a l\'etude.</span>' +
+            '<span>Je souhaite <strong>maintenir</strong> ma participation à l\'étude.</span>' +
             '</label>' +
             '<label class="consent-label">' +
             '<input type="radio" name="deceptionChoice" value="withdraw">' +
-            '<span>Je souhaite <strong>mettre fin</strong> a ma participation a l\'etude.</span>' +
+            '<span>Je souhaite <strong>mettre fin</strong> à ma participation à l\'étude.</span>' +
             '</label>' +
             '</div>' +
 
@@ -857,10 +857,10 @@
                 app.innerHTML =
                     '<div style="text-align:center;padding:60px 0;">' +
                     '<h1>Merci</h1>' +
-                    '<p>Nous comprenons votre decision. Vos donnees seront detruites ' +
-                    'conformement a notre politique de confidentialite.</p>' +
-                    '<p style="color:#64748b; margin-top:16px;">Vous pouvez desinstaller l\'extension Chrome :</p>' +
-                    '<p style="font-size:0.9em; color:#475569;">Clic droit sur l\'icone de l\'extension > ' +
+                    '<p>Nous comprenons votre décision. Vos données seront détruites ' +
+                    'conformément à notre politique de confidentialité.</p>' +
+                    '<p style="color:#64748b; margin-top:16px;">Vous pouvez désinstaller l\'extension Chrome :</p>' +
+                    '<p style="font-size:0.9em; color:#475569;">Clic droit sur l\'icône de l\'extension > ' +
                     '<strong style="color:#ef4444;">Supprimer de Chrome</strong></p>' +
                     '<p style="color:#94a3b8;margin-top:20px;">Pour toute question : ' +
                     '<a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a></p>' +
@@ -884,22 +884,22 @@
             '<div class="end-screen">' +
             '<h1>Merci pour votre participation</h1>' +
             '<p style="font-size:1.1em; margin:20px 0;">' +
-            'Vos reponses ont ete enregistrees avec succes.' +
+            'Vos réponses ont été enregistrées avec succès.' +
             '</p>' +
             '<p style="color:#64748b;">' +
-            'Score memoire : ' + correctMemory + ' / ' + totalMemory +
+            'Score mémoire : ' + correctMemory + ' / ' + totalMemory +
             '</p>' +
 
             '<div style="margin-top:32px; padding:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px;">' +
-            '<h3 style="margin:0 0 12px; font-size:16px; color:#dc2626;">Derniere etape : desinstaller l\'extension</h3>' +
+            '<h3 style="margin:0 0 12px; font-size:16px; color:#dc2626;">Dernière étape : désinstaller l\'extension</h3>' +
             '<p style="font-size:14px; color:#475569; line-height:1.6; margin-bottom:16px;">' +
-            'L\'etude est terminee. Pour desinstaller l\'extension :</p>' +
+            'L\'étude est terminée. Pour désinstaller l\'extension :</p>' +
 
             '<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">' +
 
             '<div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">' +
             '<div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">1</div>' +
-            '<p style="margin:0;font-size:14px;color:#334155;">Faites un <strong>clic droit</strong> sur l\'icone de l\'extension en haut a droite de Chrome.</p>' +
+            '<p style="margin:0;font-size:14px;color:#334155;">Faites un <strong>clic droit</strong> sur l\'icône de l\'extension en haut à droite de Chrome.</p>' +
             '</div>' +
 
             '<div style="display:flex; gap:10px; align-items:flex-start;">' +
@@ -911,7 +911,7 @@
 
             '<hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">' +
 
-            '<h4 style="margin:0 0 12px; font-size:14px; color:#475569;">Methode alternative</h4>' +
+            '<h4 style="margin:0 0 12px; font-size:14px; color:#475569;">Méthode alternative</h4>' +
             '<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">' +
 
             '<div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">' +
@@ -922,7 +922,7 @@
 
             '<div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">' +
             '<div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">2</div>' +
-            '<p style="margin:0;font-size:14px;color:#334155;">Trouvez <strong>"Etude Navigation Web - Universite Laval"</strong> dans la liste.</p>' +
+            '<p style="margin:0;font-size:14px;color:#334155;">Trouvez <strong>"Étude Navigation Web - Université Laval"</strong> dans la liste.</p>' +
             '</div>' +
 
             '<div style="display:flex; gap:10px; align-items:flex-start;">' +
@@ -936,8 +936,8 @@
 
             '<div style="margin-top:20px; padding:16px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px;">' +
             '<p style="font-size:13px; color:#0369a1; margin:0; line-height:1.5;">' +
-            '<strong>Confidentialite :</strong> Vos donnees sont anonymisees et chiffrees. ' +
-            'Aucune donnee personnelle identifiable n\'est conservee. ' +
+            '<strong>Confidentialité :</strong> Vos données sont anonymisées et chiffrées. ' +
+            'Aucune donnée personnelle n\'est conservée. ' +
             'Pour toute question : <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a></p>' +
             '</div>' +
 
@@ -948,7 +948,7 @@
         if (copyEl) {
             copyEl.addEventListener('click', function () {
                 navigator.clipboard.writeText('chrome://extensions').then(function () {
-                    copyEl.textContent = 'Copie !';
+                    copyEl.textContent = 'Copié !';
                     setTimeout(function () { copyEl.textContent = 'chrome://extensions'; }, 2000);
                 });
             });

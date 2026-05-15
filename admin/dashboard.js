@@ -46,12 +46,11 @@ function esc(s) {
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function svgSym(clic, copy, paste, keyb, closed) {
+function svgSym(clic, copy, paste, closed) {
     var cc = [];
     if (clic) cc.push('#6366f1');
     if (copy) cc.push('#059669');
     if (paste) cc.push('#0891b2');
-    if (keyb) cc.push('#d97706');
     if (!cc.length) cc.push('#64748b');
     var s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">';
     if (cc.length === 1) {
@@ -63,11 +62,6 @@ function svgSym(clic, copy, paste, keyb, closed) {
         s += '<circle cx="50" cy="50" r="46" fill="' + cc[0] + '"/>';
         s += '<path d="M50 50L50 4A46 46 0 0 1 89.8 73Z" fill="' + cc[1] + '"/>';
         s += '<path d="M50 50L89.8 73A46 46 0 0 1 10.2 73Z" fill="' + cc[2] + '"/>';
-    } else {
-        s += '<circle cx="50" cy="50" r="46" fill="' + cc[0] + '"/>';
-        s += '<path d="M50 50L50 4A46 46 0 0 1 96 50Z" fill="' + cc[1] + '"/>';
-        s += '<path d="M50 50L96 50A46 46 0 0 1 50 96Z" fill="' + cc[2] + '"/>';
-        s += '<path d="M50 50L50 96A46 46 0 0 1 4 50Z" fill="' + cc[3] + '"/>';
     }
     var bc = closed ? '#dc2626' : '#fff', sw = closed ? '6' : '3';
     s += '<circle cx="50" cy="50" r="46" fill="none" stroke="' + bc + '" stroke-width="' + sw + '"/>';
@@ -76,7 +70,7 @@ function svgSym(clic, copy, paste, keyb, closed) {
 }
 
 // ═══════════════════════════════════════════════════════
-// PÉRIODES DE QUESTIONS (Q1, Q1.5, Q2, Q2.5…)
+// PÉRIODES DE QUESTIONS
 // ═══════════════════════════════════════════════════════
 function mkPeriods(reps) {
     if (!reps || !reps.length) return [];
@@ -142,7 +136,7 @@ function process(raw) {
             var v = {
                 id: vis.length, url: url, vid: vid, purl: log.parentUrl || '',
                 tid: tid, ib: ib, ifw: ifw, ts: log.timestamp || '',
-                clics: 0, scroll: 0, tms: 0, copies: [], collages: [], saisies: [],
+                clics: 0, scroll: 0, tms: 0, copies: [], collages: [],
                 closed: false, pchron: prev ? prev.id : null,
                 nom: shortUrl(url), q: getQL(log.timestamp || '', periods)
             };
@@ -164,7 +158,7 @@ function process(raw) {
             }
             else if (t === 'copie') vi.copies.push(log.texte || '');
             else if (t === 'collage') vi.collages.push(log.texte || '');
-            else if (t === 'saisie_clavier') vi.saisies.push(log.texte || '');
+            // On ignore désormais 'saisie_clavier'
         }
     });
 
@@ -174,23 +168,23 @@ function process(raw) {
         if (!uG[u]) {
             uO.push(u);
             uG[u] = { url: u, nom: v.nom, tms: 0, scroll: 0, clics: 0,
-                copies: [], collages: [], saisies: [], nb: 0, back: 0, fwd: 0, closed: 0, qs: {} };
+                copies: [], collages: [], nb: 0, back: 0, fwd: 0, closed: 0, qs: {} };
         }
         var g = uG[u];
         g.tms += v.tms; g.scroll = Math.max(g.scroll, v.scroll);
         g.clics += v.clics; g.copies = g.copies.concat(v.copies);
         g.collages = g.collages.concat(v.collages);
-        g.saisies = g.saisies.concat(v.saisies); g.nb++;
+        g.nb++;
         if (v.ib) g.back++; if (v.ifw) g.fwd++; if (v.closed) g.closed++;
         if (v.q) g.qs[v.q] = true;
     });
     var vr = uO.map(function(u) { return uG[u]; });
 
-    var tot = { clics: 0, copies: 0, collages: 0, saisies: 0, temps: 0, back: 0, fwd: 0, closed: 0, tabs: {}, pages: vr.length };
+    var tot = { clics: 0, copies: 0, collages: 0, temps: 0, back: 0, fwd: 0, closed: 0, tabs: {}, pages: vr.length };
     vis.forEach(function(v) {
         tot.clics += v.clics; tot.copies += v.copies.length;
         tot.collages += v.collages.length;
-        tot.saisies += v.saisies.length; tot.temps += v.tms;
+        tot.temps += v.tms;
         if (v.ib) tot.back++; if (v.ifw) tot.fwd++; if (v.closed) tot.closed++;
         if (v.tid) tot.tabs[v.tid] = true;
     });
@@ -217,7 +211,7 @@ function process(raw) {
             consent1 = (r.data && r.data.consent) ? "✅ Accepté" : "❌ Refusé";
         }
         if (r.type === 'deception_consent') {
-            consent2 = (r.data && r.data.decision === 'maintain') ? "✅ Maintenu" : "🚨 RETIRÉ (À SUPPRIMER)";
+            consent2 = (r.data && r.data.decision === 'maintain') ? "✅ Maintenu" : "🚨 RETIRÉ";
         }
     });
 
@@ -227,7 +221,7 @@ function process(raw) {
 }
 
 // ═══════════════════════════════════════════════════════
-// CHARGEMENT (fichier OU sessionStorage OU API fallback)
+// CHARGEMENT
 // ═══════════════════════════════════════════════════════
 function handleFile(file) {
     setLoading('Chargement du fichier...');
@@ -262,7 +256,6 @@ function loadFromSessionStorage() {
 
 function loadFromAPI(pid) {
     setLoading('Chargement participant ' + pid + ' depuis l\'API...');
-    // L'API a été mise à jour dans le serveur pour répondre à cette route
     fetch('/api/collecte/export/participant/' + encodeURIComponent(pid) + '?include_responses=true')
         .then(function(r) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -330,21 +323,23 @@ function renderHeader() {
     h += '<span>Durée : ' + S.duree + '</span>';
     h += '<span>' + t.back + ' back / ' + t.fwd + ' fwd</span>';
     
-    // Toujours afficher le nombre total de réponses (même à 0)
     var totalReps = S.reps ? S.reps.length : 0;
     h += '<span>' + totalReps + ' réponses</span>';
     
-    // Fallback de sécurité
     var c1 = S.consent1 || "Non spécifié";
     var c2 = S.consent2 || "Non spécifié";
     
-    // Couleurs dynamiques (gris si non spécifié)
-    var c1Color = c1.includes('✅') ? '#059669' : (c1.includes('❌') ? '#dc2626' : '#94a3b8');
-    var c2Color = c2.includes('✅') ? '#059669' : (c2.includes('🚨') ? '#dc2626' : '#94a3b8');
-    var bg2Color = c2.includes('🚨') ? '#fee2e2' : 'transparent';
+    // Nouveaux Badges à Haut Contraste pour les Consentements
+    var bg1 = c1.includes('✅') ? '#d1fae5' : (c1.includes('❌') ? '#fee2e2' : '#f8fafc');
+    var text1 = c1.includes('✅') ? '#065f46' : (c1.includes('❌') ? '#991b1b' : '#475569');
     
-    h += '<span style="margin-left:auto; color:'+c1Color+'; font-weight:700;">C1: ' + c1 + '</span>';
-    h += '<span style="background:'+bg2Color+'; color:'+c2Color+'; font-weight:700; padding:2px 8px; border-radius:4px;">C2: ' + c2 + '</span>';
+    var bg2 = c2.includes('✅') ? '#d1fae5' : (c2.includes('🚨') ? '#fee2e2' : '#f8fafc');
+    var text2 = c2.includes('✅') ? '#065f46' : (c2.includes('🚨') ? '#991b1b' : '#475569');
+    
+    h += '<div style="margin-left:auto; display:flex; gap:10px;">';
+    h += '<span style="background:'+bg1+'; color:'+text1+'; font-weight:700; padding:4px 12px; border-radius:20px; font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,0.2);">C1 : ' + c1 + '</span>';
+    h += '<span style="background:'+bg2+'; color:'+text2+'; font-weight:700; padding:4px 12px; border-radius:20px; font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,0.2);">C2 : ' + c2 + '</span>';
+    h += '</div>';
     
     document.getElementById('header-meta').innerHTML = h;
 }
@@ -355,12 +350,12 @@ function renderTabs() {
     h += '<button class="tb" onclick="sw(\'det\',this)">Détail</button>';
     h += '<button class="tb" onclick="sw(\'agg\',this)">Agrégé</button>';
     
-    // Toujours afficher l'onglet "Réponses", même s'il y en a 0
     var totalReps = S.reps ? S.reps.length : 0;
     h += '<button class="tb" onclick="sw(\'rep\',this)">Réponses (' + totalReps + ')</button>';
     
     document.getElementById('tabbar').innerHTML = h;
 }
+
 // ═══════════════════════════════════════════════════════
 // ARBRE DE NAVIGATION
 // ═══════════════════════════════════════════════════════
@@ -407,13 +402,13 @@ function renderTree() {
         tip += '<tr><td>Clics</td><td style="text-align:right;font-weight:600;">' + v.clics + '</td></tr></table>';
         v.copies.forEach(function(c) { tip += '<div style="font-size:11px;color:#6ee7b7;white-space:pre-wrap;">📋 Copié: "' + esc(c) + '"</div>'; });
         v.collages.forEach(function(c) { tip += '<div style="font-size:11px;color:#67e8f9;white-space:pre-wrap;">📌 Collé: "' + esc(c) + '"</div>'; });
-        v.saisies.forEach(function(s) { tip += '<div style="font-size:11px;color:#fbbf24;">⌨ "' + esc(s) + '"</div>'; });
         tip += '<div style="margin-top:6px;"><a href="' + esc(v.url) + '" target="_blank" style="background:#3b82f6;color:#fff;padding:3px 10px;border-radius:4px;text-decoration:none;font-size:12px;">Ouvrir</a></div></div>';
 
-        var ha = v.clics > 0 || v.copies.length > 0 || v.collages.length > 0 || v.saisies.length > 0;
+        // L'action Saisie clavier n'est plus prise en compte dans la taille de la bulle
+        var ha = v.clics > 0 || v.copies.length > 0 || v.collages.length > 0;
         nodes.push({
             id: nid, name: nm, x: xi * EX, y: yy,
-            symbol: svgSym(v.clics > 0, v.copies.length > 0, v.collages.length > 0, v.saisies.length > 0, v.closed),
+            symbol: svgSym(v.clics > 0, v.copies.length > 0, v.collages.length > 0, v.closed),
             symbolSize: v.closed ? 30 : (ha ? 26 : 18),
             label: { show: true, position: 'bottom', rotate: 30, align: 'left', verticalAlign: 'top', distance: 8, fontSize: 11, color: '#475569' },
             tip: tip
@@ -441,15 +436,17 @@ function renderTree() {
     var ch = Math.max(500, my + 300);
     var h = '<div class="cb" style="height:600px;overflow:auto;">';
     h += '<div id="c-tree" style="width:' + cw + 'px;height:' + ch + 'px;"></div></div>';
+    
+    // Légende mise à jour sans les "Saisies"
     h += '<div class="lg">';
     h += '<div class="li"><div class="lc" style="background:#6366f1"></div>Clics</div>';
     h += '<div class="li"><div class="lc" style="background:#059669"></div>Copies</div>';
     h += '<div class="li"><div class="lc" style="background:#0891b2"></div>Collages</div>';
-    h += '<div class="li"><div class="lc" style="background:#d97706"></div>Saisie</div>';
-    h += '<div class="li"><div class="lc" style="background:#64748b"></div>Aucune</div>';
-    h += '<div class="li"><div class="lc" style="background:#fff;border:3px solid #dc2626"></div>Fermé</div>';
+    h += '<div class="li"><div class="lc" style="background:#64748b"></div>Aucune interaction</div>';
+    h += '<div class="li"><div class="lc" style="background:#fff;border:3px solid #dc2626"></div>Onglet fermé</div>';
     h += '<div class="li"><span style="color:#e87623;font-weight:600;">- - ↩ BACK</span></div>';
     h += '<div class="li"><span style="color:#2563eb;font-weight:600;">- - ↪ FWD</span></div></div>';
+    
     document.getElementById('p-tree').innerHTML = h;
 
     var chart = echarts.init(document.getElementById('c-tree'));
@@ -486,7 +483,6 @@ function renderMetrics() {
     h += mkSC('Clics', t.clics, '#6366f1');
     h += mkSC('Copies', t.copies, '#059669');
     h += mkSC('Collages', t.collages, '#0891b2');
-    h += mkSC('Saisies', t.saisies, '#d97706');
     h += mkSC('Back', t.back, '#ea580c');
     h += mkSC('Fermés', t.closed, '#dc2626');
     h += '</div>';
@@ -528,11 +524,10 @@ function renderMetrics() {
     if (t.clics) pie.push({ name: 'Clics', value: t.clics });
     if (t.copies) pie.push({ name: 'Copies', value: t.copies });
     if (t.collages) pie.push({ name: 'Collages', value: t.collages });
-    if (t.saisies) pie.push({ name: 'Saisies', value: t.saisies });
     if (!pie.length) pie.push({ name: 'Aucune', value: 1 });
     CHARTS.pie = echarts.init(document.getElementById('c-pie'));
     CHARTS.pie.setOption({
-        tooltip: { trigger: 'item' }, color: ['#6366f1', '#059669', '#0891b2', '#d97706', '#94a3b8'],
+        tooltip: { trigger: 'item' }, color: ['#6366f1', '#059669', '#0891b2', '#94a3b8'],
         series: [{ type: 'pie', radius: ['40%', '70%'], data: pie, label: { fontSize: 12 }, emphasis: { itemStyle: { shadowBlur: 10 } } }]
     });
 
@@ -574,7 +569,7 @@ function renderDetail() {
 
     var th = '<div class="tw"><table id="dtbl"><thead><tr>';
     th += '<th>Question</th><th>Heure</th><th>Page</th><th>Temps (s)</th>';
-    th += '<th>Scroll (%)</th><th>Clics</th><th>Copies</th><th>Collages</th><th>Saisies</th>';
+    th += '<th>Scroll (%)</th><th>Clics</th><th>Copies</th><th>Collages</th>';
     th += '<th>Fermé</th><th>Backward</th><th>Forward</th>';
     th += '</tr></thead><tbody>';
 
@@ -590,7 +585,6 @@ function renderDetail() {
         th += '<td class="r">' + v.clics + '</td>';
         th += '<td class="w">' + esc(v.copies.join('\n') || '—') + '</td>';
         th += '<td class="w">' + esc(v.collages.join('\n') || '—') + '</td>';
-        th += '<td class="w">' + esc(v.saisies.join('\n') || '—') + '</td>';
         th += '<td class="r">' + (v.closed ? 'Oui' : '') + '</td>';
         th += '<td class="r">' + (v.ib ? 'Oui' : '') + '</td>';
         th += '<td class="r">' + (v.ifw ? 'Oui' : '') + '</td>';
@@ -606,7 +600,7 @@ function renderDetail() {
 function renderAgg() {
     var h = '<div class="tw"><table><thead><tr>';
     h += '<th>Questions</th><th>Visites</th><th>Page</th><th>Temps (s)</th>';
-    h += '<th>Scroll (%)</th><th>Clics</th><th>Copies</th><th>Collages</th><th>Saisies</th>';
+    h += '<th>Scroll (%)</th><th>Clics</th><th>Copies</th><th>Collages</th>';
     h += '<th>Backward</th><th>Forward</th><th>Fermé</th>';
     h += '</tr></thead><tbody>';
     S.vr.forEach(function(g) {
@@ -619,7 +613,6 @@ function renderAgg() {
         h += '<td class="r">' + g.clics + '</td>';
         h += '<td class="w">' + esc(g.copies.join('\n') || '—') + '</td>';
         h += '<td class="w">' + esc(g.collages.join('\n') || '—') + '</td>';
-        h += '<td class="w">' + esc(g.saisies.join('\n') || '—') + '</td>';
         h += '<td class="r">' + (g.back ? 'Oui' : '') + '</td>';
         h += '<td class="r">' + (g.fwd ? 'Oui' : '') + '</td>';
         h += '<td class="r">' + (g.closed ? 'Oui' : '') + '</td>';
@@ -707,11 +700,11 @@ function dlFile(content, name, type) {
 }
 
 function csvNav() {
-    var lines = [csvEncode(['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Saisies', 'Ferme', 'Backward', 'Forward'])];
+    var lines = [csvEncode(['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Ferme', 'Backward', 'Forward'])];
     S.vis.forEach(function(v) {
         lines.push(csvEncode([
             v.q, tsT(v.ts), v.url, v.nom, fr(v.tms / 1000), v.scroll, v.clics,
-            v.copies.join('\n'), v.collages.join('\n'), v.saisies.join('\n'),
+            v.copies.join('\n'), v.collages.join('\n'),
             v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : ''
         ]));
     });
@@ -748,10 +741,10 @@ function dlXLSX() {
     var wb = XLSX.utils.book_new();
 
     // Feuille 1 : Navigation
-    var navD = [['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Saisies', 'Fermé', 'Backward', 'Forward']];
+    var navD = [['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
     S.vis.forEach(function(v) {
         navD.push([v.q, tsT(v.ts), v.url, v.nom, +(v.tms / 1000).toFixed(2), v.scroll, v.clics,
-            v.copies.join('\n'), v.collages.join('\n'), v.saisies.join('\n'),
+            v.copies.join('\n'), v.collages.join('\n'),
             v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : '']);
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navD), 'Navigation');
@@ -774,11 +767,11 @@ function dlXLSX() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repD), 'Réponses');
 
     // Feuille 3 : Global (chronologique)
-    var globH = ['Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Saisies', 'Fermé', 'Backward', 'Forward', 'Réponse'];
+    var globH = ['Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse'];
     var items = [];
     S.vis.forEach(function(v) {
         items.push({ ts: v.ts, row: ['Navigation', tsT(v.ts), v.q, 'navigation', v.url, v.nom,
-            +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.copies.join('\n'), v.collages.join('\n'), v.saisies.join('\n'),
+            +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.copies.join('\n'), v.collages.join('\n'),
             v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : '', ''] });
     });
     reps.forEach(function(r) {
@@ -787,7 +780,7 @@ function dlXLSX() {
             ? Object.entries(d).map(function(e) { return e[0] + '=' + e[1]; }).join('; ')
             : String(d);
         items.push({ ts: r.timestamp || '', row: ['Réponse', tsT(r.timestamp), r.questionId || '', r.type,
-            '', '', '', '', '', '', '', '', '', '', '', rs] });
+            '', '', '', '', '', '', '', '', '', '', rs] });
     });
     items.sort(function(a, b) { return (a.ts || '').localeCompare(b.ts || ''); });
     var globD = [globH];
@@ -816,7 +809,6 @@ function dlXLSX() {
         if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
 
-    // ON CHERCHE 'pid' AU LIEU DE 'session' !
     var params = new URLSearchParams(window.location.search);
     var pid = params.get('pid');
 
