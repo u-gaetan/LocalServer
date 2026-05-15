@@ -72,11 +72,8 @@ async function login() {
 
         AUTH_TOKEN = data.token;
 
-        // sessionStorage : effacé à la fermeture de l'onglet (plus sûr que localStorage)
         sessionStorage.setItem('tracker_admin_token', AUTH_TOKEN);
         sessionStorage.setItem('tracker_admin_user', username);
-
-        // Effacer les champs
         passwordInput.value = '';
 
         showLoggedIn(username);
@@ -88,9 +85,6 @@ async function login() {
     }
 }
 
-// =========================================================
-// LOGOUT
-// =========================================================
 function logout() {
     AUTH_TOKEN = '';
     sessionStorage.removeItem('tracker_admin_token');
@@ -101,9 +95,6 @@ function logout() {
     showStatus('Déconnecté', 'info');
 }
 
-// =========================================================
-// UI HELPERS
-// =========================================================
 function showLoggedIn(username) {
     loginSection.style.display = 'none';
     loggedSection.style.display = 'flex';
@@ -111,9 +102,6 @@ function showLoggedIn(username) {
     mainContent.style.display = 'block';
 }
 
-// =========================================================
-// APPEL API GÉNÉRIQUE (utilise maintenant Bearer token)
-// =========================================================
 async function apiCall(path) {
     const response = await fetch(BASE_URL + '/api/collecte' + path, {
         headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN }
@@ -130,7 +118,7 @@ async function apiCall(path) {
 }
 
 // =========================================================
-// CHARGER LES DONNÉES (inchangé)
+// CHARGER LES DONNÉES DU TABLEAU
 // =========================================================
 async function refreshData() {
     try {
@@ -138,13 +126,12 @@ async function refreshData() {
         const data = await response.json();
 
         document.getElementById('totalParticipants').textContent = data.totalParticipants || 0;
-        document.getElementById('totalSessions').textContent = data.totalSessions || 0;
 
         let totalEvents = 0;
         sessionsTable.innerHTML = '';
 
         if (!data.sessions || data.sessions.length === 0) {
-            sessionsTable.innerHTML = '<tr><td colspan="7" class="empty">Aucune donnée collectée</td></tr>';
+            sessionsTable.innerHTML = '<tr><td colspan="6" class="empty">Aucune donnée collectée</td></tr>';
             document.getElementById('totalEvents').textContent = '0';
             return;
         }
@@ -154,14 +141,10 @@ async function refreshData() {
             const row = document.createElement('tr');
             const debut = s.debut ? new Date(s.debut).toLocaleString('fr-FR') : '-';
             const pid = s._id.participant;
-            const sid = s._id.session;
 
             const cellPid = document.createElement('td');
             cellPid.innerHTML = '<strong>' + pid + '</strong>';
-            const cellSid = document.createElement('td');
-            cellSid.style.fontFamily = 'monospace';
-            cellSid.style.fontSize = '11px';
-            cellSid.textContent = sid;
+            
             const cellEvents = document.createElement('td');
             cellEvents.textContent = s.nbEvenements;
             const cellPages = document.createElement('td');
@@ -174,28 +157,18 @@ async function refreshData() {
 
             const btnP = document.createElement('button');
             btnP.className = 'btn btn-blue';
-            btnP.textContent = '📥 Participant';
+            btnP.textContent = '📥 Télécharger';
             btnP.addEventListener('click', function() { downloadParticipant(pid); });
-
-            const btnS = document.createElement('button');
-            btnS.className = 'btn btn-gray';
-            btnS.textContent = '📥 Session';
-            
-            btnS.style.marginLeft = '5px';
-            btnS.addEventListener('click', function() { downloadSession(sid); });
-
 
             const btnV = document.createElement('button');
             btnV.className = 'btn btn-green';
             btnV.textContent = '📊 Visualiser';
             btnV.style.marginLeft = '5px';
-            btnV.addEventListener('click', function() { viewSession(sid); });
+            btnV.addEventListener('click', function() { viewParticipant(pid); });
 
             cellActions.appendChild(btnP);
-            cellActions.appendChild(btnS);
             cellActions.appendChild(btnV);
             row.appendChild(cellPid);
-            row.appendChild(cellSid);
             row.appendChild(cellEvents);
             row.appendChild(cellPages);
             row.appendChild(cellClics);
@@ -205,14 +178,14 @@ async function refreshData() {
         });
 
         document.getElementById('totalEvents').textContent = totalEvents;
-        showStatus('✅ ' + data.totalSessions + ' sessions chargées', 'ok');
+        showStatus('✅ ' + data.totalParticipants + ' participants chargés', 'ok');
     } catch (e) {
         showStatus('❌ Erreur : ' + e.message, 'err');
     }
 }
 
 // =========================================================
-// TÉLÉCHARGEMENTS (inchangé)
+// TÉLÉCHARGEMENTS
 // =========================================================
 async function downloadAll() {
     try {
@@ -226,17 +199,6 @@ async function downloadAll() {
     }
 }
 
-async function downloadSession(sid) {
-    try {
-        const response = await apiCall('/export/session/' + sid + '?include_responses=true');
-        const data = await response.json();
-        downloadJSON(data, 'session_' + sid);
-        var nbEvents = data.events ? data.events.length : data.length;
-        var nbReponses = data.reponses ? data.reponses.length : 0;
-        showStatus('✅ Session: ' + nbEvents + ' événements + ' + nbReponses + ' réponses', 'ok');
-    } catch (e) { showStatus('❌ ' + e.message, 'err'); }
-}
-
 async function downloadParticipant(pid) {
     try {
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
@@ -247,7 +209,6 @@ async function downloadParticipant(pid) {
         showStatus('✅ Participant: ' + nbEvents + ' événements + ' + nbReponses + ' réponses', 'ok');
     } catch (e) { showStatus('❌ ' + e.message, 'err'); }
 }
-
 
 function downloadJSON(data, filename) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -266,26 +227,29 @@ function showStatus(text, type) {
     statusBar.className = 'status-' + type;
 }
 
-async function viewSession(sid) {
+// =========================================================
+// OUVRIR LE DASHBOARD
+// =========================================================
+async function viewParticipant(pid) {
     try {
-        // Charger les données depuis l'API (avec les bons headers d'auth)
-        const response = await apiCall('/export/session/' + sid + '?include_responses=true');
+        // Charger les données depuis l'API
+        const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
         const data = await response.json();
 
         // Stocker dans sessionStorage pour que dashboard.js puisse les lire
         sessionStorage.setItem('dashboard_data', JSON.stringify(data));
-        sessionStorage.setItem('dashboard_session_id', sid);
+        sessionStorage.setItem('dashboard_participant_id', pid);
 
-        // Ouvrir le dashboard
-        window.open('/admin/dashboard.html?session=' + encodeURIComponent(sid), '_blank');
+        // Ouvrir le dashboard avec l'URL pointant vers le PID
+        window.open('/admin/dashboard.html?pid=' + encodeURIComponent(pid), '_blank');
     } catch (e) {
-        showStatus('❌ Erreur chargement session : ' + e.message, 'err');
+        showStatus('❌ Erreur chargement participant : ' + e.message, 'err');
     }
 }
 
 // Ouvre le dashboard en mode glisser-déposer (fichier libre)
 function openDashboard() {
     sessionStorage.removeItem('dashboard_data');
-    sessionStorage.removeItem('dashboard_session_id');
+    sessionStorage.removeItem('dashboard_participant_id');
     window.open('/admin/dashboard.html', '_blank');
 }

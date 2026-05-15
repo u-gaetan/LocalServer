@@ -217,28 +217,18 @@ router.get('/resume', adminLimiter, async (req, res) => {
         const summary = await Evenement.aggregate([
             {
                 $group: {
-                    _id: {
-                        participant: "$participantId",
-                        session: "$sessionId"
-                    },
+                    _id: { participant: "$participantId" },
                     nbEvenements: { $sum: 1 },
                     debut: { $min: "$timestamp" },
-                    nbPages: {
-                        $sum: { $cond: [{ $eq: ["$type", "navigation"] }, 1, 0] }
-                    },
-                    nbClics: {
-                        $sum: { $cond: [{ $eq: ["$type", "clic"] }, 1, 0] }
-                    }
+                    nbPages: { $sum: { $cond: [{ $eq: ["$type", "navigation"] }, 1, 0] } },
+                    nbClics: { $sum: { $cond: [{ $eq: ["$type", "clic"] }, 1, 0] } }
                 }
             },
             { $sort: { debut: -1 } }
         ]);
 
-        const participants = [...new Set(summary.map(s => s._id.participant))];
-
         res.json({
-            totalParticipants: participants.length,
-            totalSessions: summary.length,
+            totalParticipants: summary.length,
             sessions: summary
         });
     } catch (err) {

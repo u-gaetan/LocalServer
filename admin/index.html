@@ -145,12 +145,8 @@
                 <div class="label">Participants</div>
             </div>
             <div class="card">
-                <div class="number" id="totalSessions">-</div>
-                <div class="label">Sessions</div>
-            </div>
-            <div class="card">
                 <div class="number" id="totalEvents">-</div>
-                <div class="label">Événements</div>
+                <div class="label">Événements enregistrés</div>
             </div>
         </div>
 
@@ -162,26 +158,25 @@
                 🔄 Rafraîchir
             </button>
             <button class="btn btn-green" onclick="openDashboard()" style="margin-left:10px;">
-                📊 Visualiser un fichier
+                📊 Visualiser un fichier local
             </button>
         </div>
 
         <div class="table-section">
-            <h2>📋 Sessions par participant</h2>
+            <h2>📋 Liste des participants</h2>
             <table>
                 <thead>
                     <tr>
                         <th>Participant</th>
-                        <th>Session</th>
                         <th>Événements</th>
                         <th>Pages</th>
                         <th>Clics</th>
-                        <th>Début</th>
+                        <th>Date de début</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="sessionsTable">
-                    <tr><td colspan="7" class="empty">Connectez-vous avec votre clé API</td></tr>
+                    <tr><td colspan="6" class="empty">Connectez-vous avec votre clé API</td></tr>
                 </tbody>
             </table>
         </div>

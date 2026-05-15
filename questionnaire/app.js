@@ -9,7 +9,6 @@
     let state = {
         phase: 'language',
         participantId: null,
-        sessionId: null,
         language: null,
         consentGiven: false,
         deceptionConsentGiven: false,
@@ -39,9 +38,8 @@
     function init() {
         const params = new URLSearchParams(window.location.search);
         state.participantId = params.get('pid');
-        state.sessionId = params.get('sid');
 
-        if (!state.participantId || !state.sessionId) {
+        if (!state.participantId ) {
             app.innerHTML =
                 '<div style="text-align:center; padding:60px 0;">' +
                 '<h1>Acces invalide</h1>' +
@@ -55,8 +53,7 @@
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                if (parsed.participantId === state.participantId &&
-                    parsed.sessionId === state.sessionId) {
+                if (parsed.participantId === state.participantId) {
                     state = parsed;
                     renderPhase();
                     return;
@@ -68,8 +65,7 @@
 
         const initSlug = getSlugForPhase(state.phase);
         const initUrl = '/questionnaire/' + initSlug
-            + '?pid=' + encodeURIComponent(state.participantId)
-            + '&sid=' + encodeURIComponent(state.sessionId);
+            + '?pid=' + encodeURIComponent(state.participantId);
         history.replaceState({
             phase: state.phase,
             currentResearchIndex: state.currentResearchIndex,
@@ -132,8 +128,7 @@
 
         var slug = getSlugForPhase(phase);
         var url = '/questionnaire/' + slug
-            + '?pid=' + encodeURIComponent(state.participantId)
-            + '&sid=' + encodeURIComponent(state.sessionId);
+            + '?pid=' + encodeURIComponent(state.participantId);
 
         history.pushState({
             phase: phase,
@@ -407,7 +402,7 @@
                 timestamp: new Date().toISOString()
             });
 
-            window.postMessage({ type: 'START_TRACKING', participantId: state.participantId, sessionId: state.sessionId }, '*');
+            window.postMessage({ type: 'START_TRACKING', participantId: state.participantId}, '*');
 
             goTo('demographics');
         });
@@ -984,7 +979,6 @@
     async function sendToServer(type, questionId, difficulty, data) {
         var payload = {
             participantId: state.participantId,
-            sessionId: state.sessionId,
             type: type,
             questionId: questionId,
             difficulty: difficulty,

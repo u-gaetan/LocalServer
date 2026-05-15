@@ -251,7 +251,7 @@ function loadFromSessionStorage() {
         var raw = JSON.parse(data);
         process(raw);
         sessionStorage.removeItem('dashboard_data');
-        sessionStorage.removeItem('dashboard_session_id');
+        sessionStorage.removeItem('dashboard_participant_id');
         showDash();
         return true;
     } catch (err) {
@@ -260,9 +260,10 @@ function loadFromSessionStorage() {
     }
 }
 
-function loadFromAPI(sid) {
-    setLoading('Chargement session ' + sid + ' depuis l\'API...');
-    fetch('/api/collecte/export/session/' + encodeURIComponent(sid) + '?include_responses=true')
+function loadFromAPI(pid) {
+    setLoading('Chargement participant ' + pid + ' depuis l\'API...');
+    // L'API a été mise à jour dans le serveur pour répondre à cette route
+    fetch('/api/collecte/export/participant/' + encodeURIComponent(pid) + '?include_responses=true')
         .then(function(r) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.json();
@@ -815,15 +816,16 @@ function dlXLSX() {
         if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
 
+    // ON CHERCHE 'pid' AU LIEU DE 'session' !
     var params = new URLSearchParams(window.location.search);
-    var sid = params.get('session');
+    var pid = params.get('pid');
 
-    if (sid && loadFromSessionStorage()) {
+    if (pid && loadFromSessionStorage()) {
         return;
     }
 
-    if (sid) {
-        loadFromAPI(sid);
+    if (pid) {
+        loadFromAPI(pid);
         return;
     }
 })();
