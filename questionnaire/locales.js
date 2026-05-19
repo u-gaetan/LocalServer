@@ -35,12 +35,27 @@ const i18n = {
             <p>Si vous avez des questions, communiquez au <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Toute plainte sur cette étude pourra être adressée au Bureau de l'Ombudsman de l'Université Laval : Pavillon Alphonse-Desjardins, bureau 3320, 2325 rue de l'Université, Québec G1V 0A6. Ligne sans frais : 1 866 323-2271. Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>
         `,
 
-        debriefing_titre: "Debriefing & Consentement post-expérimental",
+        debriefing_titre: "Formulaire d'information et de consentement post-expérimental",
         debriefing_texte: `
+            <p style="text-align:center; font-style:italic; color:#64748b; margin-bottom:20px;">Validation de questions de connaissances générales pour l'étude des processus de recherche d'information sur le Web</p>
+            
+            <h3>Debriefing</h3>
             <p>Au cours de l'expérience, vous avez eu à répondre à des questions à développement long à partir de recherches Web que vous avez effectuées. À la fin de l'expérience, vous avez eu à répondre à des questions de mémorisation en lien avec les sujets abordés. L'objectif de l'étude vous a donc été dissimulé.</p>
             <p>L'objectif caché de l'étude était en fait de voir si votre stratégie de recherche documentaire affecterait votre performance de mémorisation à ce test de mémoire surprise. La raison de cette dissimulation était que nous voulions nous assurer que vous n'utilisiez pas de stratégie de rétention particulière afin de pouvoir évaluer les effets de votre recherche web. Cette connaissance aurait pu modifier vos comportements et réactions face à la tâche.</p>
-            <p>Vous connaissez maintenant le but réel de la présente étude. Sachez qu'à la lumière de cette nouvelle information, vous pouvez encore vous retirer de l'étude et ce, sans préjudice. Le cas échéant, vos données seront détruites et ne seront donc pas utilisées. Nous détruirons également tous les autres documents vous liant à la présente étude, notamment le formulaire de consentement que vous avez signé plus tôt.</p>
-            <p style="font-size:0.8em; color:#64748b; margin-top:20px;">Ce projet a été approuvé par le Comité d’éthique de la recherche de l’Université Laval : No d’approbation 2025-460 A-1 / 04-05-2026.</p>
+
+            <h3>Introduction</h3>
+            <p>Suite à la divulgation de la duperie à laquelle vous avez été exposé(e), nous vous fournissons un addendum post-expérimental au Formulaire d'information et de consentement que vous avez signé avant le début de l'expérience. Ce document explique les éléments qui ont été dissimulés dans le formulaire original et réitère les informations liées à votre consentement. Vous êtes invité(e) à contacter l'équipe du laboratoire si vous avez des questions que vous jugez utiles.</p>
+            
+            <h3>Nature de l'étude</h3>
+            <p>Initialement, nous avons indiqué que le but de cette recherche était de mieux comprendre comment les individus interagissent avec les technologies de l'information à des fins de recherche d'information, plus spécifiquement les technologies web. Les véritables objectifs de l'étude sont de mieux comprendre comment les stratégies de recherche sur le web peuvent affecter la mémorisation du contenu rencontré dans un contexte de recherche d'information.</p>
+            
+            <h3>Participation volontaire et droit de retrait</h3>
+            <p>Vous êtes libre de maintenir ou de retirer votre consentement suite à la divulgation de cette information. Vous pouvez mettre fin à votre participation sans préjudice, conserver votre compensation, et sans avoir à justifier votre décision. Toutes les informations personnelles vous concernant ainsi que vos réponses seront alors détruites. Veuillez sélectionner l'option qui reflète le mieux votre décision suite à la divulgation de cette duperie.</p>
+            
+            <h3>Renseignements supplémentaires et plaintes</h3>
+            <p>Pour toute question, veuillez contacter le laboratoire à <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Les plaintes peuvent être adressées au Bureau de l'Ombudsman de l'Université Laval : Pavillon Alphonse-Desjardins, bureau 3320, 2325, rue de l'Université, Québec (Québec) G1V 0A6. Ligne sans frais : 1 866 323-2271. Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>
+            
+            <p style="font-size:0.8em; color:#64748b; margin-top:20px; line-height:1.5;">Ce projet de recherche intitulé « La métacognition et l'effort mental influencent-ils l'expérience d'interaction avec un agent conversationnel ? », mené par Alexandre Marois, professeur à l’École de psychologie de l’Université Laval, est financé par le Conseil de recherches en sciences naturelles et en génie du Canada (CRSNG). Ce projet a été approuvé par le Comité d’éthique de la recherche de l’Université Laval : No d’approbation 2025-460 / 23-10-2025.</p>
         `,
 
         fin_texte: `

@@ -314,7 +314,8 @@
             var count = countWords(textarea.value);
             wc.textContent = "Mots : " + count + " / 75-100";
             if (count < 75) { wc.className = "word-counter red"; btn.disabled = true; }
-            else { wc.className = "word-counter green"; btn.disabled = false; }
+            else if (75 <= count && count <= 100) { wc.className = "word-counter green"; btn.disabled = false; }
+            else { wc.className = "word-counter orange"; btn.disabled = false; }
         });
 
         btn.addEventListener('click', function () { processSubmitResearch(q, textarea.value); });
