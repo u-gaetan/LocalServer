@@ -19,6 +19,7 @@
         currentMemoryIndex: 0,
         answers: [],
         selfAssessments: [],
+        internetSkills: null,
         memoryAnswers: [],
         questionStartTime: null,
         drawnQuestionIds: []
@@ -29,23 +30,21 @@
     const progressBar = document.getElementById('progressBar');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
+    
     let timerInterval = null;
     let elapsedSeconds = 0;
+    let popup10MinShown = false;
+    let currentTimerPhase = null;
 
     // =========================================================
-    // INIT
+    // INIT & ROUTING
     // =========================================================
     function init() {
         const params = new URLSearchParams(window.location.search);
         state.participantId = params.get('pid');
 
-        if (!state.participantId ) {
-            app.innerHTML =
-                '<div style="text-align:center; padding:60px 0;">' +
-                '<h1>Accès invalide</h1>' +
-                '<p>Veuillez démarrer l\'étude depuis l\'extension Chrome.<br>' +
-                'Le questionnaire s\'ouvrira automatiquement.</p>' +
-                '</div>';
+        if (!state.participantId) {
+            app.innerHTML = '<div style="text-align:center; padding:60px 0;"><h1>Accès invalide</h1><p>Veuillez démarrer l\'étude depuis l\'extension Chrome.</p></div>';
             return;
         }
 
@@ -58,28 +57,17 @@
                     renderPhase();
                     return;
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) {}
         }
 
         renderPhase();
-
-        const initSlug = getSlugForPhase(state.phase);
-        const initUrl = '/questionnaire/' + initSlug
-            + '?pid=' + encodeURIComponent(state.participantId);
-        history.replaceState({
-            phase: state.phase,
-            currentResearchIndex: state.currentResearchIndex,
-            currentMemoryIndex: state.currentMemoryIndex
-        }, '', initUrl);
+        updateUrl();
     }
 
     function saveProgress() {
         localStorage.setItem('questionnaire_progress', JSON.stringify(state));
     }
 
-    // =========================================================
-    // ROUTING
-    // =========================================================
     function renderPhase() {
         hideTimer();
         switch (state.phase) {
@@ -89,6 +77,7 @@
             case 'instructions':      renderInstructions(); break;
             case 'research_question': renderResearchQuestion(); break;
             case 'self_assessment':   renderSelfAssessment(); break;
+            case 'internet_skills':   renderInternetSkills(); break;
             case 'memory_intro':      renderMemoryIntro(); break;
             case 'memory_question':   renderMemoryQuestion(); break;
             case 'deception_consent': renderDeceptionConsent(); break;
@@ -99,58 +88,34 @@
 
     function getSlugForPhase(phase) {
         switch (phase) {
-            case 'language':        return 'langue';
-            case 'consent':         return 'consentement';
-            case 'demographics':    return 'informations';
-            case 'instructions':    return 'instructions';
-            case 'research_question': {
-                var q = state.researchQuestions[state.currentResearchIndex];
-                return q && q.slug ? q.slug : 'question-' + state.currentResearchIndex;
-            }
-            case 'self_assessment': {
-                var q2 = state.researchQuestions[state.currentResearchIndex];
-                return q2 && q2.slug ? 'eval-' + q2.slug : 'eval-' + state.currentResearchIndex;
-            }
-            case 'memory_intro':      return 'memory-intro';
-            case 'memory_question': {
-                var mq = state.memoryQuestions[state.currentMemoryIndex];
-                return mq && mq.slug ? mq.slug : 'memory-' + state.currentMemoryIndex;
-            }
+            case 'language': return 'langue';
+            case 'consent': return 'consentement';
+            case 'demographics': return 'informations';
+            case 'instructions': return 'instructions';
+            case 'research_question': return 'question-' + state.currentResearchIndex;
+            case 'self_assessment': return 'eval-' + state.currentResearchIndex;
+            case 'internet_skills': return 'competences-internet';
+            case 'memory_intro': return 'memory-intro';
+            case 'memory_question': return 'memory-' + state.currentMemoryIndex;
             case 'deception_consent': return 'consentement-post-etude';
-            case 'end':               return 'fin';
-            default:                  return phase;
+            case 'end': return 'fin';
+            default: return phase;
         }
+    }
+
+    function updateUrl() {
+        var slug = getSlugForPhase(state.phase);
+        var url = '/questionnaire/' + slug + '?pid=' + encodeURIComponent(state.participantId);
+        history.replaceState({ phase: state.phase }, '', url);
     }
 
     function goTo(phase) {
         state.phase = phase;
         saveProgress();
-
-        var slug = getSlugForPhase(phase);
-        var url = '/questionnaire/' + slug
-            + '?pid=' + encodeURIComponent(state.participantId);
-
-        history.pushState({
-            phase: phase,
-            currentResearchIndex: state.currentResearchIndex,
-            currentMemoryIndex: state.currentMemoryIndex
-        }, '', url);
-
+        updateUrl();
         renderPhase();
         window.scrollTo(0, 0);
     }
-
-    window.addEventListener('popstate', function (e) {
-        if (e.state && e.state.phase) {
-            state.phase = e.state.phase;
-            if (typeof e.state.currentResearchIndex === 'number')
-                state.currentResearchIndex = e.state.currentResearchIndex;
-            if (typeof e.state.currentMemoryIndex === 'number')
-                state.currentMemoryIndex = e.state.currentMemoryIndex;
-            saveProgress();
-            renderPhase();
-        }
-    });
 
     // =========================================================
     // PROGRESS BAR
@@ -159,30 +124,23 @@
         var totalResearch = state.researchQuestions.length || 3;
         var totalMemory = state.memoryQuestions.length || 6;
         var hiddenPhases = ['language', 'consent', 'demographics', 'instructions'];
+        // total steps = research*2 + 1(internet_skills) + 1(memory_intro) + memory + 1(deception) + 1(end)
+        var total = (totalResearch * 2) + 1 + 1 + totalMemory + 1 + 1;
         var current = 0;
-        // Total visible steps: research*2 + memory_intro + memory + deception_consent + end
-        var total = (totalResearch * 2) + 1 + totalMemory + 1 + 1;
 
         if (hiddenPhases.indexOf(state.phase) !== -1) {
             progressBar.classList.add('hidden');
             return;
         }
-
         progressBar.classList.remove('hidden');
 
-        if (state.phase === 'research_question') {
-            current = (state.currentResearchIndex * 2);
-        } else if (state.phase === 'self_assessment') {
-            current = (state.currentResearchIndex * 2) + 1;
-        } else if (state.phase === 'memory_intro') {
-            current = (totalResearch * 2);
-        } else if (state.phase === 'memory_question') {
-            current = (totalResearch * 2) + 1 + state.currentMemoryIndex;
-        } else if (state.phase === 'deception_consent') {
-            current = (totalResearch * 2) + 1 + totalMemory;
-        } else if (state.phase === 'end') {
-            current = total;
-        }
+        if (state.phase === 'research_question') current = (state.currentResearchIndex * 2);
+        else if (state.phase === 'self_assessment') current = (state.currentResearchIndex * 2) + 1;
+        else if (state.phase === 'internet_skills') current = (totalResearch * 2);
+        else if (state.phase === 'memory_intro') current = (totalResearch * 2) + 1;
+        else if (state.phase === 'memory_question') current = (totalResearch * 2) + 2 + state.currentMemoryIndex;
+        else if (state.phase === 'deception_consent') current = total - 1;
+        else if (state.phase === 'end') current = total;
 
         var pct = Math.round((current / total) * 100);
         progressFill.style.width = pct + '%';
@@ -190,10 +148,12 @@
     }
 
     // =========================================================
-    // TIMER (10 min soft limit)
+    // TIMERS (Research = 10m/12m, Memory = 1m)
     // =========================================================
-    function startTimer() {
+    function startTimer(phaseType) {
         elapsedSeconds = 0;
+        popup10MinShown = false;
+        currentTimerPhase = phaseType;
         state.questionStartTime = Date.now();
         timerEl.classList.remove('hidden');
         timerEl.className = 'timer green';
@@ -203,14 +163,33 @@
             elapsedSeconds = Math.floor((Date.now() - state.questionStartTime) / 1000);
             updateTimerDisplay();
 
-            if (elapsedSeconds < 300) {
-                timerEl.className = 'timer green';
-            } else if (elapsedSeconds < 480) {
-                timerEl.className = 'timer orange';
-            } else if (elapsedSeconds < 600) {
-                timerEl.className = 'timer red';
-            } else {
-                timerEl.className = 'timer red blink';
+            if (currentTimerPhase === 'research') {
+                if (elapsedSeconds < 480) timerEl.className = 'timer green';
+                else if (elapsedSeconds < 600) timerEl.className = 'timer orange';
+                else timerEl.className = 'timer red blink';
+
+                // Popup à 10 min (600s)
+                if (elapsedSeconds === 600 && !popup10MinShown) {
+                    popup10MinShown = true;
+                    alert("⚠️ Cela fait 10 minutes que vous êtes sur cette question. Veuillez finaliser votre réponse et passer à la suite.");
+                }
+                // Popup à 12 min (720s) -> Force le passage
+                if (elapsedSeconds >= 720) {
+                    clearInterval(timerInterval);
+                    alert("⏱️ Temps écoulé (12 minutes). Vous allez être redirigé vers l'auto-évaluation.");
+                    forceSubmitResearch();
+                }
+            } 
+            else if (currentTimerPhase === 'memory') {
+                if (elapsedSeconds < 45) timerEl.className = 'timer green';
+                else timerEl.className = 'timer red blink';
+
+                // Popup à 1 min (60s) -> Force le passage
+                if (elapsedSeconds >= 60) {
+                    clearInterval(timerInterval);
+                    alert("⏱️ Temps écoulé (1 minute). Passage à la question suivante.");
+                    forceSubmitMemory();
+                }
             }
         }, 1000);
     }
@@ -233,287 +212,139 @@
     }
 
     // =========================================================
-    // 1. LANGUAGE SELECTION
+    // 1. LANGUAGE
     // =========================================================
     function renderLanguage() {
         app.innerHTML =
             '<h1 style="text-align:center;">Preferred Language / Langue préférentielle</h1>' +
-            '<p style="text-align:center; color:#64748b;">Please select your preferred language for this study.<br>' +
-            'Veuillez sélectionner votre langue préférentielle pour cette étude.</p>' +
-
             '<div class="form-group" style="max-width:400px; margin:30px auto;">' +
             '<select id="languageSelect" required>' +
             '<option value="">-- Sélectionnez / Select --</option>' +
             '<option value="french">Français / French</option>' +
-            '<option value="english" disabled>English / Anglais (coming soon)</option>' +
+            '<option value="english" disabled>English (coming soon)</option>' +
             '</select>' +
             '</div>' +
-
-            '<div style="text-align:center;">' +
-            '<button class="btn btn-primary" id="btnLanguage" disabled>Continuer / Continue</button>' +
-            '</div>';
+            '<div style="text-align:center;"><button class="btn btn-primary" id="btnLanguage" disabled>Continuer / Continue</button></div>';
 
         var select = document.getElementById('languageSelect');
         var btn = document.getElementById('btnLanguage');
-
-        select.addEventListener('change', function () {
-            btn.disabled = !select.value;
-        });
-
+        select.addEventListener('change', function () { btn.disabled = !select.value; });
         btn.addEventListener('click', function () {
             state.language = select.value;
-            sendToServer('language_selection', null, null, {
-                language: state.language,
-                timestamp: new Date().toISOString()
-            });
             goTo('consent');
         });
     }
 
     // =========================================================
-    // 2. CONSENT (initial - sert de presentation, SANS mention memoire)
+    // 2. CONSENTEMENT
     // =========================================================
     function renderConsent() {
         app.innerHTML =
             '<h1 style="text-align:center;">Formulaire de consentement</h1>' +
-            '<p style="text-align:center;color:#64748b;">Veuillez lire attentivement les informations suivantes avant de participer à l\'étude.</p>' +
-
             '<div class="consent-box">' +
-
-            '<h3>Présentation du chercheur</h3>' +
-            '<p>Cette recherche est réalisée dans le cadre d\'une subvention du Conseil de recherche en sciences ' +
-            'naturelles et en génie, dirigée par Alexandre Marois, professeur adjoint à l\'École de psychologie de ' +
-            'l\'Université Laval et directeur du Laboratoire d\'études interdisciplinaires sur les limites et ' +
-            'l\'augmentation humaines (LEILAH).</p>' +
-
-            '<h3>Introduction</h3>' +
-            '<p>Avant d\'accepter de participer à cette étude, veuillez prendre le temps de lire et de comprendre ' +
-            'les renseignements qui suivent. Ce document vous explique le but de cette recherche, ses procédures, ' +
-            'avantages et inconvénients. Si vous avez des questions sur la recherche ou sur les implications de votre ' +
-            'participation, veuillez communiquer avec le laboratoire par courriel au ' +
-            '<a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>' +
-
-            '<h3>Nature de l\'étude</h3>' +
-            '<p>La recherche vise à mieux comprendre la façon dont les individus interagissent avec des technologies ' +
-            'de l\'information pour la recherche documentaire, plus spécifiquement des technologies web.</p>' +
-
-            '<h3>Déroulement de la participation</h3>' +
-            '<p>Une fois cette fiche de consentement lue, vous serez amené(e) à remplir une fiche sur laquelle vous ' +
-            'devez préciser quelques-unes de vos caractéristiques sociodémographiques. Nous vous demanderons ensuite ' +
-            'd\'effectuer une tâche de recherche documentaire. Pour ce faire, nous vous inviterons à répondre à des ' +
-            'questions à développement long sur différents sujets de culture générale.</p>' +
-            '<p>Afin de vous soutenir dans votre tâche, vous serez encouragé(e) à utiliser des moteurs de recherche ' +
-            'classiques (p. ex. Google). Nous vous demandons de <strong>ne pas utiliser d\'outil d\'intelligence ' +
-            'artificielle</strong> (p. ex. Gemini, ChatGPT ou Copilot) pour réaliser la tâche. Votre navigation sera ' +
-            'enregistrée tout au long de l\'étude et, conséquemment, l\'équipe de recherche devra invalider vos données ' +
-            'si vous utilisez ces outils.</p>' +
-            '<p>Après chacune des questions à développement long, quelques questions vous seront posées quant aux ' +
-            'processus que vous avez mis en branle lors de la recherche d\'information que vous avez effectuée. ' +
-            'À la fin, vous aurez également à remplir deux autres questionnaires par rapport à votre expérience.</p>' +
-            '<p>Vos questionnaires ne seront considérés comme complets que si vous consentez à participer à la ' +
-            'recherche en sélectionnant l\'option correspondante.</p>' +
-
-            '<h3>Avantages et inconvénients</h3>' +
-            '<p>Un avantage à cette étude est que vous contribuerez aux avancements des connaissances liées à ' +
-            'l\'usage des technologies de l\'information afin de soutenir la performance humaine. Ce projet permettra ' +
-            'de mettre en lumière les processus mis en branle lors de la recherche documentaire. L\'étude permettra ' +
-            'aussi de valider et de produire des normes de réponse pour les différentes questions auxquelles vous ' +
-            'répondrez.</p>' +
-            '<p>Un inconvénient à ce projet est l\'induction d\'une certaine fatigue cognitive. Vous aurez en effet ' +
-            'à effectuer un effort mental modéré pendant environ 60 min. Le temps consacré au projet peut également ' +
-            'représenter un inconvénient. Vous aurez la possibilité de prendre une pause à tout moment si la fatigue ' +
-            'que vous ressentez devient trop difficile mais vous devrez tout de même terminer l\'étude en une seule ' +
-            'période.</p>' +
-
-            '<h3>Participation volontaire et droit de retrait</h3>' +
-            '<p>Vous êtes libre de participer ou non à cette étude. Le simple retour du questionnaire rempli sera ' +
-            'considéré comme l\'expression implicite de votre consentement à participer au projet. Si vous désirez ' +
-            'vous retirer de l\'étude une fois le questionnaire soumis, veuillez communiquer avec le laboratoire par ' +
-            'courriel au <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Nous pourrons retirer vos ' +
-            'résultats sans préjudice, en gardant votre compensation et sans avoir à justifier votre décision.</p>' +
-
-            '<h3>Confidentialité et gestion des données</h3>' +
-            '<p>Les données recueillies pendant cette étude sont entièrement confidentielles et ne pourront en aucun ' +
-            'cas mener à votre identification. Votre confidentialité sera assurée par l\'attribution d\'un code ' +
-            'numérique qui ne figure pas au présent formulaire à toutes les données de recherche collectées. ' +
-            'Les données ne seront accessibles qu\'aux membres de l\'équipe de recherche, chacun d\'eux ayant signé ' +
-            'un engagement à la confidentialité.</p>' +
-            '<p>Les données seront conservées par l\'équipe de recherche pour utilisation ultérieure sous forme codée ' +
-            'de manière irréversible dans une base de données anonyme, c\'est-à-dire à la suite de la destruction du ' +
-            'matériel de recherche (liste de nom des personnes participantes et tout document permettant de les ' +
-            'identifier), jusqu\'au plus tard en <strong>décembre 2035</strong>. Les résultats de la recherche, qui ' +
-            'pourront être diffusés sous forme d\'article scientifique, de rapport de recherche, de présentation à un ' +
-            'congrès scientifique et/ou d\'une thèse doctorale, ne permettront pas d\'identifier les personnes ' +
-            'participantes.</p>' +
-
-            '<h3>Renseignements supplémentaires</h3>' +
-            '<p>Si vous avez des questions sur la recherche ou sur les implications de votre participation, veuillez ' +
-            'communiquer avec le laboratoire par courriel au ' +
-            '<a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>' +
-
-            '<h3>Plaintes ou critiques</h3>' +
-            '<p>Toute plainte ou critique sur cette étude pourra être adressée au Bureau de l\'Ombudsman de ' +
-            'l\'Université Laval :</p>' +
-            '<p style="font-size:0.9em; color:#64748b; line-height:1.8;">' +
-            'Pavillon Alphonse-Desjardins, bureau 3320<br>' +
-            '2325, rue de l\'Université<br>' +
-            'Université Laval<br>' +
-            'Québec (Québec) G1V 0A6<br>' +
-            'Renseignements - Secrétariat : 1 418 656-3081<br>' +
-            'Ligne sans frais : 1 866 323-2271<br>' +
-            'Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>' +
-
+            '<p>Cette recherche est réalisée par le Laboratoire LEILAH (Université Laval).</p>' +
+            '<p>La recherche vise à mieux comprendre la façon dont les individus interagissent avec des technologies de recherche documentaire sur le web.</p>' +
+            '<p>Nous vous demanderons de répondre à des questions à développement long sur différents sujets. Vous devrez utiliser des moteurs de recherche classiques (ex: Google). <strong>L\'utilisation d\'IA (ChatGPT, Gemini) est strictement interdite.</strong></p>' +
+            '<p>Après chaque question, vous ferez une auto-évaluation de votre expérience. Vos données de navigation seront enregistrées anonymement par l\'extension Chrome.</p>' +
             '</div>' +
+            '<div class="consent-checks"><label class="consent-label"><input type="checkbox" id="consent1"><span>J\'ai lu et compris les informations et j\'accepte de participer. Je confirme avoir 18 ans ou plus.</span></label></div>' +
+            '<button class="btn btn-primary" id="btnConsent" disabled>J\'accepte</button>' +
+            '<p style="text-align:center;margin-top:12px;"><a href="#" id="btnRefuse" style="color:#94a3b8;">Je refuse</a></p>';
 
+        var cb = document.getElementById('consent1');
+        var btn = document.getElementById('btnConsent');
+        cb.addEventListener('change', function () { btn.disabled = !cb.checked; });
 
-            '<div class="consent-checks">' +
-            '<label class="consent-label">' +
-            '<input type="checkbox" id="consent1">' +
-            '<span>J\'ai lu et compris les informations ci-dessus et je souhaite participer à l\'étude. ' +
-            'Je confirme être âgé(e) de 18 ans ou plus.</span>' +
-            '</label>' +
-            '</div>' +
-
-
-            '<button class="btn btn-primary" id="btnConsent" disabled>J\'accepte et je souhaite participer</button>' +
-            '<p style="text-align:center;margin-top:12px;">' +
-            '<a href="#" id="btnRefuse" style="color:#94a3b8;font-size:13px;">Je ne souhaite pas participer</a></p>';
-
-        var checkboxes = document.querySelectorAll('.consent-checks input[type="checkbox"]');
-        var btnConsent = document.getElementById('btnConsent');
-
-        function updateConsentBtn() {
-            var allChecked = true;
-            checkboxes.forEach(function (cb) {
-                if (!cb.checked) allChecked = false;
-            });
-            btnConsent.disabled = !allChecked;
-        }
-
-        checkboxes.forEach(function (cb) {
-            cb.addEventListener('change', updateConsentBtn);
-        });
-
-        btnConsent.addEventListener('click', function () {
+        btn.addEventListener('click', function () {
             state.consentGiven = true;
-            sendToServer('consent', 'CONSENT_1', null, {
-                consent: true,
-                questionLabel: "Consentement Initial",
-                timestamp: new Date().toISOString()
-            });
-
-            window.postMessage({ type: 'START_TRACKING', participantId: state.participantId}, '*');
-
+            sendToServer('consent', null, null, { consent: true, questionLabel: "Consentement Initial" });
+            window.postMessage({ type: 'START_TRACKING', participantId: state.participantId }, '*');
             goTo('demographics');
         });
 
         document.getElementById('btnRefuse').addEventListener('click', function (e) {
             e.preventDefault();
-
-            sendToServer('consent', 'CONSENT_1', null, {
-                consent: false,
-                questionLabel: "Consentement Initial",
-                timestamp: new Date().toISOString()
-            });
-
-            app.innerHTML =
-                '<div style="text-align:center;padding:60px 0;">' +
-                '<h1>Merci</h1>' +
-                '<p>Nous comprenons votre décision. Vous pouvez fermer cette page.</p>' +
-                '<p style="color:#94a3b8;margin-top:20px;">Si vous changez d\'avis, vous pouvez ' +
-                'relancer l\'étude depuis l\'extension Chrome.</p>' +
-                '</div>';
+            sendToServer('consent', null, null, { consent: false, questionLabel: "Consentement Initial" });
+            app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>Merci</h1><p>Vous avez refusé de participer. Vous pouvez fermer cette page.</p></div>';
         });
     }
 
     // =========================================================
-    // 3. DEMOGRAPHICS (email, age, niveau d'etudes)
+    // 3. DEMOGRAPHICS
     // =========================================================
     function renderDemographics() {
         app.innerHTML =
             '<h2>Informations personnelles</h2>' +
-            '<p>Ces informations sont anonymisées et utilisées uniquement à des fins de recherche.</p>' +
+            '<p style="color:#64748b; font-size:0.9em; margin-bottom:20px;">' +
+            '<strong>Pourquoi demandons-nous votre courriel ?</strong><br>' +
+            'Votre adresse courriel est uniquement requise pour vous contacter concernant votre méthode de compensation financière, ' +
+            'ainsi que pour nous permettre de retrouver et supprimer vos données si vous décidez de retirer votre consentement plus tard. ' +
+            'Elle sera conservée de manière sécurisée et dissociée de vos données de navigation.' +
+            '</p>' +
 
             '<div class="form-group">' +
-            '<label for="email">Adresse courriel (celle utilisée pour l\'inscription à l\'étude)</label>' +
-            '<input type="email" id="email" placeholder="votre.email@exemple.com" required>' +
+            '<label>Adresse courriel</label><input type="email" id="email" required>' +
             '</div>' +
             '<div class="form-group">' +
-            '<label for="age">Âge</label>' +
-            '<input type="number" id="age" min="18" max="99" placeholder="Ex: 25" required>' +
+            '<label>Âge</label><input type="number" id="age" min="18" max="99" required>' +
             '</div>' +
             '<div class="form-group">' +
-            '<label for="niveau_etudes">Niveau d\'études</label>' +
-            '<select id="niveau_etudes" required>' +
-            '<option value="">-- Sélectionnez --</option>' +
-            '<option value="secondaire">Secondaire (lycée)</option>' +
-            '<option value="cegep">Cégep / DEC</option>' +
-            '<option value="baccalaureat">Baccalauréat universitaire</option>' +
-            '<option value="maitrise">Maîtrise</option>' +
-            '<option value="doctorat">Doctorat</option>' +
-            '<option value="autre">Autre</option>' +
+            '<label>Niveau de maîtrise du français</label>' +
+            '<select id="lang_prof" required>' +
+            '<option value="">-- Sélectionnez --</option><option value="debutant">Débutant</option><option value="intermediaire">Intermédiaire</option><option value="expert">Expert</option><option value="natif">Langue maternelle (Natif)</option>' +
             '</select>' +
             '</div>' +
+            '<div class="form-group">' +
+            '<label>Niveau d\'études</label>' +
+            '<select id="niveau" required>' +
+            '<option value="">-- Sélectionnez --</option><option value="secondaire">Secondaire</option><option value="cegep">Cégep / DEC</option><option value="baccalaureat">Baccalauréat</option><option value="maitrise">Maîtrise</option><option value="doctorat">Doctorat</option><option value="autre">Autre</option>' +
+            '</select>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label>Comment souhaitez-vous recevoir votre compensation ?</label>' +
+            '<select id="payment" required>' +
+            '<option value="">-- Sélectionnez --</option><option value="interac">Virement Interac (courriel ci-dessus)</option><option value="pickup">Venir chercher à l\'Université Laval</option><option value="cheque">Chèque par la poste</option>' +
+            '</select>' +
+            '</div>' +
+            '<button class="btn btn-primary" id="btnDemo">Suivant</button><div id="demoErr" style="color:red; display:none;"></div>';
 
-            '<button class="btn btn-primary" id="btnDemographics">Suivant</button>' +
-            '<div id="demoError" style="color:#dc2626; margin-top:10px; display:none;"></div>';
+        document.getElementById('btnDemo').addEventListener('click', async function () {
+            var email = document.getElementById('email').value.trim();
+            var age = document.getElementById('age').value;
+            var lang = document.getElementById('lang_prof').value;
+            var niveau = document.getElementById('niveau').value;
+            var payment = document.getElementById('payment').value;
 
-        document.getElementById('btnDemographics').addEventListener('click', submitDemographics);
-    }
+            if (!email || !age || !lang || !niveau || !payment) {
+                document.getElementById('demoErr').textContent = "Remplissez tous les champs.";
+                document.getElementById('demoErr').style.display = 'block';
+                return;
+            }
 
-    async function submitDemographics() {
-        var email = document.getElementById('email').value.trim();
-        var age = document.getElementById('age').value;
-        var niveau = document.getElementById('niveau_etudes').value;
-        var errEl = document.getElementById('demoError');
+            state.demographics = { email, age: parseInt(age), langue: lang, niveau_etudes: niveau, paiement: payment };
+            await sendToServer('demographics', null, null, state.demographics);
 
-        if (!email || !age || !niveau) {
-            errEl.textContent = 'Veuillez remplir tous les champs.';
-            errEl.style.display = 'block';
-            return;
-        }
-
-        var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            errEl.textContent = 'Veuillez entrer une adresse courriel valide.';
-            errEl.style.display = 'block';
-            return;
-        }
-
-        state.demographics = {
-            email: email,
-            age: parseInt(age),
-            niveau_etudes: niveau
-        };
-
-        await sendToServer('demographics', null, null, state.demographics);
-
-        var drawn = drawQuestions();
-        state.researchQuestions = drawn.researchQuestions;
-        state.memoryQuestions = drawn.memoryQuestions;
-        state.drawnQuestionIds = drawn.researchQuestions.map(function (q) { return q.id; });
-
-        goTo('instructions');
+            var drawn = drawQuestions();
+            state.researchQuestions = drawn.researchQuestions;
+            state.memoryQuestions = drawn.memoryQuestions;
+            goTo('instructions');
+        });
     }
 
     // =========================================================
-    // 4. INSTRUCTIONS (SANS mention du test de memoire)
+    // 4. INSTRUCTIONS
     // =========================================================
     function renderInstructions() {
         app.innerHTML =
             '<h2>Instructions</h2>' +
             '<p>Vous allez répondre à <strong>' + state.researchQuestions.length + ' questions de recherche</strong>.</p>' +
-            '<p>Pour chaque question :</p>' +
-            '<ol class="instructions-list">' +
-            '<li>Lisez attentivement la question affichée.</li>' +
-            '<li><strong>Naviguez librement sur Internet</strong> dans d\'autres onglets pour trouver la réponse.</li>' +
-            '<li>Revenez sur cet onglet et rédigez votre réponse.</li>' +
-            '<li>Évaluez vos connaissances et votre effort.</li>' +
-            '</ol>' +
-            '<p>Un <strong>chronomètre</strong> sera affiché en haut à droite. ' +
-            'Essayez de répondre en <strong>moins de 10 minutes</strong> par question.</p>' +
-            '<p style="margin-top:20px;"><strong>Répondez le plus précisément possible.</strong></p>' +
-            '<button class="btn btn-success" id="btnStartQuestions">Commencer les questions</button>';
+            '<ul class="instructions-list">' +
+            '<li><strong>Naviguez librement</strong> dans d\'autres onglets (Google, Wikipédia, etc.).</li>' +
+            '<li><strong style="color:#dc2626;">Règles strictes :</strong> La navigation privée est interdite. L\'usage d\'Intelligences Artificielles (ChatGPT, Gemini, Claude, etc.) est <strong>strictement interdit</strong>.</li>' +
+            '<li>Votre réponse doit faire <strong>entre 75 et 100 mots</strong> (un compteur vous aidera).</li>' +
+            '<li>Un chronomètre est actif. Essayez de répondre en moins de 10 minutes. Après 12 minutes, la page passera automatiquement à la suite.</li>' +
+            '</ul>' +
+            '<button class="btn btn-success" id="btnStartQuestions">Commencer</button>';
 
         document.getElementById('btnStartQuestions').addEventListener('click', function () {
             state.currentResearchIndex = 0;
@@ -524,73 +355,66 @@
     // =========================================================
     // 5. RESEARCH QUESTION
     // =========================================================
+    function countWords(str) {
+        return str.trim().split(/\s+/).filter(w => w.length > 0).length;
+    }
+
     function renderResearchQuestion() {
         var idx = state.currentResearchIndex;
         var q = state.researchQuestions[idx];
-        var total = state.researchQuestions.length;
 
         app.innerHTML =
-            '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">' +
-            '<h2>Question ' + (idx + 1) + ' / ' + total + '</h2>' +
-            '</div>' +
-
-            '<div class="question-box">' +
-            '<p>' + q.text + '</p>' +
-            '</div>' +
-
-            '<p style="color:#64748b; font-size:0.9em; margin-bottom:12px;">' +
-            'Vous pouvez ouvrir d\'autres onglets pour chercher la réponse sur Internet.' +
-            '</p>' +
-
+            '<h2>Question ' + (idx + 1) + ' / ' + state.researchQuestions.length + '</h2>' +
+            '<div class="question-box"><p>' + q.text + '</p></div>' +
+            '<p style="color:#64748b;">Cherchez la réponse sur Internet puis rédigez-la ici (75 à 100 mots).</p>' +
             '<textarea id="answerText" placeholder="Rédigez votre réponse ici..."></textarea>' +
-
-            '<button class="btn btn-primary" id="btnSubmitAnswer" disabled>Valider ma réponse</button>' +
-            '<div class="status-saving" id="savingStatus"></div>';
+            '<div id="wordCount" class="word-counter red">Mots : 0 / 75-100</div>' +
+            '<button class="btn btn-primary" id="btnSubmitAnswer" disabled>Valider ma réponse</button>';
 
         var textarea = document.getElementById('answerText');
         var btn = document.getElementById('btnSubmitAnswer');
+        var wc = document.getElementById('wordCount');
 
-        var existingAnswer = state.answers[state.currentResearchIndex];
-        if (existingAnswer && existingAnswer.data) {
-            textarea.value = existingAnswer.data.answer;
-        }
+        var existing = state.answers[idx];
+        if (existing) textarea.value = existing.data.answer;
 
         textarea.addEventListener('input', function () {
-            btn.disabled = textarea.value.trim().length < 10;
+            var count = countWords(textarea.value);
+            wc.textContent = "Mots : " + count + " / 75-100";
+            if (count < 75) { wc.className = "word-counter red"; btn.disabled = true; }
+            else if (count > 100) { wc.className = "word-counter red"; btn.disabled = false; } // On permet de valider même si >100, ou on bloque ? On laisse passer selon la consigne "visual cue, no hard blocking" pour le max.
+            else { wc.className = "word-counter green"; btn.disabled = false; }
         });
 
         btn.addEventListener('click', function () {
-            submitResearchAnswer(q);
+            processSubmitResearch(q, textarea.value);
         });
 
-        startTimer();
+        startTimer('research');
+        // Trigger event input manually to setup initial count
+        textarea.dispatchEvent(new Event('input'));
     }
 
-    async function submitResearchAnswer(question) {
-        var answerText = document.getElementById('answerText').value.trim();
+    function forceSubmitResearch() {
+        var q = state.researchQuestions[state.currentResearchIndex];
+        var text = document.getElementById('answerText').value || "[Temps écoulé]";
+        processSubmitResearch(q, text);
+    }
+
+    async function processSubmitResearch(question, text) {
         var timeSpent = stopTimer();
+        var wordCount = countWords(text);
 
-        var answerData = {
-            answer: answerText,
-            timeSpentSeconds: timeSpent,
-            questionIndex: state.currentResearchIndex,
-            exceededTimeLimit: timeSpent > 600
-        };
-
-        state.answers[state.currentResearchIndex] = {
-            questionId: question.id,
-            data: answerData
-        };
-
-        document.getElementById('savingStatus').textContent = 'Sauvegarde en cours...';
-
-        await sendToServer('research_answer', question.id, null, answerData);
-
+        var data = { answer: text, wordCount: wordCount, timeSpentSeconds: timeSpent, forcedTimeout: timeSpent >= 720 };
+        state.answers[state.currentResearchIndex] = { questionId: question.id, data: data };
+        
+        await sendToServer('research_answer', question.id, null, data);
         goTo('self_assessment');
     }
 
     // =========================================================
-    // 6. SELF ASSESSMENT - 2 SLIDERS (0-100)
+    // 6. SELF ASSESSMENT (Connaissances, Confiance, NASA-TLX)
+    // TOUT EST À 0 PAR DÉFAUT
     // =========================================================
     function renderSelfAssessment() {
         var idx = state.currentResearchIndex;
@@ -598,90 +422,160 @@
 
         app.innerHTML =
             '<h2>Auto-évaluation</h2>' +
-            '<p>Concernant la question que vous venez de traiter :</p>' +
-            '<div class="question-box">' +
-            '<p style="font-size:0.95em;">' + q.text + '</p>' +
-            '</div>' +
+            '<p>Concernant la question : <em>' + q.text + '</em></p>' +
 
+            '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
+            '<h3>1. Niveau de connaissance de base</h3>' +
             '<div class="slider-group">' +
-            '<label class="slider-label">Avant de faire votre recherche, comment évalueriez-vous ' +
-            'votre <strong>niveau de connaissance</strong> sur ce sujet ?</label>' +
-            '<div class="slider-container">' +
-            '<input type="range" id="sliderKnowledge" class="slider" min="0" max="100" value="50">' +
-            '<div class="slider-value" id="sliderKnowledgeVal">50</div>' +
-            '</div>' +
-            '<div class="slider-labels">' +
-            '<span>0 - Aucune connaissance</span>' +
-            '<span>100 - Expert(e)</span>' +
-            '</div>' +
+            '<label>J’estime ma connaissance initiale par rapport au sujet de la question au niveau suivant :</label>' +
+            '<div class="slider-container"><input type="range" id="k_base" class="slider" min="0" max="100" value="0"><div class="slider-value" id="vk_base">0</div></div>' +
+            '<div class="slider-labels"><span>0 (Nulle)</span><span>100 (Excellente)</span></div>' +
             '</div>' +
 
-            '<div class="slider-group">' +
-            '<label class="slider-label">Quel <strong>niveau d\'effort</strong> avez-vous ' +
-            'déployé pour rechercher et formuler votre réponse ?</label>' +
-            '<div class="slider-container">' +
-            '<input type="range" id="sliderEffort" class="slider" min="0" max="100" value="50">' +
-            '<div class="slider-value" id="sliderEffortVal">50</div>' +
+            '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
+            '<h3>2. Confiance envers la réponse et les sources</h3>' +
+            '<table class="likert-table">' +
+            '<tr><th>Énoncé</th><th>1<br>(Fortement en désaccord)</th><th>2</th><th>3</th><th>4</th><th>5<br>(Fortement en accord)</th></tr>' +
+            '<tr><td>J’ai confiance en la réponse que j’ai offerte.</td><td><input type="radio" name="conf1" value="1"></td><td><input type="radio" name="conf1" value="2"></td><td><input type="radio" name="conf1" value="3"></td><td><input type="radio" name="conf1" value="4"></td><td><input type="radio" name="conf1" value="5"></td></tr>' +
+            '<tr><td>J’ai utilisé des informations issues de sources numériques pour répondre.</td><td><input type="radio" name="conf2" value="1"></td><td><input type="radio" name="conf2" value="2"></td><td><input type="radio" name="conf2" value="3"></td><td><input type="radio" name="conf2" value="4"></td><td><input type="radio" name="conf2" value="5"></td></tr>' +
+            '<tr><td>J’ai confiance en la source numérique que j’ai utilisée.</td><td><input type="radio" name="conf3" value="1"></td><td><input type="radio" name="conf3" value="2"></td><td><input type="radio" name="conf3" value="3"></td><td><input type="radio" name="conf3" value="4"></td><td><input type="radio" name="conf3" value="5"></td></tr>' +
+            '</table>' +
+
+            '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
+            '<h3>3. NASA-TLX (Charge de travail)</h3>' +
+            '<div class="nasa-tlx-grid">' +
+            createSliderHtml("tlx_mental", "Exigence Mentale", "Opérations mentales requises (penser, chercher...)") +
+            createSliderHtml("tlx_phys", "Exigence Physique", "Opérations physiques requises (cliquer, scroller...)") +
+            createSliderHtml("tlx_temp", "Exigence Temporelle", "Pression temporelle ressentie") +
+            createSliderHtml("tlx_effort", "Effort", "Difficulté d'accomplir la tâche avec votre niveau de performance") +
+            createSliderHtml("tlx_perf", "Performance", "Réussite attribuée à l'atteinte des buts") +
+            createSliderHtml("tlx_frust", "Frustration", "Sentiment d'irritabilité, stress ou découragement") +
             '</div>' +
-            '<div class="slider-labels">' +
-            '<span>0 - Aucun effort</span>' +
-            '<span>100 - Effort maximal</span>' +
-            '</div>' +
-            '</div>' +
 
-            '<button class="btn btn-primary" id="btnSubmitScale">Suivant</button>';
+            '<button class="btn btn-primary" id="btnSubmitScale" style="margin-top:30px;">Valider l\'évaluation</button><div id="evalErr" style="color:red; display:none; margin-top:10px;">Veuillez répondre à toutes les questions à choix multiples.</div>';
 
-        var sk = document.getElementById('sliderKnowledge');
-        var skv = document.getElementById('sliderKnowledgeVal');
-        sk.addEventListener('input', function () { skv.textContent = sk.value; });
+        // Connect sliders
+        bindSlider('k_base');
+        ['tlx_mental', 'tlx_phys', 'tlx_temp', 'tlx_effort', 'tlx_perf', 'tlx_frust'].forEach(bindSlider);
 
-        var se = document.getElementById('sliderEffort');
-        var sev = document.getElementById('sliderEffortVal');
-        se.addEventListener('input', function () { sev.textContent = se.value; });
+        document.getElementById('btnSubmitScale').addEventListener('click', async function () {
+            var c1 = document.querySelector('input[name="conf1"]:checked');
+            var c2 = document.querySelector('input[name="conf2"]:checked');
+            var c3 = document.querySelector('input[name="conf3"]:checked');
 
-        document.getElementById('btnSubmitScale').addEventListener('click', function () {
-            submitSelfAssessment(q);
+            if (!c1 || !c2 || !c3) {
+                document.getElementById('evalErr').style.display = 'block';
+                return;
+            }
+
+            var payload = {
+                knowledgeBase: parseInt(document.getElementById('k_base').value),
+                confidenceAnswer: parseInt(c1.value),
+                confidenceUsedDigital: parseInt(c2.value),
+                confidenceSource: parseInt(c3.value),
+                nasaTlx: {
+                    mental: parseInt(document.getElementById('tlx_mental').value),
+                    physical: parseInt(document.getElementById('tlx_phys').value),
+                    temporal: parseInt(document.getElementById('tlx_temp').value),
+                    effort: parseInt(document.getElementById('tlx_effort').value),
+                    performance: parseInt(document.getElementById('tlx_perf').value),
+                    frustration: parseInt(document.getElementById('tlx_frust').value)
+                }
+            };
+
+            await sendToServer('self_assessment', q.id, null, payload);
+
+            state.currentResearchIndex++;
+            if (state.currentResearchIndex < state.researchQuestions.length) goTo('research_question');
+            else goTo('internet_skills');
         });
     }
 
-    async function submitSelfAssessment(question) {
-        var knowledge = parseInt(document.getElementById('sliderKnowledge').value);
-        var effort = parseInt(document.getElementById('sliderEffort').value);
+    function createSliderHtml(id, title, desc) {
+        return '<div class="slider-group" style="margin:0;"><label style="margin-bottom:4px;"><strong>' + title + '</strong></label><div style="font-size:0.8em; color:#64748b; margin-bottom:10px; line-height:1.2;">' + desc + '</div><div class="slider-container"><input type="range" id="' + id + '" class="slider" min="0" max="100" value="0"><div class="slider-value" id="v' + id + '">0</div></div><div class="slider-labels"><span>0 (Faible)</span><span>100 (Forte)</span></div></div>';
+    }
 
-        state.selfAssessments[state.currentResearchIndex] = {
-            questionId: question.id,
-            knowledge: knowledge,
-            effort: effort
-        };
-
-        await sendToServer('self_assessment', question.id, null, {
-            priorKnowledge: knowledge,
-            effortLevel: effort,
-            questionIndex: state.currentResearchIndex
-        });
-
-        state.currentResearchIndex++;
-        if (state.currentResearchIndex < state.researchQuestions.length) {
-            goTo('research_question');
-        } else {
-            // Apres les questions de recherche -> test de memoire (surprise)
-            goTo('memory_intro');
-        }
+    function bindSlider(id) {
+        var s = document.getElementById(id);
+        var v = document.getElementById('v' + id);
+        if(s && v) s.addEventListener('input', function () { v.textContent = s.value; });
     }
 
     // =========================================================
-    // 7. MEMORY INTRO
+    // 7. INTERNET SKILLS (van Deursen)
+    // =========================================================
+    const INTERNET_SKILLS_ITEMS = [
+        "Je sais comment télécharger des fichiers.",
+        "Je sais comment télécharger/sauvegarder des photos trouvées en ligne.",
+        "Je sais comment utiliser les raccourcis clavier (p. ex. CTRL-C, CTRL-S).",
+        "Je sais comment ouvrir un nouvel onglet sur mon fureteur internet.",
+        "Je sais comment mettre un signet à un site internet.",
+        "Je sais où cliquer pour aller sur une page internet différente.",
+        "J’ai de la difficulté à trouver les meilleurs mots-clés pour la recherche en ligne.",
+        "J’ai de la difficulté à trouver un site internet que j’ai déjà visité.",
+        "Je me fatigue rapidement lorsque je cherche de l’information sur internet.",
+        "Parfois, je me surprends à naviguer sans réellement savoir comment je m’y suis rendu.",
+        "Je suis parfois confus.e de la façon dont les sites internet sont conçus.",
+        "Je devrais suivre un cours sur la façon de rechercher de l’information sur internet.",
+        "Parfois, je trouve qu’il est difficile de vérifier des informations trouvées en ligne.",
+        "Je sais quelles informations je devrais partager et lesquelles je ne devrais pas partager en ligne.",
+        "Je sais quand partager et quand ne pas partager d’informations en ligne.",
+        "Je m’assure que mes commentaires et comportements en ligne sont appropriés à la situation.",
+        "Je sais comment changer les personnes avec qui je partage de l’information en ligne.",
+        "Je sais comment enlever des gens de mes listes d’ami.e.s.",
+        "Je sais comment créer du nouveau contenu à partir d’images, de musique ou de vidéos trouvés sur le web.",
+        "Je sais comment effectuer des changements mineurs au contenu que d’autres ont produit.",
+        "Je sais comment concevoir un site web.",
+        "Je suis à l'aise avec les différents types de licence qui s’appliquent au contenu en ligne.",
+        "Je serais confiant.e de mettre en ligne une vidéo que j’ai créée.",
+        "Je sais comment installer une application sur un appareil mobile.",
+        "Je sais comment télécharger une application sur mon appareil mobile.",
+        "Je sais comment suivre les coûts d’usage des applications mobiles."
+    ];
+
+    function renderInternetSkills() {
+        var html = '<h2>Évaluation de vos compétences Internet</h2>';
+        html += '<p>Pour chaque énoncé, indiquez à quel point il vous correspond (1 = Ne me correspond pas du tout, 5 = Me correspond beaucoup).</p>';
+        html += '<table class="likert-table"><tr><th>Énoncé</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>';
+        
+        INTERNET_SKILLS_ITEMS.forEach(function(item, i) {
+            html += '<tr><td style="font-size:0.9em;">' + item + '</td>';
+            for(var v=1; v<=5; v++) html += '<td><input type="radio" name="iskill_' + i + '" value="' + v + '"></td>';
+            html += '</tr>';
+        });
+        
+        html += '</table><button class="btn btn-primary" id="btnSubmitSkills">Suivant</button><div id="skillsErr" style="color:red; display:none; margin-top:10px;">Veuillez répondre à tous les énoncés.</div>';
+        app.innerHTML = html;
+
+        document.getElementById('btnSubmitSkills').addEventListener('click', async function() {
+            var answers = {};
+            var allAnswered = true;
+            for(var i=0; i<INTERNET_SKILLS_ITEMS.length; i++) {
+                var checked = document.querySelector('input[name="iskill_' + i + '"]:checked');
+                if(!checked) { allAnswered = false; break; }
+                answers['item_' + (i+1)] = parseInt(checked.value);
+            }
+
+            if(!allAnswered) {
+                document.getElementById('skillsErr').style.display = 'block';
+                return;
+            }
+
+            await sendToServer('questionnaire_event', null, null, { event: "internet_skills", answers: answers });
+            goTo('memory_intro');
+        });
+    }
+
+    // =========================================================
+    // 8. MEMORY INTRO
     // =========================================================
     function renderMemoryIntro() {
         app.innerHTML =
             '<div style="text-align:center;">' +
-            '<h1>Test de mémoire</h1>' +
-            '<p style="font-size:1.1em; margin:20px 0;">' +
-            'Vous allez maintenant répondre à <strong>' + state.memoryQuestions.length +
-            ' questions à choix multiples</strong> portant sur les informations que vous avez consultées.' +
-            '</p>' +
-            '<p>Répondez <strong>de mémoire</strong>, sans retourner sur Internet.</p>' +
-            '<p style="color:#64748b;">Il n\'y a pas de chronomètre pour cette partie.</p>' +
+            '<h1>Test de mémoire (Surprise !)</h1>' +
+            '<p style="font-size:1.1em; margin:20px 0;">Vous allez maintenant répondre à <strong>' + state.memoryQuestions.length + ' questions courtes</strong> portant sur les informations que vous avez consultées.</p>' +
+            '<p style="color:#dc2626;"><strong>RÈGLE STRICTE :</strong> Vous devez répondre <strong>de mémoire</strong>. Vous n\'avez pas le droit de chercher la réponse sur Internet.</p>' +
+            '<p>Vous avez <strong>1 minute par question</strong> maximum.</p>' +
             '<button class="btn btn-primary" id="btnStartMemory">Commencer le test</button>' +
             '</div>';
 
@@ -692,179 +586,82 @@
     }
 
     // =========================================================
-    // 8. MEMORY QUESTION
+    // 9. MEMORY QUESTION (Texte ouvert, 1 minute strict)
     // =========================================================
     function renderMemoryQuestion() {
         var idx = state.currentMemoryIndex;
         var mq = state.memoryQuestions[idx];
-        var total = state.memoryQuestions.length;
-
-        var optionsHTML = '<ul class="mcq-options">';
-        mq.options.forEach(function (opt, i) {
-            optionsHTML +=
-                '<li><label>' +
-                '<input type="radio" name="mcq" value="' + i + '">' +
-                '<span>' + opt + '</span>' +
-                '</label></li>';
-        });
-        optionsHTML += '</ul>';
 
         app.innerHTML =
-            '<div style="display:flex; justify-content:space-between; align-items:center;">' +
-            '<h2>Mémoire ' + (idx + 1) + ' / ' + total + '</h2>' +
-            '</div>' +
-            '<div class="question-box" style="margin-top:16px;">' +
-            '<p>' + mq.text + '</p>' +
-            '</div>' +
-            optionsHTML +
-            '<button class="btn btn-primary" id="btnSubmitMemory" disabled>Suivant</button>';
-
-        document.querySelectorAll('input[name="mcq"]').forEach(function (radio) {
-            radio.addEventListener('change', function () {
-                document.getElementById('btnSubmitMemory').disabled = false;
-            });
-        });
+            '<h2>Mémoire ' + (idx + 1) + ' / ' + state.memoryQuestions.length + '</h2>' +
+            '<div class="question-box"><p>' + mq.text + '</p></div>' +
+            '<textarea id="memAnswerText" placeholder="Votre réponse de mémoire..." style="min-height:100px;"></textarea>' +
+            '<button class="btn btn-primary" id="btnSubmitMemory">Valider</button>';
 
         document.getElementById('btnSubmitMemory').addEventListener('click', function () {
-            submitMemoryAnswer(mq);
+            var text = document.getElementById('memAnswerText').value.trim();
+            processSubmitMemory(mq, text);
         });
+
+        startTimer('memory');
     }
 
-    async function submitMemoryAnswer(memoryQ) {
-        var selected = parseInt(document.querySelector('input[name="mcq"]:checked').value);
-        var isCorrect = selected === memoryQ.correct;
+    function forceSubmitMemory() {
+        var mq = state.memoryQuestions[state.currentMemoryIndex];
+        var text = document.getElementById('memAnswerText').value || "[Temps écoulé]";
+        processSubmitMemory(mq, text);
+    }
 
-        state.memoryAnswers[state.currentMemoryIndex] = {
-            questionId: memoryQ.id,
-            selected: selected,
-            correct: memoryQ.correct,
-            isCorrect: isCorrect
+    async function processSubmitMemory(memoryQ, text) {
+        var timeSpent = stopTimer();
+        
+        var payload = {
+            sourceQuestionId: memoryQ.sourceQuestionId,
+            answerText: text,
+            timeSpentSeconds: timeSpent,
+            forcedTimeout: timeSpent >= 60
         };
 
-        await sendToServer('memory_answer', memoryQ.id, null, {
-            sourceQuestionId: memoryQ.sourceQuestionId,
-            selectedOption: selected,
-            selectedText: memoryQ.options[selected],
-            correctOption: memoryQ.correct,
-            correctText: memoryQ.options[memoryQ.correct],
-            isCorrect: isCorrect,
-            questionIndex: state.currentMemoryIndex
-        });
+        await sendToServer('memory_answer', memoryQ.id, null, payload);
 
         state.currentMemoryIndex++;
-        if (state.currentMemoryIndex < state.memoryQuestions.length) {
-            goTo('memory_question');
-        } else {
-            // Apres les questions de memoire -> consentement post-duperie
-            goTo('deception_consent');
-        }
+        if (state.currentMemoryIndex < state.memoryQuestions.length) goTo('memory_question');
+        else goTo('deception_consent');
     }
 
     // =========================================================
-    // 9. DECEPTION CONSENT (post-etude, APRES les questions memoire)
-    //    Contenu base sur le PDF post-experimental
+    // 10. DECEPTION CONSENT (TEXTE DU PDF INTÉGRÉ)
     // =========================================================
     function renderDeceptionConsent() {
         app.innerHTML =
-            '<h1 style="text-align:center;">Formulaire d\'information et de consentement post-expérimental</h1>' +
-            '<p style="text-align:center;color:#64748b;">Validation de questions de connaissances générales pour l\'étude des processus de recherche d\'information sur le Web</p>' +
-
-            '<div class="consent-box">' +
-
-            '<h3>Introduction</h3>' +
-            '<p>Suite à la divulgation de la duperie à laquelle vous avez été exposé(e), nous vous ' +
-            'fournissons un addendum post-expérimental au formulaire d\'information et de consentement ' +
-            'que vous avez signé avant le début de l\'expérience. Ce document explique les éléments qui ' +
-            'ont été dissimulés dans le formulaire original et réitère les informations liées à votre ' +
-            'consentement. Vous êtes invité(e) à contacter l\'équipe du laboratoire si vous avez des ' +
-            'questions que vous jugez utiles.</p>' +
-
-            '<h3>Nature de l\'étude</h3>' +
-            '<p>Initialement, nous avons indiqué que le but de cette recherche était de mieux comprendre ' +
-            'comment les individus interagissent avec les technologies de l\'information à des fins de ' +
-            'recherche d\'information, plus spécifiquement les technologies web. Les véritables objectifs ' +
-            'de l\'étude sont de mieux comprendre comment les <strong>stratégies de recherche sur le web ' +
-            'peuvent affecter la mémorisation du contenu</strong> rencontré dans un contexte de recherche ' +
-            'd\'information.</p>' +
-
-            '<h3>Participation volontaire et droit de retrait</h3>' +
-            '<p>Vous êtes libre de maintenir ou de retirer votre consentement suite à la divulgation de ' +
-            'cette information. Vous pouvez mettre fin à votre participation sans préjudice, conserver ' +
-            'votre compensation, et sans avoir à justifier votre décision. Toutes les informations ' +
-            'personnelles vous concernant ainsi que vos réponses seront alors détruites.</p>' +
-            '<p>Veuillez sélectionner l\'option qui reflète le mieux votre décision suite à la divulgation ' +
-            'de cette duperie.</p>' +
-
-            '<h3>Informations supplémentaires</h3>' +
-            '<p>Pour toute question, veuillez contacter le laboratoire à ' +
-            '<a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>' +
-
-            '<h3>Plaintes ou critiques</h3>' +
-            '<p>Les plaintes peuvent être adressées au Bureau de l\'ombudsman de l\'Université Laval :</p>' +
-            '<p style="font-size:0.9em; color:#64748b; line-height:1.8;">' +
-            'Pavillon Alphonse-Desjardins, bureau 3320<br>' +
-            '2325, rue de l\'Université<br>' +
-            'Université Laval<br>' +
-            'Québec (Québec) G1V 0A6<br>' +
-            'Renseignements - Secrétariat : 1 418 656-3081<br>' +
-            'Ligne sans frais : 1 866 323-2271<br>' +
-            'Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>' +
-
+            '<h1 style="text-align:center;">Debriefing & Consentement post-expérimental</h1>' +
+            '<div class="consent-box" style="font-size:0.95em;">' +
+            '<p>Au cours de l’expérience, vous avez eu à répondre à des questions à développement long à partir de recherches Web que vous avez effectuées. À la fin de l’expérience, vous avez eu à répondre à des questions de mémorisation en lien avec les sujets abordés. L’objectif de l’étude vous a donc été dissimulé.</p>' +
+            '<p>Le but caché de l’étude était en fait de voir si votre stratégie de recherche documentaire affecterait votre performance de mémorisation à ce test de mémoire surprise. La raison de cette dissimulation était que nous voulions nous assurer que vous n’utilisiez pas de stratégie de rétention particulière afin de pouvoir évaluer les effets de votre recherche web. Cette connaissance aurait pu modifier vos comportements et réactions face à la tâche.</p>' +
+            '<p>Vous connaissez maintenant le but réel de la présente étude. Sachez qu’à la lumière de cette nouvelle information, vous pouvez encore vous retirer de l’étude et ce, sans préjudice. Le cas échéant, vos données seront détruites et ne seront donc pas utilisées. Nous détruirons également tous les autres documents vous liant à la présente étude, notamment le formulaire de consentement que vous avez signé plus tôt.</p>' +
+            '<p style="font-size:0.8em; color:#64748b; margin-top:20px;">Ce projet a été approuvé par le Comité d’éthique de la recherche de l’Université Laval : No d’approbation 2025-460 A-1 / 04-05-2026.</p>' +
             '</div>' +
 
             '<div class="consent-checks">' +
-            '<label class="consent-label">' +
-            '<input type="radio" name="deceptionChoice" value="maintain">' +
-            '<span>Je souhaite <strong>maintenir</strong> ma participation à l\'étude.</span>' +
-            '</label>' +
-            '<label class="consent-label">' +
-            '<input type="radio" name="deceptionChoice" value="withdraw">' +
-            '<span>Je souhaite <strong>mettre fin</strong> à ma participation à l\'étude.</span>' +
-            '</label>' +
+            '<label class="consent-label"><input type="radio" name="deceptionChoice" value="maintain"><span>Je souhaite <strong>maintenir</strong> ma participation à l\'étude.</span></label>' +
+            '<label class="consent-label"><input type="radio" name="deceptionChoice" value="withdraw"><span>Je souhaite <strong>mettre fin</strong> à ma participation à l\'étude. (Mes données seront détruites)</span></label>' +
             '</div>' +
-
             '<button class="btn btn-primary" id="btnDeceptionConsent" disabled>Confirmer mon choix</button>';
 
         var radios = document.querySelectorAll('input[name="deceptionChoice"]');
         var btn = document.getElementById('btnDeceptionConsent');
 
-        radios.forEach(function (radio) {
-            radio.addEventListener('change', function () {
-                btn.disabled = false;
-            });
-        });
+        radios.forEach(function (r) { r.addEventListener('change', function () { btn.disabled = false; }); });
 
         btn.addEventListener('click', function () {
             var selected = document.querySelector('input[name="deceptionChoice"]:checked').value;
 
             if (selected === 'maintain') {
-                state.deceptionConsentGiven = true;
-                sendToServer('deception_consent', 'CONSENT_2', null, {
-                    consent: true,
-                    decision: 'maintain',
-                    questionLabel: "Consentement Post-Expérimental (Maintenu)",
-                    timestamp: new Date().toISOString()
-                });
+                sendToServer('deception_consent', null, null, { consent: true, decision: 'maintain', questionLabel: "Consentement Post-Expérimental (Maintenu)" });
                 goTo('end');
             } else {
-                state.deceptionConsentGiven = false;
-                sendToServer('deception_consent', 'CONSENT_2', null, {
-                    consent: false,
-                    decision: 'withdraw',
-                    questionLabel: "Consentement Post-Expérimental (Retiré)",
-                    timestamp: new Date().toISOString()
-                });
-                app.innerHTML =
-                    '<div style="text-align:center;padding:60px 0;">' +
-                    '<h1>Merci</h1>' +
-                    '<p>Nous comprenons votre décision. Vos données seront détruites ' +
-                    'conformément à notre politique de confidentialité.</p>' +
-                    '<p style="color:#64748b; margin-top:16px;">Vous pouvez désinstaller l\'extension Chrome :</p>' +
-                    '<p style="font-size:0.9em; color:#475569;">Clic droit sur l\'icône de l\'extension > ' +
-                    '<strong style="color:#ef4444;">Supprimer de Chrome</strong></p>' +
-                    '<p style="color:#94a3b8;margin-top:20px;">Pour toute question : ' +
-                    '<a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a></p>' +
-                    '</div>';
+                sendToServer('deception_consent', null, null, { consent: false, decision: 'withdraw', questionLabel: "Consentement Post-Expérimental (Retiré)" });
+                app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>Merci</h1><p>Nous comprenons votre décision. Vos données seront détruites.</p><p style="color:#64748b; margin-top:16px;">Vous pouvez désinstaller l\'extension Chrome.</p></div>';
                 localStorage.removeItem('questionnaire_progress');
                 window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
             }
@@ -872,103 +669,21 @@
     }
 
     // =========================================================
-    // 10. END - Page de desinstallation
+    // 11. END
     // =========================================================
     function renderEnd() {
-        var totalMemory = state.memoryAnswers.length;
-        var correctMemory = state.memoryAnswers.filter(function (a) {
-            return a && a.isCorrect;
-        }).length;
-
         app.innerHTML =
             '<div class="end-screen">' +
-            '<h1>Merci pour votre participation</h1>' +
-            '<p style="font-size:1.1em; margin:20px 0;">' +
-            'Vos réponses ont été enregistrées avec succès.' +
-            '</p>' +
-            '<p style="color:#64748b;">' +
-            'Score mémoire : ' + correctMemory + ' / ' + totalMemory +
-            '</p>' +
-
+            '<h1>Merci pour votre participation !</h1>' +
+            '<p style="font-size:1.1em; margin:20px 0;">Vos réponses ont été enregistrées avec succès.</p>' +
             '<div style="margin-top:32px; padding:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px;">' +
             '<h3 style="margin:0 0 12px; font-size:16px; color:#dc2626;">Dernière étape : désinstaller l\'extension</h3>' +
-            '<p style="font-size:14px; color:#475569; line-height:1.6; margin-bottom:16px;">' +
-            'L\'étude est terminée. Pour désinstaller l\'extension :</p>' +
+            '<p style="font-size:14px; color:#475569;">Faites un clic droit sur l\'icône de l\'extension (en haut à droite de Chrome) et sélectionnez <strong>"Supprimer de Chrome"</strong>.</p>' +
+            '</div></div>';
 
-            '<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">' +
-
-            '<div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">' +
-            '<div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">1</div>' +
-            '<p style="margin:0;font-size:14px;color:#334155;">Faites un <strong>clic droit</strong> sur l\'icône de l\'extension en haut à droite de Chrome.</p>' +
-            '</div>' +
-
-            '<div style="display:flex; gap:10px; align-items:flex-start;">' +
-            '<div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">2</div>' +
-            '<p style="margin:0;font-size:14px;color:#334155;">Cliquez sur <strong style="color:#ef4444;">"Supprimer de Chrome"</strong> puis confirmez.</p>' +
-            '</div>' +
-
-            '</div>' +
-
-            '<hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">' +
-
-            '<h4 style="margin:0 0 12px; font-size:14px; color:#475569;">Méthode alternative</h4>' +
-            '<div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">' +
-
-            '<div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">' +
-            '<div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">1</div>' +
-            '<p style="margin:0;font-size:14px;color:#334155;">Copiez et collez cette adresse dans votre barre d\'adresse : ' +
-            '<span id="copyUrl" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;font-family:monospace;font-size:13px;color:#3b82f6;cursor:pointer;" title="Cliquer pour copier">chrome://extensions</span></p>' +
-            '</div>' +
-
-            '<div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">' +
-            '<div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">2</div>' +
-            '<p style="margin:0;font-size:14px;color:#334155;">Trouvez <strong>"Étude Navigation Web - Université Laval"</strong> dans la liste.</p>' +
-            '</div>' +
-
-            '<div style="display:flex; gap:10px; align-items:flex-start;">' +
-            '<div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">3</div>' +
-            '<p style="margin:0;font-size:14px;color:#334155;">Cliquez sur <strong>"Supprimer"</strong> puis confirmez.</p>' +
-            '</div>' +
-
-            '</div>' +
-
-            '</div>' +
-
-            '<div style="margin-top:20px; padding:16px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px;">' +
-            '<p style="font-size:13px; color:#0369a1; margin:0; line-height:1.5;">' +
-            '<strong>Confidentialité :</strong> Vos données sont anonymisées et chiffrées. ' +
-            'Aucune donnée personnelle n\'est conservée. ' +
-            'Pour toute question : <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a></p>' +
-            '</div>' +
-
-            '</div>';
-
-        // Copier chrome://extensions
-        var copyEl = document.getElementById('copyUrl');
-        if (copyEl) {
-            copyEl.addEventListener('click', function () {
-                navigator.clipboard.writeText('chrome://extensions').then(function () {
-                    copyEl.textContent = 'Copié !';
-                    setTimeout(function () { copyEl.textContent = 'chrome://extensions'; }, 2000);
-                });
-            });
-        }
-
-        // Signaler la fin a l'extension
         window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
-
-        // Nettoyer la progression
         localStorage.removeItem('questionnaire_progress');
-
-        // Envoyer l'evenement de fin au serveur
-        sendToServer('questionnaire_event', null, null, {
-            event: 'questionnaire_completed',
-            totalResearchQuestions: state.researchQuestions.length,
-            totalMemoryQuestions: totalMemory,
-            memoryScore: correctMemory,
-            deceptionConsentMaintained: state.deceptionConsentGiven
-        });
-
+        sendToServer('questionnaire_event', null, null, { event: 'questionnaire_completed' });
         progressFill.style.width = '100%';
         progressText.textContent = '100%';
     }
@@ -985,29 +700,18 @@
             data: data,
             timestamp: new Date().toISOString()
         };
-
         try {
-            var resp = await fetch(API_BASE + '/reponse', {
+            await fetch(API_BASE + '/reponse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
-            if (!resp.ok) {
-                var err = await resp.json();
-                console.error('Erreur serveur:', err);
-            }
         } catch (err) {
-            console.error('Erreur reseau:', err.message);
             var fallback = JSON.parse(localStorage.getItem('questionnaire_fallback') || '[]');
             fallback.push(payload);
             localStorage.setItem('questionnaire_fallback', JSON.stringify(fallback));
         }
     }
 
-    // =========================================================
-    // BOOT
-    // =========================================================
     init();
-
 })();
