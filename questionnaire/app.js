@@ -393,10 +393,9 @@
                 knowledgeBase: parseInt(document.getElementById('k_base').value),
                 confidenceAnswer: parseInt(c1.value),
                 confidenceUsedDigital: parseInt(c2.value),
-                confidenceSource: parseInt(c3.value),
-                nasaTlx: {}
+                confidenceSource: parseInt(c3.value)
             };
-            nasaItems.forEach(function(item) { payload.nasaTlx[item.id] = parseInt(document.getElementById(item.id).value); });
+            nasaItems.forEach(function(item) { payload[item.id] = parseInt(document.getElementById(item.id).value); });
 
             await sendToServer('self_assessment', q.id, null, payload);
 

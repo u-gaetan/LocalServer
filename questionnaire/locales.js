@@ -60,37 +60,36 @@ const i18n = {
 
         fin_texte: `
             <div style="margin-top:32px; padding:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; text-align:left;">
-                <h3 style="margin:0 0 12px; font-size:16px; color:#dc2626;">Dernière étape : désinstaller l'extension</h3>
-                <p style="font-size:14px; color:#475569; line-height:1.6; margin-bottom:16px;">L'étude est terminée. Pour désinstaller l'extension :</p>
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                    <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">
-                        <div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">1</div>
-                        <p style="margin:0;font-size:14px;color:#334155;">Faites un <strong>clic droit</strong> sur l'icône de l'extension en haut à droite de Chrome.</p>
+                <h3 style="margin:0 0 16px; font-size:18px; color:#dc2626;">Dernière étape cruciale : Désinstaller l'extension</h3>
+                <p style="font-size:14px; color:#475569; margin-bottom:20px;">L'étude est maintenant terminée. Vous devez retirer l'extension de votre navigateur.</p>
+                
+                <div style="display:flex; flex-direction:column; gap:20px; margin-bottom:20px;">
+                    
+                    <!-- ÉTAPE 1 -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
+                            <strong style="color:#3b82f6;">Étape 1 :</strong> [VOTRE TEXTE ICI - Ex: Cliquez sur l'icône en forme de puzzle en haut à droite de Chrome pour ouvrir le menu des extensions.]
+                        </p>
+                        <img src="../images/uninstall_1.png" alt="Étape 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
-                    <div style="display:flex; gap:10px; align-items:flex-start;">
-                        <div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">2</div>
-                        <p style="margin:0;font-size:14px;color:#334155;">Cliquez sur <strong style="color:#ef4444;">"Supprimer de Chrome"</strong> puis confirmez.</p>
+
+                    <!-- ÉTAPE 2 -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
+                            <strong style="color:#3b82f6;">Étape 2 :</strong> [VOTRE TEXTE ICI - Ex: Trouvez "Étude Navigation Web - Université Laval", cliquez sur les 3 petits points verticaux, puis sélectionnez "Supprimer de Chrome".]
+                        </p>
+                        <img src="../images/uninstall_2.png" alt="Étape 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
+
+                    <!-- ÉTAPE 3 -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
+                            <strong style="color:#3b82f6;">Étape 3 :</strong> [VOTRE TEXTE ICI - Ex: Une petite fenêtre s'ouvrira en haut de l'écran. Cliquez sur le bouton "Supprimer" pour confirmer.]
+                        </p>
+                        <img src="../images/uninstall_3.png" alt="Étape 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                    </div>
+
                 </div>
-                <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
-                <h4 style="margin:0 0 12px; font-size:14px; color:#475569;">Méthode alternative</h4>
-                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                    <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">
-                        <div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">1</div>
-                        <p style="margin:0;font-size:14px;color:#334155;">Copiez et collez cette adresse dans votre barre d'adresse : <span style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;font-family:monospace;font-size:13px;color:#3b82f6;">chrome://extensions</span></p>
-                    </div>
-                    <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:12px;">
-                        <div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">2</div>
-                        <p style="margin:0;font-size:14px;color:#334155;">Trouvez <strong>"Étude Navigation Web - Université Laval"</strong> dans la liste.</p>
-                    </div>
-                    <div style="display:flex; gap:10px; align-items:flex-start;">
-                        <div style="width:26px;height:26px;min-width:26px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;">3</div>
-                        <p style="margin:0;font-size:14px;color:#334155;">Cliquez sur <strong>"Supprimer"</strong> puis confirmez.</p>
-                    </div>
-                </div>
-            </div>
-            <div style="margin-top:20px; padding:16px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; text-align:left;">
-                <p style="font-size:13px; color:#0369a1; margin:0; line-height:1.5;"><strong>Confidentialité :</strong> Vos données sont anonymisées et chiffrées. Aucune donnée personnelle identifiable n'est conservée. Pour toute question : <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a></p>
             </div>
         `,
 
