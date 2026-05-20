@@ -34,6 +34,8 @@ app.use('/api/', globalLimiter);
 // FICHIERS STATIQUES
 // =========================================================
 app.use('/questionnaire', express.static(path.join(__dirname, 'questionnaire')));
+// Remplace le chemin par le nom exact de ton dossier
+app.use('/images', express.static(path.join(__dirname, 'images')));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
 // =========================================================
