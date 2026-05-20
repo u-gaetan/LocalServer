@@ -68,25 +68,25 @@ const i18n = {
                     <!-- ÉTAPE 1 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 1 :</strong> [VOTRE TEXTE ICI - Ex: Cliquez sur l'icône en forme de puzzle en haut à droite de Chrome pour ouvrir le menu des extensions.]
+                            <strong style="color:#3b82f6;">Étape 1 :</strong> Cliquez droit sur l'icône de l'extension comme sur l'image ci-dessous.
                         </p>
-                        <img src="../images/uninstall_1.png" alt="Étape 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/uninstall_1.png" alt="Étape 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
 
                     <!-- ÉTAPE 2 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 2 :</strong> [VOTRE TEXTE ICI - Ex: Trouvez "Étude Navigation Web - Université Laval", cliquez sur les 3 petits points verticaux, puis sélectionnez "Supprimer de Chrome".]
+                            <strong style="color:#3b82f6;">Étape 2 :</strong> Cliquez sur "Supprimer de Chrome".]
                         </p>
-                        <img src="../images/uninstall_2.png" alt="Étape 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/uninstall_2.png" alt="Étape 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
 
                     <!-- ÉTAPE 3 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 3 :</strong> [VOTRE TEXTE ICI - Ex: Une petite fenêtre s'ouvrira en haut de l'écran. Cliquez sur le bouton "Supprimer" pour confirmer.]
+                            <strong style="color:#3b82f6;">Étape 3 :</strong> Une petite fenêtre s'ouvrira en haut de l'écran. Cliquez sur le bouton "Supprimer" pour confirmer.
                         </p>
-                        <img src="../images/uninstall_3.png" alt="Étape 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/uninstall_3.png" alt="Étape 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
 
                 </div>
