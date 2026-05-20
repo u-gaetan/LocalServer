@@ -552,5 +552,65 @@
         }
     }
 
+    // =========================================================
+    // SÉCURITÉ : INACTIVITÉ (1h) ET DÉLAI GLOBAL (4h)
+    // =========================================================
+    let inactivityTimer = null;
+    let globalTimer = null;
+
+    function triggerStudyTimeout(reason) {
+        let msg = reason === 'inactivity' 
+            ? "La collecte de données s'est arrêtée suite à 1 heure d'inactivité." 
+            : "La collecte de données s'est arrêtée car le délai maximum autorisé de 4 heures est écoulé.";
+        
+        alert("⚠️ " + msg + " Vos données sont invalidées.");
+        
+        // 1. On dit à l'extension de s'arrêter
+        try { chrome.runtime.sendMessage({ action: "stop_tracking" }); } catch(e) {}
+        
+        // 2. On notifie le serveur de l'invalidation
+        sendToServer('questionnaire_event', null, null, { event: 'study_invalidated', reason: reason });
+        
+        // 3. On bloque l'interface
+        app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1 style="color:#dc2626;">Étude annulée</h1><p>' + msg + '</p></div>';
+        
+        // On arrête les chronomètres de l'étude s'ils tournaient
+        hideTimer();
+    }
+
+    function resetInactivityTimer() {
+        if (state.phase === 'end' || state.phase === 'language') return; // Ne pas agir si fini ou pas commencé
+        clearTimeout(inactivityTimer);
+        // 1 heure = 60 * 60 * 1000 ms
+        inactivityTimer = setTimeout(() => triggerStudyTimeout('inactivity'), 3600000); 
+    }
+
+    function checkGlobalTimer() {
+        if (state.phase === 'end' || !state.consentGiven) return;
+        
+        let start = localStorage.getItem('study_global_start');
+        if (!start) {
+            start = Date.now();
+            localStorage.setItem('study_global_start', start);
+        }
+        
+        let elapsed = Date.now() - parseInt(start);
+        let remaining = (4 * 3600 * 1000) - elapsed; // 4 heures
+        
+        if (remaining <= 0) {
+            triggerStudyTimeout('max_time');
+        } else {
+            clearTimeout(globalTimer);
+            globalTimer = setTimeout(() => triggerStudyTimeout('max_time'), remaining);
+        }
+    }
+
+    // Écouter l'activité du participant sur la page pour remettre le compteur 1h à zéro
+    ['mousemove', 'keydown', 'scroll', 'click'].forEach(evt => document.addEventListener(evt, resetInactivityTimer));
+    
+    // Initialiser les timers au démarrage
+    resetInactivityTimer();
+    setInterval(checkGlobalTimer, 60000); // Vérifie le timer global toutes les minutes
+
     init();
 })();
