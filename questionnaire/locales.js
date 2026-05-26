@@ -76,7 +76,7 @@ const i18n = {
                     <!-- ÉTAPE 2 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 2 :</strong> Cliquez sur "Supprimer de Chrome".]
+                            <strong style="color:#3b82f6;">Étape 2 :</strong> Cliquez sur "Supprimer de Chrome".
                         </p>
                         <img src="/images/uninstall_2.png" alt="Étape 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>

@@ -192,6 +192,19 @@
     }
     function countWords(str) { return str.trim().split(/\s+/).filter(w => w.length > 0).length; }
 
+    function getNavCount() {
+        return new Promise(resolve => {
+            const handler = (e) => {
+                if (e.data && e.data.type === 'NAV_COUNT_RESULT') {
+                    window.removeEventListener('message', handler);
+                    resolve(e.data.count);
+                }
+            };
+            window.addEventListener('message', handler);
+            window.postMessage({ type: 'GET_NAV_COUNT' }, '*');
+        });
+    }
+
 
     // === 1. LANGUAGE ===
     function renderLanguage() {
@@ -310,6 +323,8 @@
         var existing = state.answers[idx];
         if (existing) textarea.value = existing.data.answer;
 
+        getNavCount().then(c => initialNavCount = c);
+
         textarea.addEventListener('input', function () {
             var count = countWords(textarea.value);
             wc.textContent = "Mots : " + count + " / 75-100";
@@ -318,7 +333,13 @@
             else { wc.className = "word-counter orange"; btn.disabled = false; }
         });
 
-        btn.addEventListener('click', function () { processSubmitResearch(q, textarea.value); });
+        btn.addEventListener('click', function () {
+            let currentNavCount = await getNavCount();
+            if (currentNavCount === initialNavCount && !existing) {
+                alert("⚠️ Aucune recherche détectée ! Vous devez faire vos recherches sur Chrome (et non en navigation privée) avant de valider votre réponse.");
+                return; // Bloque la soumission
+            } 
+            processSubmitResearch(q, textarea.value); });
         startTimer('research');
         textarea.dispatchEvent(new Event('input'));
     }
@@ -445,6 +466,7 @@
 
     // === 8. MEMORY INTRO ===
     function renderMemoryIntro() {
+        window.postMessage({ type: 'SET_PHASE', phase: 'memory' }, '*'); // <--- ON BLOQUE
         app.innerHTML =
             '<div style="text-align:center;">' +
             '<h1>Test de mémoire (Surprise !)</h1>' +
@@ -496,6 +518,7 @@
 
     // === 10. DECEPTION ===
     function renderDeceptionConsent() {
+        window.postMessage({ type: 'SET_PHASE', phase: 'research' }, '*');
         app.innerHTML =
             '<h1 style="text-align:center;">' + t('debriefing_titre') + '</h1>' +
             '<div class="consent-box" style="font-size:0.95em;">' + t('debriefing_texte') + '</div>' +
