@@ -33,11 +33,10 @@
     let popup10MinShown = false;
     let currentTimerPhase = null;
 
-    // Fonction de traduction
-    // Fonction de traduction sécurisée
+    // Fonction de traduction ultra-sécurisée
     function t(key) {
-        if (!state.language) return ""; // Évite le crash au tout 1er lancement
-        if (!i18n || !i18n[state.language]) return key;
+        if (!state.language) return ""; 
+        if (typeof i18n === 'undefined' || !i18n[state.language]) return key;
         return i18n[state.language][key] || key;
     }
 
@@ -208,7 +207,6 @@
         });
     }
 
-
     // === 1. LANGUAGE ===
     function renderLanguage() {
         app.innerHTML =
@@ -222,8 +220,8 @@
         var btn = document.getElementById('btnLanguage');
         select.addEventListener('change', function () { btn.disabled = !select.value; });
         btn.addEventListener('click', function () { 
-            state.language = select.value; // On assigne la langue ici !
-            saveProgress(); // On sauvegarde l'état
+            state.language = select.value; 
+            saveProgress(); 
             goTo('consent'); 
         });
     }
@@ -311,6 +309,8 @@
     }
 
     // === 5. RESEARCH ===
+    let initialNavCount = 0; // CORRECTION : Il manquait cette déclaration !
+
     function renderResearchQuestion() {
         var idx = state.currentResearchIndex;
         var q = state.researchQuestions[idx];
@@ -330,23 +330,33 @@
         var existing = state.answers[idx];
         if (existing) textarea.value = existing.data.answer;
 
-        getNavCount().then(c => initialNavCount = c);
+        getNavCount().then(c => { initialNavCount = c; });
 
         textarea.addEventListener('input', function () {
             var count = countWords(textarea.value);
             wc.textContent = "Mots : " + count + " / 75-100";
-            if (count < 75) { wc.className = "word-counter red"; btn.disabled = true; }
-            else if (75 <= count && count <= 100) { wc.className = "word-counter green"; btn.disabled = false; }
-            else { wc.className = "word-counter orange"; btn.disabled = false; }
+            if (count < 75) { 
+                wc.className = "word-counter red"; 
+                btn.disabled = true; 
+            } else if (count >= 75 && count <= 100) { 
+                wc.className = "word-counter green"; 
+                btn.disabled = false; 
+            } else { 
+                wc.className = "word-counter red"; // Compteur rouge si dépassement
+                btn.disabled = false; // Mais validation possible
+            }
         });
 
-        btn.addEventListener('click', function () {
+        // CORRECTION : L'ajout du mot-clé "async" résout le crash de l'écran blanc
+        btn.addEventListener('click', async function () {
             let currentNavCount = await getNavCount();
             if (currentNavCount === initialNavCount && !existing) {
                 alert("⚠️ Aucune recherche détectée ! Vous devez faire vos recherches sur Chrome (et non en navigation privée) avant de valider votre réponse.");
                 return; // Bloque la soumission
             } 
-            processSubmitResearch(q, textarea.value); });
+            processSubmitResearch(q, textarea.value); 
+        });
+        
         startTimer('research');
         textarea.dispatchEvent(new Event('input'));
     }
@@ -423,7 +433,11 @@
                 confidenceUsedDigital: parseInt(c2.value),
                 confidenceSource: parseInt(c3.value)
             };
-            nasaItems.forEach(function(item) { payload[item.id] = parseInt(document.getElementById(item.id).value); });
+            
+            // CORRECTION : Extraction à plat pour Excel
+            nasaItems.forEach(function(item) { 
+                payload[item.id] = parseInt(document.getElementById(item.id).value); 
+            });
 
             await sendToServer('self_assessment', q.id, null, payload);
 
@@ -473,7 +487,7 @@
 
     // === 8. MEMORY INTRO ===
     function renderMemoryIntro() {
-        window.postMessage({ type: 'SET_PHASE', phase: 'memory' }, '*'); // <--- ON BLOQUE
+        window.postMessage({ type: 'SET_PHASE', phase: 'memory' }, '*');
         app.innerHTML =
             '<div style="text-align:center;">' +
             '<h1>Test de mémoire (Surprise !)</h1>' +
@@ -594,24 +608,15 @@
             : "La collecte de données s'est arrêtée car le délai maximum autorisé de 4 heures est écoulé.";
         
         alert("⚠️ " + msg + " Vos données sont invalidées.");
-        
-        // 1. On dit à l'extension de s'arrêter
         try { chrome.runtime.sendMessage({ action: "stop_tracking" }); } catch(e) {}
-        
-        // 2. On notifie le serveur de l'invalidation
         sendToServer('questionnaire_event', null, null, { event: 'study_invalidated', reason: reason });
-        
-        // 3. On bloque l'interface
         app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1 style="color:#dc2626;">Étude annulée</h1><p>' + msg + '</p></div>';
-        
-        // On arrête les chronomètres de l'étude s'ils tournaient
         hideTimer();
     }
 
     function resetInactivityTimer() {
-        if (state.phase === 'end' || state.phase === 'language') return; // Ne pas agir si fini ou pas commencé
+        if (state.phase === 'end' || state.phase === 'language') return;
         clearTimeout(inactivityTimer);
-        // 1 heure = 60 * 60 * 1000 ms
         inactivityTimer = setTimeout(() => triggerStudyTimeout('inactivity'), 3600000); 
     }
 
@@ -625,22 +630,20 @@
         }
         
         let elapsed = Date.now() - parseInt(start);
-        let remaining = (4 * 3600 * 1000) - elapsed; // 4 heures
+        let remaining = (4 * 3600 * 1000) - elapsed;
         
-        if (remaining <= 0) {
-            triggerStudyTimeout('max_time');
-        } else {
+        if (remaining <= 0) triggerStudyTimeout('max_time');
+        else {
             clearTimeout(globalTimer);
             globalTimer = setTimeout(() => triggerStudyTimeout('max_time'), remaining);
         }
     }
 
-    // Écouter l'activité du participant sur la page pour remettre le compteur 1h à zéro
     ['mousemove', 'keydown', 'scroll', 'click'].forEach(evt => document.addEventListener(evt, resetInactivityTimer));
     
-    // Initialiser les timers au démarrage
     resetInactivityTimer();
-    setInterval(checkGlobalTimer, 60000); // Vérifie le timer global toutes les minutes
+    setInterval(checkGlobalTimer, 60000);
 
+    // Initialisation
     init();
 })();
