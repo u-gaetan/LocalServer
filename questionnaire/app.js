@@ -6,7 +6,7 @@
     let state = {
         phase: 'language',
         participantId: null,
-        language: 'fr', // Par défaut sur FR pour l'instant
+        language: 'fr',
         consentGiven: false,
         deceptionConsentGiven: false,
         demographics: null,
@@ -33,7 +33,6 @@
     let popup10MinShown = false;
     let currentTimerPhase = null;
 
-    // Fonction de traduction ultra-sécurisée
     function t(key) {
         if (!state.language) return ""; 
         if (typeof i18n === 'undefined' || !i18n[state.language]) return key;
@@ -194,10 +193,17 @@
     }
     function countWords(str) { return str.trim().split(/\s+/).filter(w => w.length > 0).length; }
 
+    // ANTI-FREEZE : Timeout si l'extension ne répond pas au bout d'une seconde
     function getNavCount() {
         return new Promise(resolve => {
+            let timeoutId = setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve(-1); // On renvoie -1 si on n'a pas de réponse (évite le gel)
+            }, 1000);
+
             const handler = (e) => {
                 if (e.data && e.data.type === 'NAV_COUNT_RESULT') {
+                    clearTimeout(timeoutId);
                     window.removeEventListener('message', handler);
                     resolve(e.data.count);
                 }
@@ -242,6 +248,9 @@
 
         btn.addEventListener('click', function () {
             state.consentGiven = true;
+            // ON RÉINITIALISE LE COMPTEUR DES 4 HEURES ICI !
+            localStorage.setItem('study_global_start', Date.now().toString());
+
             sendToServer('consent', null, null, { consent: true, questionLabel: "Consentement Initial" });
             window.postMessage({ type: 'START_TRACKING', participantId: state.participantId }, '*');
             goTo('demographics');
@@ -309,7 +318,7 @@
     }
 
     // === 5. RESEARCH ===
-    let initialNavCount = 0; // CORRECTION : Il manquait cette déclaration !
+    let initialNavCount = 0; 
 
     function renderResearchQuestion() {
         var idx = state.currentResearchIndex;
@@ -342,17 +351,17 @@
                 wc.className = "word-counter green"; 
                 btn.disabled = false; 
             } else { 
-                wc.className = "word-counter red"; // Compteur rouge si dépassement
-                btn.disabled = false; // Mais validation possible
+                wc.className = "word-counter red";
+                btn.disabled = false;
             }
         });
 
-        // CORRECTION : L'ajout du mot-clé "async" résout le crash de l'écran blanc
         btn.addEventListener('click', async function () {
             let currentNavCount = await getNavCount();
-            if (currentNavCount === initialNavCount && !existing) {
+            // Sécurité : si currentNavCount vaut -1, c'est que l'extension n'a pas répondu (on laisse passer)
+            if (currentNavCount !== -1 && currentNavCount === initialNavCount && !existing) {
                 alert("⚠️ Aucune recherche détectée ! Vous devez faire vos recherches sur Chrome (et non en navigation privée) avant de valider votre réponse.");
-                return; // Bloque la soumission
+                return; 
             } 
             processSubmitResearch(q, textarea.value); 
         });
@@ -383,14 +392,12 @@
 
         var html = '<h2>Évaluation</h2><p>Concernant la question : <em>' + q.text + '</em></p>';
 
-        // 1. Connaissance
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
             '<h3>' + t('q_connaissance_titre') + '</h3>' +
             '<div class="slider-group"><label>' + t('q_connaissance_item') + '</label>' +
             '<div class="slider-container"><input type="range" id="k_base" class="slider" min="0" max="100" value="0"><div class="slider-value" id="vk_base">0</div></div>' +
             '<div class="slider-labels"><span>0</span><span>100</span></div></div>';
 
-        // 2. Confiance
         var confItems = t('q_confiance_items');
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
             '<h3>' + t('q_confiance_titre') + '</h3>' +
@@ -403,7 +410,6 @@
         });
         html += '</table>';
 
-        // 3. NASA-TLX
         var nasaItems = t('q_nasa_items');
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
             '<h3>' + t('q_nasa_titre') + '</h3>' +
@@ -434,7 +440,6 @@
                 confidenceSource: parseInt(c3.value)
             };
             
-            // CORRECTION : Extraction à plat pour Excel
             nasaItems.forEach(function(item) { 
                 payload[item.id] = parseInt(document.getElementById(item.id).value); 
             });
@@ -561,9 +566,12 @@
                 goTo('end');
             } else {
                 sendToServer('deception_consent', null, null, { consent: false, decision: 'withdraw', questionLabel: "Consentement Post-Expérimental (Retiré)" });
+                
+                // On notifie l'extension que c'est fini pour qu'elle se verrouille définitivement
+                window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
+                
                 app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>Merci</h1><p>Nous comprenons votre décision. Vos données seront détruites.</p><p style="color:#64748b; margin-top:16px;">Vous pouvez désinstaller l\'extension Chrome.</p></div>';
                 localStorage.removeItem('questionnaire_progress');
-                window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
             }
         });
     }
@@ -577,8 +585,12 @@
             t('fin_texte') +
             '</div>';
 
+        // Verrouille l'extension définitivement
         window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
+        
         localStorage.removeItem('questionnaire_progress');
+        localStorage.removeItem('study_global_start'); // On efface le timer
+        
         sendToServer('questionnaire_event', null, null, { event: 'questionnaire_completed' });
         progressFill.style.width = '100%';
         progressText.textContent = '100%';
@@ -586,15 +598,24 @@
 
     // === API ===
     async function sendToServer(type, questionId, difficulty, data) {
-        var payload = { participantId: state.participantId, type: type, questionId: questionId, difficulty: difficulty, data: data, timestamp: new Date().toISOString() };
-        try {
-            await fetch(API_BASE + '/reponse', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        } catch (err) {
-            var fallback = JSON.parse(localStorage.getItem('questionnaire_fallback') || '[]');
-            fallback.push(payload);
-            localStorage.setItem('questionnaire_fallback', JSON.stringify(fallback));
-        }
+    var payload = { participantId: state.participantId, type: type, questionId: questionId, difficulty: difficulty, data: data, timestamp: new Date().toISOString() };
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s max
+        await fetch(API_BASE + '/reponse', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(payload),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+    } catch (err) {
+        var fallback = JSON.parse(localStorage.getItem('questionnaire_fallback') || '[]');
+        fallback.push(payload);
+        localStorage.setItem('questionnaire_fallback', JSON.stringify(fallback));
     }
+}
+
 
     // =========================================================
     // SÉCURITÉ : INACTIVITÉ (1h) ET DÉLAI GLOBAL (4h)
@@ -608,10 +629,16 @@
             : "La collecte de données s'est arrêtée car le délai maximum autorisé de 4 heures est écoulé.";
         
         alert("⚠️ " + msg + " Vos données sont invalidées.");
-        try { chrome.runtime.sendMessage({ action: "stop_tracking" }); } catch(e) {}
+        
+        // Verrouille l'extension définitivement
+        window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
+        
         sendToServer('questionnaire_event', null, null, { event: 'study_invalidated', reason: reason });
-        app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1 style="color:#dc2626;">Étude annulée</h1><p>' + msg + '</p></div>';
+        app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1 style="color:#dc2626;">Étude annulée</h1><p>' + msg + '</p><p style="color:#64748b; margin-top:16px;">Vous pouvez désinstaller l\'extension Chrome.</p></div>';
+        
         hideTimer();
+        localStorage.removeItem('study_global_start');
+        localStorage.removeItem('questionnaire_progress');
     }
 
     function resetInactivityTimer() {
@@ -625,7 +652,7 @@
         
         let start = localStorage.getItem('study_global_start');
         if (!start) {
-            start = Date.now();
+            start = Date.now().toString();
             localStorage.setItem('study_global_start', start);
         }
         
