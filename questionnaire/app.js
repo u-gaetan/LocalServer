@@ -34,8 +34,11 @@
     let currentTimerPhase = null;
 
     // Fonction de traduction
+    // Fonction de traduction sécurisée
     function t(key) {
-        return i18n[state.language][key];
+        if (!state.language) return ""; // Évite le crash au tout 1er lancement
+        if (!i18n || !i18n[state.language]) return key;
+        return i18n[state.language][key] || key;
     }
 
     function init() {
@@ -218,7 +221,11 @@
         var select = document.getElementById('languageSelect');
         var btn = document.getElementById('btnLanguage');
         select.addEventListener('change', function () { btn.disabled = !select.value; });
-        btn.addEventListener('click', function () { state.language = select.value; goTo('consent'); });
+        btn.addEventListener('click', function () { 
+            state.language = select.value; // On assigne la langue ici !
+            saveProgress(); // On sauvegarde l'état
+            goTo('consent'); 
+        });
     }
 
     // === 2. CONSENTEMENT ===
