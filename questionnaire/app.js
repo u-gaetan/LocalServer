@@ -510,6 +510,9 @@
 
     // === 9. MEMORY ===
     function renderMemoryQuestion() {
+        // Réinitialiser le bypass urgence pour cette nouvelle question
+        window.postMessage({ type: 'RESET_MEMORY_BYPASS' }, '*');
+
         var idx = state.currentMemoryIndex;
         var mq = state.memoryQuestions[idx];
 
