@@ -7,18 +7,20 @@ const BASE_URL = window.location.origin;
 // =========================================================
 // ÉLÉMENTS DU DOM
 // =========================================================
-const usernameInput   = document.getElementById('usernameInput');
-const passwordInput   = document.getElementById('passwordInput');
-const connectBtn      = document.getElementById('connectBtn');
-const logoutBtn       = document.getElementById('logoutBtn');
-const downloadAllBtn  = document.getElementById('downloadAllBtn');
-const refreshBtn      = document.getElementById('refreshBtn');
-const statusBar       = document.getElementById('statusBar');
-const mainContent     = document.getElementById('mainContent');
-const sessionsTable   = document.getElementById('sessionsTable');
-const loginSection    = document.getElementById('loginSection');
-const loggedSection   = document.getElementById('loggedSection');
-const loggedUser      = document.getElementById('loggedUser');
+const usernameInput          = document.getElementById('usernameInput');
+const passwordInput          = document.getElementById('passwordInput');
+const connectBtn             = document.getElementById('connectBtn');
+const logoutBtn              = document.getElementById('logoutBtn');
+const downloadSelectedExcelBtn = document.getElementById('downloadSelectedExcelBtn');
+const downloadSelectedJsonBtn  = document.getElementById('downloadSelectedJsonBtn');
+const refreshBtn             = document.getElementById('refreshBtn');
+const selectAllCheckbox      = document.getElementById('selectAllCheckbox');
+const statusBar              = document.getElementById('statusBar');
+const mainContent            = document.getElementById('mainContent');
+const sessionsTable          = document.getElementById('sessionsTable');
+const loginSection           = document.getElementById('loginSection');
+const loggedSection          = document.getElementById('loggedSection');
+const loggedUser             = document.getElementById('loggedUser');
 
 // =========================================================
 // AU CHARGEMENT : restaurer le token sauvegardé
@@ -36,15 +38,26 @@ if (savedToken) {
 // =========================================================
 connectBtn.addEventListener('click', login);
 logoutBtn.addEventListener('click', logout);
-downloadAllBtn.addEventListener('click', downloadAll);
+downloadSelectedExcelBtn.addEventListener('click', downloadSelectedExcel);
+downloadSelectedJsonBtn.addEventListener('click', downloadSelectedJson);
 refreshBtn.addEventListener('click', refreshData);
 
 passwordInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') login();
 });
 
+// Écouteur de sélection de masse
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.participant-checkbox');
+        checkboxes.forEach(function(cb) {
+            cb.checked = selectAllCheckbox.checked;
+        });
+    });
+}
+
 // =========================================================
-// LOGIN
+// LOGIN / LOGOUT
 // =========================================================
 async function login() {
     const username = usernameInput.value.trim();
@@ -92,6 +105,7 @@ function logout() {
     loginSection.style.display = 'flex';
     loggedSection.style.display = 'none';
     mainContent.style.display = 'none';
+    if (selectAllCheckbox) selectAllCheckbox.checked = false;
     showStatus('Déconnecté', 'info');
 }
 
@@ -122,6 +136,7 @@ async function apiCall(path) {
 // =========================================================
 async function refreshData() {
     try {
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
         const response = await apiCall('/resume');
         const data = await response.json();
 
@@ -131,7 +146,7 @@ async function refreshData() {
         sessionsTable.innerHTML = '';
 
         if (!data.sessions || data.sessions.length === 0) {
-            sessionsTable.innerHTML = '<tr><td colspan="6" class="empty">Aucune donnée collectée</td></tr>';
+            sessionsTable.innerHTML = '<tr><td colspan="7" class="empty">Aucune donnée collectée</td></tr>';
             document.getElementById('totalEvents').textContent = '0';
             return;
         }
@@ -141,6 +156,16 @@ async function refreshData() {
             const row = document.createElement('tr');
             const debut = s.debut ? new Date(s.debut).toLocaleString('fr-FR') : '-';
             const pid = s._id.participant;
+
+            // Case à cocher pour sélection groupée
+            const cellCheck = document.createElement('td');
+            cellCheck.style.textAlign = 'center';
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.className = 'participant-checkbox';
+            chk.dataset.pid = pid;
+            chk.style.cursor = 'pointer';
+            cellCheck.appendChild(chk);
 
             const cellPid = document.createElement('td');
             cellPid.innerHTML = '<strong>' + pid + '</strong>';
@@ -157,17 +182,19 @@ async function refreshData() {
 
             const btnP = document.createElement('button');
             btnP.className = 'btn btn-blue';
-            btnP.textContent = '📥 Télécharger';
+            btnP.textContent = '📥 JSON';
             btnP.addEventListener('click', function() { downloadParticipant(pid); });
 
             const btnV = document.createElement('button');
             btnV.className = 'btn btn-green';
-            btnV.textContent = '📊 Visualiser';
+            btnV.textContent = '📊 Analyser';
             btnV.style.marginLeft = '5px';
             btnV.addEventListener('click', function() { viewParticipant(pid); });
 
             cellActions.appendChild(btnP);
             cellActions.appendChild(btnV);
+
+            row.appendChild(cellCheck);
             row.appendChild(cellPid);
             row.appendChild(cellEvents);
             row.appendChild(cellPages);
@@ -185,20 +212,8 @@ async function refreshData() {
 }
 
 // =========================================================
-// TÉLÉCHARGEMENTS
+// EXTRACTION INDIVIDUELLE (JSON HISTORIQUE)
 // =========================================================
-async function downloadAll() {
-    try {
-        showStatus('📥 Téléchargement en cours...', 'info');
-        const response = await apiCall('/export/all');
-        const data = await response.json();
-        downloadJSON(data, 'export_complet');
-        showStatus('✅ ' + data.length + ' événements téléchargés', 'ok');
-    } catch (e) {
-        showStatus('❌ ' + e.message, 'err');
-    }
-}
-
 async function downloadParticipant(pid) {
     try {
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
@@ -208,6 +223,220 @@ async function downloadParticipant(pid) {
         var nbReponses = data.reponses ? data.reponses.length : 0;
         showStatus('✅ Participant: ' + nbEvents + ' événements + ' + nbReponses + ' réponses', 'ok');
     } catch (e) { showStatus('❌ ' + e.message, 'err'); }
+}
+
+// =========================================================
+// EXPORTS GROUPÉS (SÉLECTION PAR CASES À COCHER)
+// =========================================================
+
+// Récupérer la liste des données d'événements et de réponses pour les lignes cochées
+async function fetchSelectedData() {
+    const checkboxes = document.querySelectorAll('.participant-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert("Veuillez sélectionner au moins un participant de l'étude à l'aide des cases à cocher.");
+        return null;
+    }
+    
+    showStatus('📥 Récupération des données pour ' + checkboxes.length + ' participant(s)...', 'info');
+    const records = [];
+    
+    for (const cb of checkboxes) {
+        const pid = cb.dataset.pid;
+        try {
+            const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
+            const data = await response.json();
+            records.push({ pid: pid, data: data });
+        } catch (err) {
+            console.error("Erreur de récupération pour le participant : " + pid, err);
+        }
+    }
+    return records;
+}
+
+// Télécharger en JSON cumulé
+async function downloadSelectedJson() {
+    const selected = await fetchSelectedData();
+    if (!selected) return;
+
+    try {
+        const jsonExport = selected.map(function(item) {
+            return {
+                participantId: item.pid,
+                events: item.data.events || [],
+                reponses: item.data.reponses || []
+            };
+        });
+
+        downloadJSON(jsonExport, 'export_selection_participants');
+        showStatus('✅ Export JSON complété pour ' + selected.length + ' participant(s)', 'ok');
+    } catch (e) {
+        showStatus('❌ ' + e.message, 'err');
+    }
+}
+
+// Télécharger au format Excel (3 feuilles combinant tous les participants cochés)
+async function downloadSelectedExcel() {
+    const selected = await fetchSelectedData();
+    if (!selected) return;
+
+    if (typeof XLSX === 'undefined') {
+        showStatus('❌ Erreur: La bibliothèque XLSX (SheetJS) n\'est pas disponible.', 'err');
+        return;
+    }
+
+    try {
+        const wb = XLSX.utils.book_new();
+
+        // Initialisation des entêtes de feuilles globales
+        const navRows = [['ParticipantID', 'Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
+        const repRows = [];
+        const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse']];
+
+        // 1. Découverte de toutes les clés d'évaluation uniques parmi les réponses
+        const allRepKeys = {};
+        selected.forEach(function(item) {
+            const reps = item.data.reponses || [];
+            reps.forEach(function(r) {
+                if (r.type === 'questionnaire_event' && r.data && r.data.event !== 'internet_skills') return;
+                var d = r.data || {};
+                if (typeof d === 'object') {
+                    Object.keys(d).forEach(function(k) { allRepKeys[k] = true; });
+                }
+            });
+        });
+        const repKeys = Object.keys(allRepKeys);
+        const repHeader = ['ParticipantID', 'Heure', 'Type', 'QuestionID', 'QuestionLabel'].concat(repKeys);
+        repRows.push(repHeader);
+
+        // 2. Compilation des informations pour chaque participant sélectionné
+        selected.forEach(function(item) {
+            const pid = item.pid;
+            const logs = item.data.events || [];
+            const reps = item.data.reponses || [];
+
+            // Filtrage des réponses à exporter
+            const sortedReps = reps.filter(function(r) {
+                return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
+            }).sort(function(a, b) {
+                return (a.timestamp || '').localeCompare(b.timestamp || '');
+            });
+
+            // Construction de l'index des périodes de questions pour ce participant
+            const periods = [];
+            let rc = 0;
+            sortedReps.forEach(function(r, i) {
+                var lb;
+                if (r.type === 'research_answer') { rc++; lb = 'Q' + rc; }
+                else if (r.type === 'self_assessment') { lb = 'Q' + rc + '.5'; }
+                else if (r.type === 'demographics') { lb = 'Démo'; }
+                else if (r.type === 'memory_answer') { lb = 'Mém'; }
+                else if (r.type === 'consent') { lb = 'Consentement 1'; }
+                else if (r.type === 'deception_consent') { lb = 'Consentement 2'; }
+                else if (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills') { lb = 'Compétences Internet'; }
+                else { lb = 'R' + (i + 1); }
+                periods.push({
+                    label: lb, type: r.type, qid: r.questionId || '',
+                    start: i > 0 ? sortedReps[i - 1].timestamp : null,
+                    end: r.timestamp, data: r.data || {}
+                });
+            });
+
+            function getQL(ts) {
+                if (!periods.length || !ts) return '';
+                for (var i = 0; i < periods.length; i++) {
+                    var p = periods[i];
+                    if ((p.start === null || ts >= p.start) && ts <= p.end) return p.label;
+                }
+                if (ts > periods[periods.length - 1].end) return 'Post-Q';
+                return '';
+            }
+
+            // Reconstruction des visites chronologiques
+            const vis = [];
+            const vById = {};
+            let prev = null;
+            logs.forEach(function(log) {
+                var t = log.type, url = log.url || '', vid = log.visitId;
+                if (t === 'navigation') {
+                    var v = {
+                        id: vis.length, url: url, vid: vid,
+                        clics: 0, scroll: 0, tms: 0, touches_clavier: 0, copies: [], collages: [],
+                        closed: false, ib: log.transitionType === 'back_forward', ifw: false,
+                        nom: url.substring(0, 40), q: getQL(log.timestamp || ''), ts: log.timestamp || ''
+                    };
+                    vis.push(v);
+                    if (vid) vById[vid] = v;
+                } else if (t === 'tab_closed') {
+                    // non critique
+                } else if (vid && vById[vid]) {
+                    var vi = vById[vid];
+                    if (t === 'clic') vi.clics++;
+                    else if (t === 'page_quittee') {
+                        vi.scroll = Math.max(vi.scroll, log.maxScroll || 0);
+                        vi.tms = Math.max(vi.tms, log.temps_passe_ms || 0);
+                        vi.touches_clavier = Math.max(vi.touches_clavier, log.touches_clavier || 0);
+                    }
+                    else if (t === 'copie') vi.copies.push(log.texte || '');
+                    else if (t === 'collage') vi.collages.push(log.texte || '');
+                }
+            });
+
+            // Enregistrement des données de navigation (Feuille 1)
+            vis.forEach(function(v) {
+                navRows.push([
+                    pid, v.q, v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.url, v.nom,
+                    +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier,
+                    v.copies.join('\n'), v.collages.join('\n'),
+                    v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : ''
+                ]);
+            });
+
+            // Enregistrement des données d'auto-évaluations et compétences internet (Feuille 2)
+            sortedReps.forEach(function(r) {
+                var rRow = [pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.type, r.questionId || '', r.questionLabel || ''];
+                repKeys.forEach(function(k) {
+                    var val = (r.data || {})[k];
+                    rRow.push(val != null ? String(val) : '');
+                });
+                repRows.push(rRow);
+            });
+
+            // Enregistrement chronologique mixte unifié (Feuille 3)
+            var items = [];
+            vis.forEach(function(v) {
+                items.push({
+                    ts: v.ts,
+                    row: [pid, 'Navigation', v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.q, 'navigation', v.url, v.nom,
+                          +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.join('\n'), v.collages.join('\n'),
+                          v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : '', '']
+                });
+            });
+            sortedReps.forEach(function(r) {
+                var d = r.data || {};
+                var rs = (typeof d === 'object' && !Array.isArray(d))
+                    ? Object.entries(d).map(function(e) { return e[0] + '=' + e[1]; }).join('; ')
+                    : String(d);
+                items.push({
+                    ts: r.timestamp || '',
+                    row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type,
+                          '', '', '', '', '', '', '', '', '', '', '', rs]
+                });
+            });
+            items.sort(function(a, b) { return (a.ts || '').localeCompare(b.ts || ''); });
+            items.forEach(function(it) { globRows.push(it.row); });
+        });
+
+        // Liaison des feuilles de calcul combinées
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navRows), 'Navigation');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repRows), 'Réponses');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(globRows), 'Global');
+
+        // Génération du livrable Excel final
+        XLSX.writeFile(wb, 'rapport_selection_participants_' + new Date().toISOString().slice(0,10) + '.xlsx');
+        showStatus('✅ Rapport multi-feuilles Excel exporté avec succès pour ' + selected.length + ' participant(s)', 'ok');
+    } catch (err) {
+        showStatus('❌ Erreur lors de la compilation Excel : ' + err.message, 'err');
+    }
 }
 
 function downloadJSON(data, filename) {
@@ -228,26 +457,22 @@ function showStatus(text, type) {
 }
 
 // =========================================================
-// OUVRIR LE DASHBOARD
+// OUVRIR LE DASHBOARD VISUEL
 // =========================================================
 async function viewParticipant(pid) {
     try {
-        // Charger les données depuis l'API
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
         const data = await response.json();
 
-        // Stocker dans sessionStorage pour que dashboard.js puisse les lire
         sessionStorage.setItem('dashboard_data', JSON.stringify(data));
         sessionStorage.setItem('dashboard_participant_id', pid);
 
-        // Ouvrir le dashboard avec l'URL pointant vers le PID
         window.open('/admin/dashboard.html?pid=' + encodeURIComponent(pid), '_blank');
     } catch (e) {
         showStatus('❌ Erreur chargement participant : ' + e.message, 'err');
     }
 }
 
-// Ouvre le dashboard en mode glisser-déposer (fichier libre)
 function openDashboard() {
     sessionStorage.removeItem('dashboard_data');
     sessionStorage.removeItem('dashboard_participant_id');

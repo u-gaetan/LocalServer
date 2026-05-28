@@ -75,7 +75,8 @@ function svgSym(clic, copy, paste, closed) {
 function mkPeriods(reps) {
     if (!reps || !reps.length) return [];
     var sorted = reps.filter(function(r) {
-        return r.type !== 'questionnaire_event';
+        // On conserve désormais l'événement internet_skills
+        return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
     }).sort(function(a, b) {
         return (a.timestamp || '').localeCompare(b.timestamp || '');
     });
@@ -88,6 +89,7 @@ function mkPeriods(reps) {
         else if (r.type === 'memory_answer') { lb = 'Mém'; }
         else if (r.type === 'consent') { lb = 'Consentement 1'; }
         else if (r.type === 'deception_consent') { lb = 'Consentement 2'; }
+        else if (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills') { lb = 'Compétences Internet'; }
         else { lb = 'R' + (i + 1); }
         periods.push({
             label: lb, type: r.type, qid: r.questionId || '',
@@ -136,7 +138,7 @@ function process(raw) {
             var v = {
                 id: vis.length, url: url, vid: vid, purl: log.parentUrl || '',
                 tid: tid, ib: ib, ifw: ifw, ts: log.timestamp || '',
-                clics: 0, scroll: 0, tms: 0, copies: [], collages: [],
+                clics: 0, scroll: 0, tms: 0, touches_clavier: 0, copies: [], collages: [],
                 closed: false, pchron: prev ? prev.id : null,
                 nom: shortUrl(url), q: getQL(log.timestamp || '', periods)
             };
@@ -155,10 +157,10 @@ function process(raw) {
             else if (t === 'page_quittee') {
                 vi.scroll = Math.max(vi.scroll, log.maxScroll || 0);
                 vi.tms = Math.max(vi.tms, log.temps_passe_ms || 0);
+                vi.touches_clavier = Math.max(vi.touches_clavier, log.touches_clavier || 0); // Extraction
             }
             else if (t === 'copie') vi.copies.push(log.texte || '');
             else if (t === 'collage') vi.collages.push(log.texte || '');
-            // On ignore désormais 'saisie_clavier'
         }
     });
 
@@ -167,12 +169,12 @@ function process(raw) {
         var u = v.url;
         if (!uG[u]) {
             uO.push(u);
-            uG[u] = { url: u, nom: v.nom, tms: 0, scroll: 0, clics: 0,
+            uG[u] = { url: u, nom: v.nom, tms: 0, scroll: 0, clics: 0, touches_clavier: 0,
                 copies: [], collages: [], nb: 0, back: 0, fwd: 0, closed: 0, qs: {} };
         }
         var g = uG[u];
         g.tms += v.tms; g.scroll = Math.max(g.scroll, v.scroll);
-        g.clics += v.clics; g.copies = g.copies.concat(v.copies);
+        g.clics += v.clics; g.touches_clavier += v.touches_clavier; g.copies = g.copies.concat(v.copies);
         g.collages = g.collages.concat(v.collages);
         g.nb++;
         if (v.ib) g.back++; if (v.ifw) g.fwd++; if (v.closed) g.closed++;
@@ -180,10 +182,11 @@ function process(raw) {
     });
     var vr = uO.map(function(u) { return uG[u]; });
 
-    var tot = { clics: 0, copies: 0, collages: 0, temps: 0, back: 0, fwd: 0, closed: 0, tabs: {}, pages: vr.length };
+    var tot = { clics: 0, copies: 0, collages: 0, touches_clavier: 0, temps: 0, back: 0, fwd: 0, closed: 0, tabs: {}, pages: vr.length };
     vis.forEach(function(v) {
         tot.clics += v.clics; tot.copies += v.copies.length;
         tot.collages += v.collages.length;
+        tot.touches_clavier += v.touches_clavier;
         tot.temps += v.tms;
         if (v.ib) tot.back++; if (v.ifw) tot.fwd++; if (v.closed) tot.closed++;
         if (v.tid) tot.tabs[v.tid] = true;
@@ -203,7 +206,7 @@ function process(raw) {
         if (v.q && !seenQ[v.q]) { allQ.push(v.q); seenQ[v.q] = true; }
     });
 
-    var nrep = reps.filter(function(r) { return r.type !== 'questionnaire_event'; }).length;
+    var nrep = reps.filter(function(r) { return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills'); }).length;
 
     var consent1 = "Non spécifié", consent2 = "Non spécifié";
     reps.forEach(function(r) {
@@ -481,6 +484,7 @@ function renderMetrics() {
     h += mkSC('Pages', t.pages, '');
     h += mkSC('Temps total', fr(t.temps / 1000, 0) + 's', '');
     h += mkSC('Clics', t.clics, '#6366f1');
+    h += mkSC('Touches Clavier', t.touches_clavier, '#f59e0b'); // Ajout au dashboard métriques
     h += mkSC('Copies', t.copies, '#059669');
     h += mkSC('Collages', t.collages, '#0891b2');
     h += mkSC('Back', t.back, '#ea580c');
@@ -522,12 +526,13 @@ function renderMetrics() {
 
     var pie = [];
     if (t.clics) pie.push({ name: 'Clics', value: t.clics });
+    if (t.touches_clavier) pie.push({ name: 'Touches Clavier', value: t.touches_clavier });
     if (t.copies) pie.push({ name: 'Copies', value: t.copies });
     if (t.collages) pie.push({ name: 'Collages', value: t.collages });
     if (!pie.length) pie.push({ name: 'Aucune', value: 1 });
     CHARTS.pie = echarts.init(document.getElementById('c-pie'));
     CHARTS.pie.setOption({
-        tooltip: { trigger: 'item' }, color: ['#6366f1', '#059669', '#0891b2', '#94a3b8'],
+        tooltip: { trigger: 'item' }, color: ['#6366f1', '#f59e0b', '#059669', '#0891b2', '#94a3b8'],
         series: [{ type: 'pie', radius: ['40%', '70%'], data: pie, label: { fontSize: 12 }, emphasis: { itemStyle: { shadowBlur: 10 } } }]
     });
 
@@ -545,7 +550,6 @@ function renderMetrics() {
         series: [{ type: 'bar', data: ds.map(function(d) { return d[1]; }), color: '#8b5cf6', label: { show: true, position: 'right', fontSize: 11 } }]
     });
 }
-
 // ═══════════════════════════════════════════════════════
 // TABLEAU DÉTAILLÉ
 // ═══════════════════════════════════════════════════════
@@ -562,14 +566,14 @@ function renderDetail() {
     }
 
     var bh = '<div class="bar">';
-    bh += '<button class="bt bg" onclick="dlXLSX()">⬇ XLSX (3 feuilles)</button>';
+    bh += '<button class="bt bg" onclick="dlXLSX()">⬇ Télécharger Excel (3 feuilles)</button>';
     bh += '<button class="bt bp" onclick="csvNav()">⬇ CSV Navigation</button>';
     bh += '<button class="bt bs" onclick="csvRep()">⬇ CSV Réponses</button>';
     bh += '<span class="cnt" id="dcnt">' + S.vis.length + ' lignes</span></div>';
 
     var th = '<div class="tw"><table id="dtbl"><thead><tr>';
     th += '<th>Question</th><th>Heure</th><th>Page</th><th>Temps (s)</th>';
-    th += '<th>Scroll (%)</th><th>Clics</th><th>Copies</th><th>Collages</th>';
+    th += '<th>Scroll (%)</th><th>Clics</th><th>Touches Clavier</th><th>Copies</th><th>Collages</th>';
     th += '<th>Fermé</th><th>Backward</th><th>Forward</th>';
     th += '</tr></thead><tbody>';
 
@@ -583,6 +587,7 @@ function renderDetail() {
         th += '<td class="r">' + fr(v.tms / 1000) + '</td>';
         th += '<td class="r">' + v.scroll + '</td>';
         th += '<td class="r">' + v.clics + '</td>';
+        th += '<td class="r">' + v.touches_clavier + '</td>'; // Colonne clavier ajoutée
         th += '<td class="w">' + esc(v.copies.join('\n') || '—') + '</td>';
         th += '<td class="w">' + esc(v.collages.join('\n') || '—') + '</td>';
         th += '<td class="r">' + (v.closed ? 'Oui' : '') + '</td>';
@@ -600,7 +605,7 @@ function renderDetail() {
 function renderAgg() {
     var h = '<div class="tw"><table><thead><tr>';
     h += '<th>Questions</th><th>Visites</th><th>Page</th><th>Temps (s)</th>';
-    h += '<th>Scroll (%)</th><th>Clics</th><th>Copies</th><th>Collages</th>';
+    h += '<th>Scroll (%)</th><th>Clics</th><th>Touches Clavier</th><th>Copies</th><th>Collages</th>';
     h += '<th>Backward</th><th>Forward</th><th>Fermé</th>';
     h += '</tr></thead><tbody>';
     S.vr.forEach(function(g) {
@@ -611,6 +616,7 @@ function renderAgg() {
         h += '<td class="r">' + fr(g.tms / 1000) + '</td>';
         h += '<td class="r">' + g.scroll + '</td>';
         h += '<td class="r">' + g.clics + '</td>';
+        h += '<td class="r">' + g.touches_clavier + '</td>'; // Colonne clavier ajoutée
         h += '<td class="w">' + esc(g.copies.join('\n') || '—') + '</td>';
         h += '<td class="w">' + esc(g.collages.join('\n') || '—') + '</td>';
         h += '<td class="r">' + (g.back ? 'Oui' : '') + '</td>';
@@ -627,7 +633,7 @@ function renderAgg() {
 // ═══════════════════════════════════════════════════════
 function renderRep() {
     var reps = S.reps.filter(function(r) {
-        return r.type !== 'questionnaire_event';
+        return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
     }).sort(function(a, b) {
         return (a.timestamp || '').localeCompare(b.timestamp || '');
     });
@@ -653,6 +659,7 @@ function renderRep() {
     h += '</tbody></table></div>';
     document.getElementById('p-rep').innerHTML = h;
 }
+
 
 // ═══════════════════════════════════════════════════════
 // FILTRES QUESTIONS
@@ -700,10 +707,10 @@ function dlFile(content, name, type) {
 }
 
 function csvNav() {
-    var lines = [csvEncode(['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Ferme', 'Backward', 'Forward'])];
+    var lines = [csvEncode(['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Ferme', 'Backward', 'Forward'])];
     S.vis.forEach(function(v) {
         lines.push(csvEncode([
-            v.q, tsT(v.ts), v.url, v.nom, fr(v.tms / 1000), v.scroll, v.clics,
+            v.q, tsT(v.ts), v.url, v.nom, fr(v.tms / 1000), v.scroll, v.clics, v.touches_clavier,
             v.copies.join('\n'), v.collages.join('\n'),
             v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : ''
         ]));
@@ -713,7 +720,7 @@ function csvNav() {
 
 function csvRep() {
     var reps = S.reps.filter(function(r) {
-        return r.type !== 'questionnaire_event';
+        return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
     }).sort(function(a, b) {
         return (a.timestamp || '').localeCompare(b.timestamp || '');
     });
@@ -741,17 +748,18 @@ function dlXLSX() {
     var wb = XLSX.utils.book_new();
 
     // Feuille 1 : Navigation
-    var navD = [['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
+    var navD = [['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
     S.vis.forEach(function(v) {
-        navD.push([v.q, tsT(v.ts), v.url, v.nom, +(v.tms / 1000).toFixed(2), v.scroll, v.clics,
+        navD.push([v.q, tsT(v.ts), v.url, v.nom, +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier,
             v.copies.join('\n'), v.collages.join('\n'),
             v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : '']);
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navD), 'Navigation');
 
     // Feuille 2 : Réponses
-    var reps = S.reps.filter(function(r) { return r.type !== 'questionnaire_event'; })
-        .sort(function(a, b) { return (a.timestamp || '').localeCompare(b.timestamp || ''); });
+    var reps = S.reps.filter(function(r) {
+        return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
+    }).sort(function(a, b) { return (a.timestamp || '').localeCompare(b.timestamp || ''); });
     var allKeys = {};
     reps.forEach(function(r) {
         var d = r.data || {};
@@ -767,11 +775,11 @@ function dlXLSX() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repD), 'Réponses');
 
     // Feuille 3 : Global (chronologique)
-    var globH = ['Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse'];
+    var globH = ['Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse'];
     var items = [];
     S.vis.forEach(function(v) {
         items.push({ ts: v.ts, row: ['Navigation', tsT(v.ts), v.q, 'navigation', v.url, v.nom,
-            +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.copies.join('\n'), v.collages.join('\n'),
+            +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.join('\n'), v.collages.join('\n'),
             v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : '', ''] });
     });
     reps.forEach(function(r) {
@@ -780,7 +788,7 @@ function dlXLSX() {
             ? Object.entries(d).map(function(e) { return e[0] + '=' + e[1]; }).join('; ')
             : String(d);
         items.push({ ts: r.timestamp || '', row: ['Réponse', tsT(r.timestamp), r.questionId || '', r.type,
-            '', '', '', '', '', '', '', '', '', '', rs] });
+            '', '', '', '', '', '', '', '', '', '', '', rs] });
     });
     items.sort(function(a, b) { return (a.ts || '').localeCompare(b.ts || ''); });
     var globD = [globH];

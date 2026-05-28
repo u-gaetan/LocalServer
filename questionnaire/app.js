@@ -320,6 +320,27 @@
     // === 5. RESEARCH ===
     let initialNavCount = 0; 
 
+    // Vérification asynchrone du travail de recherche effectif
+    function verifyResearchDone(startTime) {
+        return new Promise(resolve => {
+            let timeoutId = setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve(true); // Sécurité anti-blocage (fallback) si l'extension ne répond pas
+            }, 1000);
+
+            const handler = (e) => {
+                if (e.data && e.data.type === 'RESEARCH_VERIFY_RESULT') {
+                    clearTimeout(timeoutId);
+                    window.removeEventListener('message', handler);
+                    resolve(e.data.activityCount > 0);
+                }
+            };
+            window.addEventListener('message', handler);
+            window.postMessage({ type: "VERIFY_RESEARCH", startTime: startTime }, "*");
+        });
+    }
+
+
     function renderResearchQuestion() {
         var idx = state.currentResearchIndex;
         var q = state.researchQuestions[idx];
@@ -339,8 +360,6 @@
         var existing = state.answers[idx];
         if (existing) textarea.value = existing.data.answer;
 
-        getNavCount().then(c => { initialNavCount = c; });
-
         textarea.addEventListener('input', function () {
             var count = countWords(textarea.value);
             wc.textContent = "Mots : " + count + " / 75-100";
@@ -357,10 +376,9 @@
         });
 
         btn.addEventListener('click', async function () {
-            let currentNavCount = await getNavCount();
-            // Sécurité : si currentNavCount vaut -1, c'est que l'extension n'a pas répondu (on laisse passer)
-            if (currentNavCount !== -1 && currentNavCount === initialNavCount && !existing) {
-                alert("⚠️ Aucune recherche détectée ! Vous devez faire vos recherches sur Chrome (et non en navigation privée) avant de valider votre réponse.");
+            let hasResearched = await verifyResearchDone(state.questionStartTime);
+            if (!hasResearched && !existing) {
+                alert("⚠️ Aucune recherche détectée ! Vous devez effectuer des recherches actives sur Chrome (ouvrir des moteurs de recherche, consulter des pages externes) avant de pouvoir soumettre votre réponse.");
                 return; 
             } 
             processSubmitResearch(q, textarea.value); 
@@ -369,7 +387,7 @@
         startTimer('research');
         textarea.dispatchEvent(new Event('input'));
     }
-
+    
     function forceSubmitResearch() {
         var q = state.researchQuestions[state.currentResearchIndex];
         var text = document.getElementById('answerText').value || "[Temps écoulé]";

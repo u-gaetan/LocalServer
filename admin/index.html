@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>🔬 Admin — Tracker ULaval</title>
+    <!-- Chargement de la bibliothèque SheetJS pour l'export Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -10,7 +12,7 @@
             background: #0f172a;
             color: #e2e8f0;
             padding: 30px;
-            max-width: 1000px;
+            max-width: 1200px; /* Légèrement plus large pour les colonnes supplémentaires */
             margin: 0 auto;
         }
         h1 { color: #60a5fa; margin-bottom: 5px; }
@@ -135,7 +137,6 @@
         <button id="logoutBtn" class="btn btn-gray">Déconnexion</button>
     </div>
 
-
     <div id="statusBar"></div>
 
     <div id="mainContent" style="display: none;">
@@ -151,8 +152,11 @@
         </div>
 
         <div class="actions">
-            <button class="btn btn-green" id="downloadAllBtn">
-                📥 Télécharger TOUTES les données (JSON)
+            <button class="btn btn-green" id="downloadSelectedExcelBtn">
+                📊 Télécharger Excel (Sélection)
+            </button>
+            <button class="btn btn-blue" id="downloadSelectedJsonBtn">
+                📥 Télécharger JSON (Sélection)
             </button>
             <button class="btn btn-gray" id="refreshBtn">
                 🔄 Rafraîchir
@@ -167,6 +171,9 @@
             <table>
                 <thead>
                     <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="selectAllCheckbox" style="cursor:pointer;" />
+                        </th>
                         <th>Participant</th>
                         <th>Événements</th>
                         <th>Pages</th>
@@ -176,13 +183,12 @@
                     </tr>
                 </thead>
                 <tbody id="sessionsTable">
-                    <tr><td colspan="6" class="empty">Connectez-vous avec votre clé API</td></tr>
+                    <tr><td colspan="7" class="empty">Connectez-vous avec votre clé API</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- 🔧 Script externe séparé du HTML — compatible CSP -->
     <script src="admin.js"></script>
 </body>
 </html>
