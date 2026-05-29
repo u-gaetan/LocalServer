@@ -224,6 +224,7 @@ async function refreshData() {
 // =========================================================
 // FONCTIONS DE COMPILATION EXCEL MODULES REUTILISABLES
 // =========================================================
+
 function buildWorkbookForParticipant(pid, data) {
     const logs = data.events || [];
     const reps = data.reponses || [];
@@ -233,13 +234,21 @@ function buildWorkbookForParticipant(pid, data) {
     const repRows = [];
     const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse']];
 
-    // Extraction des clés d'évaluation uniques
+    // Extraction des clés d'évaluation uniques (avec aplatissement intelligent)
     const allRepKeys = {};
     reps.forEach(function(r) {
         if (r.type === 'questionnaire_event' && r.data && r.data.event !== 'internet_skills') return;
         var d = r.data || {};
         if (typeof d === 'object') {
-            Object.keys(d).forEach(function(k) { allRepKeys[k] = true; });
+            // Si ancien format imbriqué { answers: { item_1: X } }
+            if (d.answers && typeof d.answers === 'object') {
+                Object.keys(d.answers).forEach(function(k) { allRepKeys[k] = true; });
+            } else {
+                // Si nouveau format plat { item_1: X }
+                Object.keys(d).forEach(function(k) {
+                    if (k !== 'event') allRepKeys[k] = true;
+                });
+            }
         }
     });
     const repKeys = Object.keys(allRepKeys);
@@ -264,7 +273,9 @@ function buildWorkbookForParticipant(pid, data) {
         else if (r.type === 'memory_answer') { lb = 'Mém'; }
         else if (r.type === 'consent') { lb = 'Consentement 1'; }
         else if (r.type === 'deception_consent') { lb = 'Consentement 2'; }
-        else if (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills') { lb = 'Compétences Internet'; }
+        else if (r.type === 'internet_skills' || (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills')) { 
+            lb = 'Compétences Internet'; 
+        }
         else { lb = 'R' + (i + 1); }
         periods.push({
             label: lb, type: r.type, qid: r.questionId || '',
@@ -320,11 +331,18 @@ function buildWorkbookForParticipant(pid, data) {
         ]);
     });
 
-    // Insertion Réponses (Feuille 2)
+    // Insertion Réponses (Feuille 2) (Lecture tolérante des structures de données)
     sortedReps.forEach(function(r) {
         var rRow = [pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.type, r.questionId || '', r.questionLabel || ''];
         repKeys.forEach(function(k) {
-            var val = (r.data || {})[k];
+            var val = null;
+            if (r.data) {
+                if (r.data[k] !== undefined) {
+                    val = r.data[k];
+                } else if (r.data.answers && r.data.answers[k] !== undefined) {
+                    val = r.data.answers[k]; // Support de l'ancien format imbriqué
+                }
+            }
             rRow.push(val != null ? String(val) : '');
         });
         repRows.push(rRow);
@@ -342,9 +360,14 @@ function buildWorkbookForParticipant(pid, data) {
     });
     sortedReps.forEach(function(r) {
         var d = r.data || {};
-        var rs = (typeof d === 'object' && !Array.isArray(d))
-            ? Object.entries(d).map(function(e) { return e[0] + '=' + e[1]; }).join('; ')
-            : String(d);
+        var rs = "";
+        if (typeof d === 'object' && !Array.isArray(d)) {
+            // Aplatissement de l'affichage dans la feuille "Global"
+            var targetObj = (d.answers && typeof d.answers === 'object') ? d.answers : d;
+            rs = Object.entries(targetObj).map(function(e) { return e[0] + '=' + e[1]; }).join('; ');
+        } else {
+            rs = String(d);
+        }
         items.push({
             ts: r.timestamp || '',
             row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type,
@@ -360,7 +383,6 @@ function buildWorkbookForParticipant(pid, data) {
 
     return wb;
 }
-
 // =========================================================
 // EXTRACTION INDIVIDUELLE (JSON / EXCEL DIRECT)
 // =========================================================

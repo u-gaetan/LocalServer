@@ -387,7 +387,7 @@
         startTimer('research');
         textarea.dispatchEvent(new Event('input'));
     }
-    
+
     function forceSubmitResearch() {
         var q = state.researchQuestions[state.currentResearchIndex];
         var text = document.getElementById('answerText').value || "[Temps écoulé]";
@@ -503,7 +503,7 @@
 
             if(!allAnswered) { document.getElementById('skillsErr').style.display = 'block'; return; }
 
-            await sendToServer('questionnaire_event', null, null, { event: "internet_skills", answers: answers });
+            await sendToServer( 'internet_skills',null, null, answers);
             goTo('memory_intro');
         });
     }

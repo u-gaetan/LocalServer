@@ -75,7 +75,6 @@ function svgSym(clic, copy, paste, closed) {
 function mkPeriods(reps) {
     if (!reps || !reps.length) return [];
     var sorted = reps.filter(function(r) {
-        // On conserve désormais l'événement internet_skills
         return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
     }).sort(function(a, b) {
         return (a.timestamp || '').localeCompare(b.timestamp || '');
@@ -89,7 +88,9 @@ function mkPeriods(reps) {
         else if (r.type === 'memory_answer') { lb = 'Mém'; }
         else if (r.type === 'consent') { lb = 'Consentement 1'; }
         else if (r.type === 'deception_consent') { lb = 'Consentement 2'; }
-        else if (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills') { lb = 'Compétences Internet'; }
+        else if (r.type === 'internet_skills' || (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills')) { 
+            lb = 'Compétences Internet'; 
+        }
         else { lb = 'R' + (i + 1); }
         periods.push({
             label: lb, type: r.type, qid: r.questionId || '',
