@@ -21,7 +21,7 @@ const SESSION_ID_RE = /^session_\d{12,15}_[a-z0-9]{6}$/;
 const ALLOWED_TYPES = new Set([
     'consent', 'deception_consent',
     'demographics', 'research_answer', 'self_assessment',
-    'memory_answer', 'questionnaire_event'
+    'memory_answer', 'questionnaire_event', 'internet_skills'
 ]);
 
 
