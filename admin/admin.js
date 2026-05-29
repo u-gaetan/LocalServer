@@ -180,11 +180,20 @@ async function refreshData() {
             cellDebut.textContent = debut;
             const cellActions = document.createElement('td');
 
+            // Bouton de téléchargement JSON individuel
             const btnP = document.createElement('button');
             btnP.className = 'btn btn-blue';
             btnP.textContent = '📥 JSON';
             btnP.addEventListener('click', function() { downloadParticipant(pid); });
 
+            // Bouton de téléchargement Excel individuel (Ajouté)
+            const btnE = document.createElement('button');
+            btnE.className = 'btn btn-blue';
+            btnE.textContent = '📥 Excel';
+            btnE.style.marginLeft = '5px';
+            btnE.addEventListener('click', function() { downloadParticipantExcel(pid); });
+
+            // Bouton d'analyse visuelle
             const btnV = document.createElement('button');
             btnV.className = 'btn btn-green';
             btnV.textContent = '📊 Analyser';
@@ -192,6 +201,7 @@ async function refreshData() {
             btnV.addEventListener('click', function() { viewParticipant(pid); });
 
             cellActions.appendChild(btnP);
+            cellActions.appendChild(btnE);
             cellActions.appendChild(btnV);
 
             row.appendChild(cellCheck);
@@ -212,7 +222,147 @@ async function refreshData() {
 }
 
 // =========================================================
-// EXTRACTION INDIVIDUELLE (JSON HISTORIQUE)
+// FONCTIONS DE COMPILATION EXCEL MODULES REUTILISABLES
+// =========================================================
+function buildWorkbookForParticipant(pid, data) {
+    const logs = data.events || [];
+    const reps = data.reponses || [];
+    const wb = XLSX.utils.book_new();
+
+    const navRows = [['ParticipantID', 'Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
+    const repRows = [];
+    const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse']];
+
+    // Extraction des clés d'évaluation uniques
+    const allRepKeys = {};
+    reps.forEach(function(r) {
+        if (r.type === 'questionnaire_event' && r.data && r.data.event !== 'internet_skills') return;
+        var d = r.data || {};
+        if (typeof d === 'object') {
+            Object.keys(d).forEach(function(k) { allRepKeys[k] = true; });
+        }
+    });
+    const repKeys = Object.keys(allRepKeys);
+    const repHeader = ['ParticipantID', 'Heure', 'Type', 'QuestionID', 'QuestionLabel'].concat(repKeys);
+    repRows.push(repHeader);
+
+    // Filtrage et tri des réponses
+    const sortedReps = reps.filter(function(r) {
+        return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
+    }).sort(function(a, b) {
+        return (a.timestamp || '').localeCompare(b.timestamp || '');
+    });
+
+    // Construction de la chronologie des blocs
+    const periods = [];
+    let rc = 0;
+    sortedReps.forEach(function(r, i) {
+        var lb;
+        if (r.type === 'research_answer') { rc++; lb = 'Q' + rc; }
+        else if (r.type === 'self_assessment') { lb = 'Q' + rc + '.5'; }
+        else if (r.type === 'demographics') { lb = 'Démo'; }
+        else if (r.type === 'memory_answer') { lb = 'Mém'; }
+        else if (r.type === 'consent') { lb = 'Consentement 1'; }
+        else if (r.type === 'deception_consent') { lb = 'Consentement 2'; }
+        else if (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills') { lb = 'Compétences Internet'; }
+        else { lb = 'R' + (i + 1); }
+        periods.push({
+            label: lb, type: r.type, qid: r.questionId || '',
+            start: i > 0 ? sortedReps[i - 1].timestamp : null,
+            end: r.timestamp, data: r.data || {}
+        });
+    });
+
+    function getQL(ts) {
+        if (!periods.length || !ts) return '';
+        for (var i = 0; i < periods.length; i++) {
+            var p = periods[i];
+            if ((p.start === null || ts >= p.start) && ts <= p.end) return p.label;
+        }
+        if (ts > periods[periods.length - 1].end) return 'Post-Q';
+        return '';
+    }
+
+    // Reconstruction de la navigation
+    const vis = [];
+    const vById = {};
+    logs.forEach(function(log) {
+        var t = log.type, url = log.url || '', vid = log.visitId;
+        if (t === 'navigation' || t === 'tab_activated') {
+            var v = {
+                id: vis.length, url: url, vid: vid,
+                clics: 0, scroll: 0, tms: 0, touches_clavier: 0, copies: [], collages: [],
+                closed: t === 'tab_closed', ib: log.transitionType === 'back_forward', ifw: false,
+                nom: url.substring(0, 40), q: getQL(log.timestamp || ''), ts: log.timestamp || ''
+            };
+            vis.push(v);
+            if (vid) vById[vid] = v;
+        } else if (vid && vById[vid]) {
+            var vi = vById[vid];
+            if (t === 'clic') vi.clics++;
+            else if (t === 'page_quittee') {
+                vi.scroll = Math.max(vi.scroll, log.maxScroll || 0);
+                vi.tms = Math.max(vi.tms, log.temps_passe_ms || 0);
+                vi.touches_clavier = Math.max(vi.touches_clavier, log.touches_clavier || 0);
+            }
+            else if (t === 'copie') vi.copies.push(log.texte || '');
+            else if (t === 'collage') vi.collages.push(log.texte || '');
+        }
+    });
+
+    // Insertion Navigation (Feuille 1)
+    vis.forEach(function(v) {
+        navRows.push([
+            pid, v.q, v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.url, v.nom,
+            +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier,
+            v.copies.join('\n'), v.collages.join('\n'),
+            v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : ''
+        ]);
+    });
+
+    // Insertion Réponses (Feuille 2)
+    sortedReps.forEach(function(r) {
+        var rRow = [pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.type, r.questionId || '', r.questionLabel || ''];
+        repKeys.forEach(function(k) {
+            var val = (r.data || {})[k];
+            rRow.push(val != null ? String(val) : '');
+        });
+        repRows.push(rRow);
+    });
+
+    // Insertion Globale (Feuille 3)
+    var items = [];
+    vis.forEach(function(v) {
+        items.push({
+            ts: v.ts,
+            row: [pid, 'Navigation', v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.q, 'navigation', v.url, v.nom,
+                  +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.join('\n'), v.collages.join('\n'),
+                  v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : '', '']
+        });
+    });
+    sortedReps.forEach(function(r) {
+        var d = r.data || {};
+        var rs = (typeof d === 'object' && !Array.isArray(d))
+            ? Object.entries(d).map(function(e) { return e[0] + '=' + e[1]; }).join('; ')
+            : String(d);
+        items.push({
+            ts: r.timestamp || '',
+            row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type,
+                  '', '', '', '', '', '', '', '', '', '', '', rs]
+        });
+    });
+    items.sort(function(a, b) { return (a.ts || '').localeCompare(b.ts || ''); });
+    items.forEach(function(it) { globRows.push(it.row); });
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navRows), 'Navigation');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repRows), 'Réponses');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(globRows), 'Global');
+
+    return wb;
+}
+
+// =========================================================
+// EXTRACTION INDIVIDUELLE (JSON / EXCEL DIRECT)
 // =========================================================
 async function downloadParticipant(pid) {
     try {
@@ -223,6 +373,20 @@ async function downloadParticipant(pid) {
         var nbReponses = data.reponses ? data.reponses.length : 0;
         showStatus('✅ Participant: ' + nbEvents + ' événements + ' + nbReponses + ' réponses', 'ok');
     } catch (e) { showStatus('❌ ' + e.message, 'err'); }
+}
+
+async function downloadParticipantExcel(pid) {
+    try {
+        showStatus('📥 Génération de la feuille Excel pour ' + pid + '...', 'info');
+        const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
+        const data = await response.json();
+        
+        const wb = buildWorkbookForParticipant(pid, data);
+        XLSX.writeFile(wb, 'participant_' + pid + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+        showStatus('✅ Fichier Excel généré pour ' + pid, 'ok');
+    } catch (e) {
+        showStatus('❌ ' + e.message, 'err');
+    }
 }
 
 // =========================================================
@@ -274,7 +438,7 @@ async function downloadSelectedJson() {
     }
 }
 
-// Télécharger au format Excel (3 feuilles combinant tous les participants cochés)
+// Télécharger au format Excel (Un fichier Excel par participant dans un ZIP)
 async function downloadSelectedExcel() {
     const selected = await fetchSelectedData();
     if (!selected) return;
@@ -283,159 +447,46 @@ async function downloadSelectedExcel() {
         showStatus('❌ Erreur: La bibliothèque XLSX (SheetJS) n\'est pas disponible.', 'err');
         return;
     }
+    if (typeof JSZip === 'undefined') {
+        showStatus('❌ Erreur: La bibliothèque JSZip n\'est pas disponible.', 'err');
+        return;
+    }
 
     try {
-        const wb = XLSX.utils.book_new();
+        const zip = new JSZip();
 
-        // Initialisation des entêtes de feuilles globales
-        const navRows = [['ParticipantID', 'Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
-        const repRows = [];
-        const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse']];
-
-        // 1. Découverte de toutes les clés d'évaluation uniques parmi les réponses
-        const allRepKeys = {};
-        selected.forEach(function(item) {
-            const reps = item.data.reponses || [];
-            reps.forEach(function(r) {
-                if (r.type === 'questionnaire_event' && r.data && r.data.event !== 'internet_skills') return;
-                var d = r.data || {};
-                if (typeof d === 'object') {
-                    Object.keys(d).forEach(function(k) { allRepKeys[k] = true; });
-                }
-            });
-        });
-        const repKeys = Object.keys(allRepKeys);
-        const repHeader = ['ParticipantID', 'Heure', 'Type', 'QuestionID', 'QuestionLabel'].concat(repKeys);
-        repRows.push(repHeader);
-
-        // 2. Compilation des informations pour chaque participant sélectionné
         selected.forEach(function(item) {
             const pid = item.pid;
-            const logs = item.data.events || [];
-            const reps = item.data.reponses || [];
-
-            // Filtrage des réponses à exporter
-            const sortedReps = reps.filter(function(r) {
-                return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
-            }).sort(function(a, b) {
-                return (a.timestamp || '').localeCompare(b.timestamp || '');
-            });
-
-            // Construction de l'index des périodes de questions pour ce participant
-            const periods = [];
-            let rc = 0;
-            sortedReps.forEach(function(r, i) {
-                var lb;
-                if (r.type === 'research_answer') { rc++; lb = 'Q' + rc; }
-                else if (r.type === 'self_assessment') { lb = 'Q' + rc + '.5'; }
-                else if (r.type === 'demographics') { lb = 'Démo'; }
-                else if (r.type === 'memory_answer') { lb = 'Mém'; }
-                else if (r.type === 'consent') { lb = 'Consentement 1'; }
-                else if (r.type === 'deception_consent') { lb = 'Consentement 2'; }
-                else if (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills') { lb = 'Compétences Internet'; }
-                else { lb = 'R' + (i + 1); }
-                periods.push({
-                    label: lb, type: r.type, qid: r.questionId || '',
-                    start: i > 0 ? sortedReps[i - 1].timestamp : null,
-                    end: r.timestamp, data: r.data || {}
-                });
-            });
-
-            function getQL(ts) {
-                if (!periods.length || !ts) return '';
-                for (var i = 0; i < periods.length; i++) {
-                    var p = periods[i];
-                    if ((p.start === null || ts >= p.start) && ts <= p.end) return p.label;
-                }
-                if (ts > periods[periods.length - 1].end) return 'Post-Q';
-                return '';
-            }
-
-            // Reconstruction des visites chronologiques
-            const vis = [];
-            const vById = {};
-            let prev = null;
-            logs.forEach(function(log) {
-                var t = log.type, url = log.url || '', vid = log.visitId;
-                if (t === 'navigation') {
-                    var v = {
-                        id: vis.length, url: url, vid: vid,
-                        clics: 0, scroll: 0, tms: 0, touches_clavier: 0, copies: [], collages: [],
-                        closed: false, ib: log.transitionType === 'back_forward', ifw: false,
-                        nom: url.substring(0, 40), q: getQL(log.timestamp || ''), ts: log.timestamp || ''
-                    };
-                    vis.push(v);
-                    if (vid) vById[vid] = v;
-                } else if (t === 'tab_closed') {
-                    // non critique
-                } else if (vid && vById[vid]) {
-                    var vi = vById[vid];
-                    if (t === 'clic') vi.clics++;
-                    else if (t === 'page_quittee') {
-                        vi.scroll = Math.max(vi.scroll, log.maxScroll || 0);
-                        vi.tms = Math.max(vi.tms, log.temps_passe_ms || 0);
-                        vi.touches_clavier = Math.max(vi.touches_clavier, log.touches_clavier || 0);
-                    }
-                    else if (t === 'copie') vi.copies.push(log.texte || '');
-                    else if (t === 'collage') vi.collages.push(log.texte || '');
-                }
-            });
-
-            // Enregistrement des données de navigation (Feuille 1)
-            vis.forEach(function(v) {
-                navRows.push([
-                    pid, v.q, v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.url, v.nom,
-                    +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier,
-                    v.copies.join('\n'), v.collages.join('\n'),
-                    v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : ''
-                ]);
-            });
-
-            // Enregistrement des données d'auto-évaluations et compétences internet (Feuille 2)
-            sortedReps.forEach(function(r) {
-                var rRow = [pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.type, r.questionId || '', r.questionLabel || ''];
-                repKeys.forEach(function(k) {
-                    var val = (r.data || {})[k];
-                    rRow.push(val != null ? String(val) : '');
-                });
-                repRows.push(rRow);
-            });
-
-            // Enregistrement chronologique mixte unifié (Feuille 3)
-            var items = [];
-            vis.forEach(function(v) {
-                items.push({
-                    ts: v.ts,
-                    row: [pid, 'Navigation', v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.q, 'navigation', v.url, v.nom,
-                          +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.join('\n'), v.collages.join('\n'),
-                          v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : '', '']
-                });
-            });
-            sortedReps.forEach(function(r) {
-                var d = r.data || {};
-                var rs = (typeof d === 'object' && !Array.isArray(d))
-                    ? Object.entries(d).map(function(e) { return e[0] + '=' + e[1]; }).join('; ')
-                    : String(d);
-                items.push({
-                    ts: r.timestamp || '',
-                    row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type,
-                          '', '', '', '', '', '', '', '', '', '', '', rs]
-                });
-            });
-            items.sort(function(a, b) { return (a.ts || '').localeCompare(b.ts || ''); });
-            items.forEach(function(it) { globRows.push(it.row); });
+            const data = item.data;
+            
+            // Génération du classeur Excel individuel structuré pour le participant
+            const wb = buildWorkbookForParticipant(pid, data);
+            
+            // Conversion en tableau binaire
+            const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            
+            // Ajout du fichier individuel à l'archive
+            zip.file('participant_' + pid + '_' + new Date().toISOString().slice(0, 10) + '.xlsx', excelBuffer);
         });
 
-        // Liaison des feuilles de calcul combinées
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navRows), 'Navigation');
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repRows), 'Réponses');
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(globRows), 'Global');
-
-        // Génération du livrable Excel final
-        XLSX.writeFile(wb, 'rapport_selection_participants_' + new Date().toISOString().slice(0,10) + '.xlsx');
-        showStatus('✅ Rapport multi-feuilles Excel exporté avec succès pour ' + selected.length + ' participant(s)', 'ok');
+        showStatus('📦 Création de l\'archive ZIP en cours...', 'info');
+        
+        // Génération de l'archive ZIP
+        const content = await zip.generateAsync({ type: 'blob' });
+        
+        // Déclenchement du téléchargement local
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'export_excel_participants_' + new Date().toISOString().slice(0, 10) + '.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showStatus('✅ ZIP exporté contenant ' + selected.length + ' fichier(s) Excel', 'ok');
     } catch (err) {
-        showStatus('❌ Erreur lors de la compilation Excel : ' + err.message, 'err');
+        showStatus('❌ Erreur d\'exportation ZIP : ' + err.message, 'err');
     }
 }
 

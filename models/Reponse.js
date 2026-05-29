@@ -13,7 +13,8 @@ const ReponseSchema = new mongoose.Schema({
             'research_answer',
             'self_assessment',
             'memory_answer',
-            'questionnaire_event'
+            'questionnaire_event',
+            'internet_skills'
         ]
     },
     questionId:     { type: String, default: null },
