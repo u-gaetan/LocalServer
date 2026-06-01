@@ -6,6 +6,7 @@
     let state = {
         phase: 'language',
         participantId: null,
+        token: null,
         language: 'fr',
         consentGiven: false,
         deceptionConsentGiven: false,
@@ -39,7 +40,32 @@
         return i18n[state.language][key] || key;
     }
 
-    function init() {
+    async function fetchAndSyncToken() {
+        if (state.token) {
+            // Si le token est déjà présent dans le localStorage, on le renvoie à l'extension
+            window.postMessage({ type: 'SET_TOKEN', token: state.token }, window.location.origin);
+            return;
+        }
+
+        try {
+            const response = await fetch(API_BASE + '/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ participantId: state.participantId })
+            });
+            const data = await response.json();
+            if (data.token) {
+                state.token = data.token;
+                saveProgress();
+                // Envoi sécurisé du token à l'extension (uniquement à notre propre origine)
+                window.postMessage({ type: 'SET_TOKEN', token: data.token }, window.location.origin);
+            }
+        } catch (err) {
+            console.error("Erreur de récupération du jeton d'accès :", err);
+        }
+    }
+
+    async function init() {
         const params = new URLSearchParams(window.location.search);
         state.participantId = params.get('pid');
 
@@ -54,11 +80,13 @@
                 const parsed = JSON.parse(saved);
                 if (parsed.participantId === state.participantId) {
                     state = parsed;
-                    renderPhase();
-                    return;
+                    // Ne pas faire de "return" immédiat ici pour permettre la vérification du token ci-dessous
                 }
             } catch (e) {}
         }
+
+        // NOUVEAU : On récupère le jeton JWT et on le transmet à l'extension
+        await fetchAndSyncToken();
 
         renderPhase();
         updateUrl();
@@ -618,24 +646,41 @@
     }
 
     // === API ===
+    // Modifiée pour intégrer l'en-tête Authorization
     async function sendToServer(type, questionId, difficulty, data) {
-    var payload = { participantId: state.participantId, type: type, questionId: questionId, difficulty: difficulty, data: data, timestamp: new Date().toISOString() };
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s max
-        await fetch(API_BASE + '/reponse', { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(payload),
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-    } catch (err) {
-        var fallback = JSON.parse(localStorage.getItem('questionnaire_fallback') || '[]');
-        fallback.push(payload);
-        localStorage.setItem('questionnaire_fallback', JSON.stringify(fallback));
+        var payload = { 
+            participantId: state.participantId, 
+            type: type, 
+            questionId: questionId, 
+            difficulty: difficulty, 
+            data: data, 
+            timestamp: new Date().toISOString() 
+        };
+
+        const headers = { 'Content-Type': 'application/json' };
+        
+        // Si le jeton est disponible, on l'ajoute aux en-têtes
+        if (state.token) {
+            headers['Authorization'] = 'Bearer ' + state.token;
+        }
+
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s max
+            
+            await fetch(API_BASE + '/reponse', { 
+                method: 'POST', 
+                headers: headers, // Utilisation des en-têtes configurés
+                body: JSON.stringify(payload),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+        } catch (err) {
+            var fallback = JSON.parse(localStorage.getItem('questionnaire_fallback') || '[]');
+            fallback.push(payload);
+            localStorage.setItem('questionnaire_fallback', JSON.stringify(fallback));
+        }
     }
-}
 
 
     // =========================================================

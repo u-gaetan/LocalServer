@@ -5,52 +5,63 @@ const Reponse = require('../models/Reponse');
 const auth = require('../middlewares/auth');
 const { adminLimiter } = require('../middlewares/rateLimit');
 const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
+const { getSecrets } = require('../config/keyVault');
 
-// Rate limiter pour les participants (POST)
 const participantLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 60,
     message: { erreur: "Trop de requêtes. Patientez." }
 });
 
-// ⚠️  PAS de router.use(auth) ici !
-// L'auth est appliquée individuellement sur les routes admin GET.
-
 const PARTICIPANT_ID_RE = /^P-[a-z0-9]{7,10}-[a-z0-9]{4}$/;
-const SESSION_ID_RE = /^session_\d{12,15}_[a-z0-9]{6}$/;
 const ALLOWED_TYPES = new Set([
     'consent', 'deception_consent',
     'demographics', 'research_answer', 'self_assessment',
     'memory_answer', 'questionnaire_event', 'internet_skills'
 ]);
 
+// --- NOUVEAU : Route pour distribuer un JWT temporaire au Participant ---
+router.post('/token', participantLimiter, async (req, res) => {
+    try {
+        const { participantId } = req.body;
+        if (!participantId || !PARTICIPANT_ID_RE.test(participantId)) {
+            return res.status(400).json({ erreur: 'Format du participantId invalide.' });
+        }
 
-// =========================================================
-// 🟢 POST /api/questionnaire/reponse — PARTICIPANT (pas d'auth)
-// =========================================================
-router.post('/reponse', participantLimiter, async (req, res) => {
+        const secrets = getSecrets();
+        
+        // Signature du jeton d'accès pour le participant
+        const token = jwt.sign(
+            { participantId, role: 'participant' },
+            secrets.jwtSecret,
+            { expiresIn: '12h' }
+        );
+
+        res.json({ token });
+    } catch (err) {
+        res.status(500).json({ erreur: err.message });
+    }
+});
+
+// --- SÉCURISÉ : Soumission d'une réponse (Requiert désormais le Jeton JWT) ---
+router.post('/reponse', participantLimiter, auth, async (req, res) => {
     try {
         const { participantId, type, questionId, difficulty, data, timestamp } = req.body;
 
-        // --- Validation ---
         if (!participantId || !PARTICIPANT_ID_RE.test(participantId)) {
-            console.warn('⚠️  Rejet questionnaire: participantId invalide:', participantId);
             return res.status(400).json({ erreur: 'participantId invalide.' });
         }
         if (!type || !ALLOWED_TYPES.has(type)) {
-            console.warn('⚠️  Rejet questionnaire: type invalide:', type);
             return res.status(400).json({ erreur: `type invalide : "${type}"` });
         }
         if (!data || typeof data !== 'object') {
-            console.warn('⚠️  Rejet questionnaire: data invalide');
             return res.status(400).json({ erreur: 'data doit être un objet.' });
         }
         if (!timestamp || isNaN(Date.parse(timestamp))) {
-            console.warn('⚠️  Rejet questionnaire: timestamp invalide:', timestamp);
             return res.status(400).json({ erreur: 'timestamp invalide.' });
         }
 
-        // --- Insertion (upsert pour éviter les doublons) ---
         const filter = { participantId, type };
         if (questionId) filter.questionId = questionId;
 
@@ -60,8 +71,6 @@ router.post('/reponse', participantLimiter, async (req, res) => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
-        console.log(`📝 Réponse ${type} | Participant: ${participantId} | Question: ${questionId || 'N/A'} | ID: ${reponse._id}`);
-
         res.status(200).json({
             message: 'Réponse enregistrée.',
             id: reponse._id
@@ -69,18 +78,13 @@ router.post('/reponse', participantLimiter, async (req, res) => {
 
     } catch (err) {
         if (err.code === 11000) {
-            console.log(`♻️  Doublon questionnaire ignoré | ${req.body.type} | ${req.body.questionId}`);
             return res.status(200).json({ message: 'Réponse déjà enregistrée.' });
         }
-        console.error("❌ Erreur questionnaire :", err.message);
         res.status(500).json({ erreur: "Erreur serveur." });
     }
 });
 
-
-// =========================================================
-// 🔵 GET /api/questionnaire/resultats — ADMIN (auth requise)
-// =========================================================
+// --- SÉCURISÉ : Routes d'administration ---
 router.get('/resultats', auth, adminLimiter, async (req, res) => {
     try {
         const summary = await Reponse.aggregate([
@@ -113,10 +117,6 @@ router.get('/resultats/:participantId', auth, adminLimiter, async (req, res) => 
     }
 });
 
-
-// =========================================================
-// 📥 EXPORT — ADMIN (auth requise)
-// =========================================================
 router.get('/export/all', auth, adminLimiter, async (req, res) => {
     try {
         const reponses = await Reponse.find({}).sort({ participantId: 1, timestamp: 1 }).lean();
@@ -125,6 +125,5 @@ router.get('/export/all', auth, adminLimiter, async (req, res) => {
         res.status(500).json({ erreur: err.message });
     }
 });
-
 
 module.exports = router;

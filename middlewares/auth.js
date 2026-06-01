@@ -1,60 +1,45 @@
 // middlewares/auth.js
-// ============================================================
-// Middleware d'authentification à double mode :
-//   1. Clé API (x-api-key) → pour l'extension Chrome
-//   2. JWT Bearer → pour le dashboard admin
-//
-// Les secrets (API_KEY, JWT_SECRET) viennent de Key Vault,
-// récupérés via getSecrets() au lieu de process.env
-// ============================================================
-
 const jwt = require('jsonwebtoken');
 const { getSecrets } = require('../config/keyVault');
 
 function auth(req, res, next) {
-    // Route de santé : pas d'auth
     if (req.path === '/health') return next();
 
-    // Récupérer les secrets (déjà chargés au démarrage)
     const secrets = getSecrets();
-    // ═══════ LOG DE DÉBOGAGE (à retirer après) ═══════
-    const apiKey = req.headers['x-api-key'] || req.query.key;
-    console.log('🔍 DEBUG AUTH:');
-    console.log('   Clé reçue (header):', apiKey ? apiKey.substring(0, 8) + '...' : 'ABSENTE');
-    console.log('   Clé attendue (KV) :', secrets.apiKey ? secrets.apiKey.substring(0, 8) + '...' : 'UNDEFINED ⚠️');
-    console.log('   Match:', apiKey === secrets.apiKey);
-    // ═════════════════════════════════════════════════
-    // ──────────────────────────────────────────────
-    // Option 1 : Clé API (pour l'extension Chrome)
-    // ──────────────────────────────────────────────
-    //const apiKey = req.headers['x-api-key'] || req.query.key;
-    if (apiKey && apiKey === secrets.apiKey) {
-        return next();  // ✅ Extension autorisée
-    }
-
-    // ──────────────────────────────────────────────
-    // Option 2 : JWT Bearer (pour le dashboard admin)
-    // ──────────────────────────────────────────────
     const authHeader = req.headers['authorization'];
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.split(' ')[1];
         try {
             const decoded = jwt.verify(token, secrets.jwtSecret);
             req.user = decoded;
-            return next();  // ✅ Admin autorisé
+
+            // 1. Si c'est un Administrateur
+            if (decoded.role === 'admin') {
+                return next();
+            }
+
+            // 2. Si c'est un Participant de l'étude
+            if (decoded.role === 'participant') {
+                // On s'assure que le participantId du jeton correspond à celui de la requête
+                const reqParticipantId = req.body.participantId || req.query.participantId || req.validatedParticipantId;
+                if (reqParticipantId && reqParticipantId !== decoded.participantId) {
+                    return res.status(403).json({ erreur: 'Accès non autorisé pour ce profil participant.' });
+                }
+                return next();
+            }
         } catch (err) {
-            return res.status(401).json({ erreur: 'Token invalide ou expiré' });
+            return res.status(401).json({ erreur: 'Jeton invalide ou expiré.' });
         }
     }
 
-    // ──────────────────────────────────────────────
-    // Aucune auth valide
-    // ──────────────────────────────────────────────
-    console.warn('⚠️ Auth refusée |', req.method, req.originalUrl,
-                 '| x-api-key:', apiKey ? 'présente mais invalide' : 'absente',
-                 '| Bearer:', authHeader ? 'présent' : 'absent');
+    // Protection de secours pour les scripts d'administration locaux (si configurés)
+    const apiKey = req.headers['x-api-key'] || req.query.key;
+    if (apiKey && apiKey === secrets.apiKey) {
+        return next();
+    }
 
-    return res.status(401).json({ erreur: 'Authentification requise' });
+    return res.status(401).json({ erreur: 'Authentification requise.' });
 }
 
 module.exports = auth;
