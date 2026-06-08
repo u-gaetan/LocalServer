@@ -23,6 +23,38 @@ const loggedSection          = document.getElementById('loggedSection');
 const loggedUser             = document.getElementById('loggedUser');
 
 // =========================================================
+// DICTIONNAIRE DE TRADUCTION DES COMPÉTENCES INTERNET
+// =========================================================
+const SKILLS_MAP = {
+    "item_1": "1_Telecharger_Fichiers",
+    "item_2": "2_Sauvegarder_Photos",
+    "item_3": "3_Raccourcis_Clavier",
+    "item_4": "4_Ouvrir_Onglet",
+    "item_5": "5_Signet_Favoris",
+    "item_6": "6_Cliquer_Lien",
+    "item_7": "7_Diff_Mots_Cles",
+    "item_8": "8_Diff_Retrouver_Site",
+    "item_9": "9_Fatigue_Recherche",
+    "item_10": "10_Nav_Involontaire",
+    "item_11": "11_Confusion_Ergo",
+    "item_12": "12_Besoin_Cours",
+    "item_13": "13_Diff_Verif_Info",
+    "item_14": "14_Partage_Securite",
+    "item_15": "15_Quand_Partager",
+    "item_16": "16_Comportement_Net",
+    "item_17": "17_Reglage_Confid",
+    "item_18": "18_Supprimer_Amis",
+    "item_19": "19_Creation_Contenu",
+    "item_20": "20_Modif_Contenu",
+    "item_21": "21_Concevoir_Site",
+    "item_22": "22_Licences_Web",
+    "item_23": "23_Confiance_Publier",
+    "item_24": "24_Installer_App",
+    "item_25": "25_Telecharger_App",
+    "item_26": "26_Suivi_Couts_App"
+};
+
+// =========================================================
 // AU CHARGEMENT : restaurer le token sauvegardé
 // =========================================================
 const savedToken = sessionStorage.getItem('tracker_admin_token');
@@ -231,29 +263,8 @@ function buildWorkbookForParticipant(pid, data) {
     const wb = XLSX.utils.book_new();
 
     const navRows = [['ParticipantID', 'Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
-    const repRows = [];
+    const repRows = [['ParticipantID', 'Heure', 'Type', 'QuestionID', 'QuestionLabel', 'Réponse / Données']];
     const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse']];
-
-    // Extraction des clés d'évaluation uniques (avec aplatissement intelligent)
-    const allRepKeys = {};
-    reps.forEach(function(r) {
-        if (r.type === 'questionnaire_event' && r.data && r.data.event !== 'internet_skills') return;
-        var d = r.data || {};
-        if (typeof d === 'object') {
-            // Si ancien format imbriqué { answers: { item_1: X } }
-            if (d.answers && typeof d.answers === 'object') {
-                Object.keys(d.answers).forEach(function(k) { allRepKeys[k] = true; });
-            } else {
-                // Si nouveau format plat { item_1: X }
-                Object.keys(d).forEach(function(k) {
-                    if (k !== 'event') allRepKeys[k] = true;
-                });
-            }
-        }
-    });
-    const repKeys = Object.keys(allRepKeys);
-    const repHeader = ['ParticipantID', 'Heure', 'Type', 'QuestionID', 'QuestionLabel'].concat(repKeys);
-    repRows.push(repHeader);
 
     // Filtrage et tri des réponses
     const sortedReps = reps.filter(function(r) {
@@ -331,20 +342,28 @@ function buildWorkbookForParticipant(pid, data) {
         ]);
     });
 
-    // Insertion Réponses (Feuille 2) (Lecture tolérante des structures de données)
+    // Insertion Réponses (Feuille 2) - Regroupées par cellule sans éclater en colonnes
     sortedReps.forEach(function(r) {
-        var rRow = [pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.type, r.questionId || '', r.questionLabel || ''];
-        repKeys.forEach(function(k) {
-            var val = null;
-            if (r.data) {
-                if (r.data[k] !== undefined) {
-                    val = r.data[k];
-                } else if (r.data.answers && r.data.answers[k] !== undefined) {
-                    val = r.data.answers[k]; // Support de l'ancien format imbriqué
-                }
-            }
-            rRow.push(val != null ? String(val) : '');
-        });
+        var d = r.data || {};
+        var rs = "";
+        if (typeof d === 'object' && !Array.isArray(d)) {
+            var targetObj = (d.answers && typeof d.answers === 'object') ? d.answers : d;
+            rs = Object.entries(targetObj).map(function(e) {
+                var label = SKILLS_MAP[e[0]] || e[0];
+                return label + '=' + e[1];
+            }).join('; ');
+        } else {
+            rs = String(d);
+        }
+
+        var rRow = [
+            pid, 
+            r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', 
+            r.type, 
+            r.questionId || '', 
+            r.questionLabel || '',
+            rs
+        ];
         repRows.push(rRow);
     });
 
@@ -362,9 +381,11 @@ function buildWorkbookForParticipant(pid, data) {
         var d = r.data || {};
         var rs = "";
         if (typeof d === 'object' && !Array.isArray(d)) {
-            // Aplatissement de l'affichage dans la feuille "Global"
             var targetObj = (d.answers && typeof d.answers === 'object') ? d.answers : d;
-            rs = Object.entries(targetObj).map(function(e) { return e[0] + '=' + e[1]; }).join('; ');
+            rs = Object.entries(targetObj).map(function(e) { 
+                var label = SKILLS_MAP[e[0]] || e[0];
+                return label + '=' + e[1]; 
+            }).join('; ');
         } else {
             rs = String(d);
         }

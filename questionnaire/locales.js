@@ -61,14 +61,17 @@ const i18n = {
         fin_texte: `
             <div style="margin-top:32px; padding:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; text-align:left;">
                 <h3 style="margin:0 0 16px; font-size:18px; color:#dc2626;">Dernière étape cruciale : Désinstaller l'extension</h3>
-                <p style="font-size:14px; color:#475569; margin-bottom:20px;">L'étude est maintenant terminée. Vous devez retirer l'extension de votre navigateur.</p>
+                <p style="font-size:14px; color:#475569; margin-bottom:12px;">L'étude est maintenant terminée. Vous devez retirer l'extension de votre navigateur.</p>
                 
+                <p style="font-size:13px; color:#b91c1c; font-weight:600; margin-bottom:20px; background:#fee2e2; padding:12px; border-radius:6px; border:1px dashed #fca5a5; line-height:1.5;">
+                    Si vous rencontrez des problèmes pour désinstaller l'extension, contactez l'équipe à l'adresse courriel suivante : <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Mais ne vous en faites pas, même si elle reste installée, l'extension ne collectera plus aucune donnée.
+                </p>
+
                 <div style="display:flex; flex-direction:column; gap:20px; margin-bottom:20px;">
-                    
                     <!-- ÉTAPE 1 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 1 :</strong> Cliquez droit sur l'icône de l'extension comme sur l'image ci-dessous.
+                            <strong style="color:#3b82f6;">Étape 1 :</strong> Cliquez droit sur l'icône de l'extension.
                         </p>
                         <img src="/images/uninstall_1.png" alt="Étape 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
@@ -88,7 +91,6 @@ const i18n = {
                         </p>
                         <img src="/images/uninstall_3.png" alt="Étape 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
-
                 </div>
             </div>
         `,
@@ -115,7 +117,7 @@ const i18n = {
             { id: "tlx_frust", titre: "FRUSTRATION", desc: "Au cours de la tâche, quel sentiment de manque d'assurance, de découragement, d'irritabilité, de stress ou d'agacement avez-vous ressenti contrairement au fait d’être certain.e, satisfait.e, content.e, détendu.e et complaisant.e ?" }
         ],
 
-        q_internet_titre: "Évaluation",
+        q_internet_titre: "Questionnaire de compétences Internet",
         q_internet_legende: "Veuillez indiquer à quel point ces énoncés vous correspondent (1 = Ne me correspond pas du tout, 5 = Me correspond beaucoup) :",
         q_internet_items: [
             "Je sais comment télécharger des fichiers.",

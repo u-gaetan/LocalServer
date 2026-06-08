@@ -332,10 +332,11 @@
             '<h2>Instructions</h2>' +
             '<p>Vous allez répondre à <strong>' + state.researchQuestions.length + ' questions de recherche</strong>.</p>' +
             '<ul class="instructions-list">' +
-            '<li><strong>Naviguez librement</strong> dans d\'autres onglets (Google, Wikipédia, etc.).</li>' +
+            '<li><strong>Naviguez librement</strong> dans d\'autres onglets (Google, Wikipédia, etc.) pour trouver vos informations.</li>' +
             '<li><strong style="color:#dc2626;">Règles strictes :</strong> La navigation privée est interdite. L\'usage d\'Intelligences Artificielles (ChatGPT, Gemini, Claude, etc.) est <strong>strictement interdit</strong>.</li>' +
-            '<li>Votre réponse doit faire <strong>entre 75 et 100 mots</strong> (un compteur vous aidera).</li>' +
-            '<li>Un chronomètre est actif. Essayez de répondre en moins de 10 minutes. Après 12 minutes, la page passera automatiquement à la suite.</li>' +
+            '<li>L\'étude doit être réalisée <strong>d\'une seule traite</strong> (en une seule session continue).</li>' +
+            '<li>Votre réponse devrait idéalement faire <strong>entre 75 et 100 mots</strong> (un indicateur visuel vous guidera, mais vous pouvez valider votre texte même s\'il est plus court).</li>' +
+            '<li>La collecte de données se coupe automatiquement après <strong>1 heure d\'inactivité</strong> ou après un maximum de <strong>4 heures d\'activité</strong> (ne vous en faites pas, l\'étude prend en réalité beaucoup moins de temps que cela !).</li>' +
             '</ul>' +
             '<button class="btn btn-success" id="btnStartQuestions">Commencer</button>';
 
@@ -393,7 +394,7 @@
             wc.textContent = "Mots : " + count + " / 75-100";
             if (count < 75) { 
                 wc.className = "word-counter red"; 
-                btn.disabled = true; 
+                btn.disabled = (count === 0); // Désactivé uniquement si vide
             } else if (count >= 75 && count <= 100) { 
                 wc.className = "word-counter green"; 
                 btn.disabled = false; 
@@ -406,8 +407,8 @@
         btn.addEventListener('click', async function () {
             let hasResearched = await verifyResearchDone(state.questionStartTime);
             if (!hasResearched && !existing) {
-                alert("⚠️ Aucune recherche détectée ! Vous devez effectuer des recherches actives sur Chrome (ouvrir des moteurs de recherche, consulter des pages externes) avant de pouvoir soumettre votre réponse.");
-                return; 
+                var proceed = confirm("⚠️ Aucune recherche en ligne n'a été détectée pour cette question. Souhaitez-vous tout de même valider votre réponse sans faire de recherche ?");
+                if (!proceed) return;
             } 
             processSubmitResearch(q, textarea.value); 
         });

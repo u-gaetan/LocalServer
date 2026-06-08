@@ -8,6 +8,35 @@ var CHARTS = {};
 var metInit = false;
 var PAL = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444','#84cc16','#a855f7','#14b8a6','#f43f5e','#eab308'];
 
+const SKILLS_MAP = {
+    "item_1": "1_Telecharger_Fichiers",
+    "item_2": "2_Sauvegarder_Photos",
+    "item_3": "3_Raccourcis_Clavier",
+    "item_4": "4_Ouvrir_Onglet",
+    "item_5": "5_Signet_Favoris",
+    "item_6": "6_Cliquer_Lien",
+    "item_7": "7_Diff_Mots_Cles",
+    "item_8": "8_Diff_Retrouver_Site",
+    "item_9": "9_Fatigue_Recherche",
+    "item_10": "10_Nav_Involontaire",
+    "item_11": "11_Confusion_Ergo",
+    "item_12": "12_Besoin_Cours",
+    "item_13": "13_Diff_Verif_Info",
+    "item_14": "14_Partage_Securite",
+    "item_15": "15_Quand_Partager",
+    "item_16": "16_Comportement_Net",
+    "item_17": "17_Reglage_Confid",
+    "item_18": "18_Supprimer_Amis",
+    "item_19": "19_Creation_Contenu",
+    "item_20": "20_Modif_Contenu",
+    "item_21": "21_Concevoir_Site",
+    "item_22": "22_Licences_Web",
+    "item_23": "23_Confiance_Publier",
+    "item_24": "24_Installer_App",
+    "item_25": "25_Telecharger_App",
+    "item_26": "26_Suivi_Couts_App"
+};
+
 // ═══════════════════════════════════════════════════════
 // UTILITAIRES
 // ═══════════════════════════════════════════════════════
@@ -646,9 +675,16 @@ function renderRep() {
     h += '</tr></thead><tbody>';
     reps.forEach(function(r) {
         var d = r.data || {};
-        var ds = (typeof d === 'object' && !Array.isArray(d))
-            ? Object.entries(d).map(function(e) { return e[0] + ': ' + e[1]; }).join('\n')
-            : String(d);
+        var ds = "";
+        if (typeof d === 'object' && !Array.isArray(d)) {
+            var targetObj = (d.answers && typeof d.answers === 'object') ? d.answers : d;
+            ds = Object.entries(targetObj).map(function(e) {
+                var label = SKILLS_MAP[e[0]] || e[0];
+                return label + ': ' + e[1];
+            }).join('\n');
+        } else {
+            ds = String(d);
+        }
         h += '<tr>';
         h += '<td class="m">' + tsT(r.timestamp) + '</td>';
         h += '<td><span class="tg">' + esc(r.type) + '</span></td>';
@@ -757,25 +793,25 @@ function dlXLSX() {
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navD), 'Navigation');
 
-    // Feuille 2 : Réponses
+    // Feuille 2 : Réponses (Une seule colonne de données consolidées)
     var reps = S.reps.filter(function(r) {
         return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
     }).sort(function(a, b) { return (a.timestamp || '').localeCompare(b.timestamp || ''); });
-    var allKeys = {};
+
+    var repD = [['Heure', 'Type', 'QuestionID', 'QuestionLabel', 'Réponse / Données']];
     reps.forEach(function(r) {
         var d = r.data || {};
-        if (typeof d === 'object') Object.keys(d).forEach(function(k) { allKeys[k] = true; });
-    });
-    var keys = Object.keys(allKeys);
-    var repD = [['Heure', 'Type', 'QuestionID', 'QuestionLabel'].concat(keys)];
-    reps.forEach(function(r) {
-        var row = [tsT(r.timestamp), r.type, r.questionId || '', r.questionLabel || ''];
-        keys.forEach(function(k) { var v = (r.data || {})[k]; row.push(v != null ? String(v) : ''); });
-        repD.push(row);
+        var rs = (typeof d === 'object' && !Array.isArray(d))
+            ? Object.entries(d).map(function(e) {
+                var label = SKILLS_MAP[e[0]] || e[0];
+                return label + '=' + e[1];
+              }).join('; ')
+            : String(d);
+        repD.push([tsT(r.timestamp), r.type, r.questionId || '', r.questionLabel || '', rs]);
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repD), 'Réponses');
 
-    // Feuille 3 : Global (chronologique)
+    // Feuille 3 : Global (Chronologique)
     var globH = ['Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse'];
     var items = [];
     S.vis.forEach(function(v) {
@@ -786,7 +822,10 @@ function dlXLSX() {
     reps.forEach(function(r) {
         var d = r.data || {};
         var rs = (typeof d === 'object' && !Array.isArray(d))
-            ? Object.entries(d).map(function(e) { return e[0] + '=' + e[1]; }).join('; ')
+            ? Object.entries(d).map(function(e) {
+                var label = SKILLS_MAP[e[0]] || e[0];
+                return label + '=' + e[1];
+              }).join('; ')
             : String(d);
         items.push({ ts: r.timestamp || '', row: ['Réponse', tsT(r.timestamp), r.questionId || '', r.type,
             '', '', '', '', '', '', '', '', '', '', '', rs] });
