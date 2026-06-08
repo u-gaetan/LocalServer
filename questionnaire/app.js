@@ -34,19 +34,24 @@
     let popup10MinShown = false;
     let currentTimerPhase = null;
 
-    function t(key) {
+    // Traducteur enrichi supportant le formattage des variables dynamiques (ex: {count})
+    function t(key, variables) {
         if (!state.language) return ""; 
         if (typeof i18n === 'undefined' || !i18n[state.language]) return key;
-        return i18n[state.language][key] || key;
+        let phrase = i18n[state.language][key] || key;
+        if (variables && typeof phrase === 'string') {
+            for (let prop in variables) {
+                phrase = phrase.replace('{' + prop + '}', variables[prop]);
+            }
+        }
+        return phrase;
     }
 
     async function fetchAndSyncToken() {
         if (state.token) {
-            // Si le token est déjà présent dans le localStorage, on le renvoie à l'extension
             window.postMessage({ type: 'SET_TOKEN', token: state.token }, window.location.origin);
             return;
         }
-
         try {
             const response = await fetch(API_BASE + '/token', {
                 method: 'POST',
@@ -57,7 +62,6 @@
             if (data.token) {
                 state.token = data.token;
                 saveProgress();
-                // Envoi sécurisé du token à l'extension (uniquement à notre propre origine)
                 window.postMessage({ type: 'SET_TOKEN', token: data.token }, window.location.origin);
             }
         } catch (err) {
@@ -70,7 +74,7 @@
         state.participantId = params.get('pid');
 
         if (!state.participantId) {
-            app.innerHTML = '<div style="text-align:center; padding:60px 0;"><h1>Accès invalide</h1><p>Veuillez démarrer l\'étude depuis l\'extension Chrome.</p></div>';
+            app.innerHTML = '<div style="text-align:center; padding:60px 0;"><h1>Accès invalide / Invalid access</h1><p>Veuillez démarrer l\'étude depuis l\'extension Chrome / Please start the study from the Chrome extension.</p></div>';
             return;
         }
 
@@ -80,14 +84,11 @@
                 const parsed = JSON.parse(saved);
                 if (parsed.participantId === state.participantId) {
                     state = parsed;
-                    // Ne pas faire de "return" immédiat ici pour permettre la vérification du token ci-dessous
                 }
             } catch (e) {}
         }
 
-        // NOUVEAU : On récupère le jeton JWT et on le transmet à l'extension
         await fetchAndSyncToken();
-
         renderPhase();
         updateUrl();
     }
@@ -191,11 +192,11 @@
 
                 if (elapsedSeconds === 600 && !popup10MinShown) {
                     popup10MinShown = true;
-                    alert("⚠️ Cela fait 10 minutes que vous êtes sur cette question. Veuillez finaliser votre réponse et passer à la suite.");
+                    alert(t('alert_10_min_warning'));
                 }
                 if (elapsedSeconds >= 720) {
                     clearInterval(timerInterval);
-                    alert("⏱️ Temps écoulé (12 minutes). Vous allez être redirigé vers l'auto-évaluation.");
+                    alert(t('alert_temps_ecoule_recherche'));
                     forceSubmitResearch();
                 }
             } 
@@ -205,7 +206,7 @@
 
                 if (elapsedSeconds >= 60) {
                     clearInterval(timerInterval);
-                    alert("⏱️ Temps écoulé (1 minute). Passage à la question suivante.");
+                    alert(t('alert_temps_ecoule_memoire'));
                     forceSubmitMemory();
                 }
             }
@@ -221,12 +222,11 @@
     }
     function countWords(str) { return str.trim().split(/\s+/).filter(w => w.length > 0).length; }
 
-    // ANTI-FREEZE : Timeout si l'extension ne répond pas au bout d'une seconde
     function getNavCount() {
         return new Promise(resolve => {
             let timeoutId = setTimeout(() => {
                 window.removeEventListener('message', handler);
-                resolve(-1); // On renvoie -1 si on n'a pas de réponse (évite le gel)
+                resolve(-1);
             }, 1000);
 
             const handler = (e) => {
@@ -241,20 +241,26 @@
         });
     }
 
-    // === 1. LANGUAGE ===
+    // === 1. LANGUAGE SELECTION (BILINGUE) ===
     function renderLanguage() {
         app.innerHTML =
-            '<h1 style="text-align:center;">Preferred Language / Langue préférentielle</h1>' +
+            '<h1 style="text-align:center;">' + t('langue_titre') + '</h1>' +
             '<div class="form-group" style="max-width:400px; margin:30px auto;">' +
-            '<select id="languageSelect" required><option value="">-- Sélectionnez / Select --</option><option value="fr">Français / French</option></select>' +
+            '<select id="languageSelect" required>' +
+                '<option value="">' + t('langue_select_default') + '</option>' +
+                '<option value="fr">Français</option>' +
+                '<option value="en">English</option>' +
+            '</select>' +
             '</div>' +
-            '<div style="text-align:center;"><button class="btn btn-primary" id="btnLanguage" disabled>Continuer / Continue</button></div>';
+            '<div style="text-align:center;"><button class="btn btn-primary" id="btnLanguage" disabled>' + t('btn_continuer') + '</button></div>';
 
         var select = document.getElementById('languageSelect');
         var btn = document.getElementById('btnLanguage');
         select.addEventListener('change', function () { btn.disabled = !select.value; });
         btn.addEventListener('click', function () { 
             state.language = select.value; 
+            // Envoyer la langue sélectionnée à l'extension
+            window.postMessage({ type: 'SET_LANGUAGE', language: select.value }, window.location.origin);
             saveProgress(); 
             goTo('consent'); 
         });
@@ -266,9 +272,9 @@
             '<h1 style="text-align:center;">' + t('consentement_titre') + '</h1>' +
             '<p style="text-align:center;color:#64748b;">' + t('consentement_intro') + '</p>' +
             '<div class="consent-box">' + t('consentement_texte') + '</div>' +
-            '<div class="consent-checks"><label class="consent-label"><input type="checkbox" id="consent1"><span>J\'ai lu et compris les informations ci-dessus et je souhaite participer à l\'étude. Je confirme être âgé(e) de 18 ans ou plus.</span></label></div>' +
-            '<button class="btn btn-primary" id="btnConsent" disabled>J\'accepte et je souhaite participer</button>' +
-            '<p style="text-align:center;margin-top:12px;"><a href="#" id="btnRefuse" style="color:#94a3b8;font-size:13px;">Je ne souhaite pas participer</a></p>';
+            '<div class="consent-checks"><label class="consent-label"><input type="checkbox" id="consent1"><span>' + t('consentement_checkbox') + '</span></label></div>' +
+            '<button class="btn btn-primary" id="btnConsent" disabled>' + t('btn_consentement_accepter') + '</button>' +
+            '<p style="text-align:center;margin-top:12px;"><a href="#" id="btnRefuse" style="color:#94a3b8;font-size:13px;">' + t('btn_consentement_refuser') + '</a></p>';
 
         var cb = document.getElementById('consent1');
         var btn = document.getElementById('btnConsent');
@@ -276,7 +282,6 @@
 
         btn.addEventListener('click', function () {
             state.consentGiven = true;
-            // ON RÉINITIALISE LE COMPTEUR DES 4 HEURES ICI !
             localStorage.setItem('study_global_start', Date.now().toString());
 
             sendToServer('consent', null, null, { consent: true, questionLabel: "Consentement Initial" });
@@ -287,21 +292,46 @@
         document.getElementById('btnRefuse').addEventListener('click', function (e) {
             e.preventDefault();
             sendToServer('consent', null, null, { consent: false, questionLabel: "Consentement Initial" });
-            app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>Merci</h1><p>Nous comprenons votre décision. Vous pouvez fermer cette page.</p></div>';
+            app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>' + t('consentement_refuse_titre') + '</h1><p>' + t('consentement_refuse_texte') + '</p></div>';
         });
     }
 
     // === 3. DEMOGRAPHICS ===
     function renderDemographics() {
         app.innerHTML =
-            '<h2>Informations personnelles</h2>' +
-            '<p style="color:#64748b; font-size:0.9em; margin-bottom:20px;">Votre adresse courriel est uniquement requise pour vous contacter concernant votre méthode de compensation financière, ainsi que pour nous permettre de retrouver et supprimer vos données si vous décidez de retirer votre consentement plus tard. Elle sera conservée de manière sécurisée et dissociée de vos données de navigation.</p>' +
-            '<div class="form-group"><label>Adresse courriel</label><input type="email" id="email" required></div>' +
-            '<div class="form-group"><label>Âge</label><input type="number" id="age" min="18" max="99" required></div>' +
-            '<div class="form-group"><label>Niveau de maîtrise du français</label><select id="lang_prof" required><option value="">-- Sélectionnez --</option><option value="debutant">Débutant</option><option value="intermediaire">Intermédiaire</option><option value="expert">Expert</option><option value="natif">Langue maternelle (Natif)</option></select></div>' +
-            '<div class="form-group"><label>Niveau d\'études</label><select id="niveau" required><option value="">-- Sélectionnez --</option><option value="secondaire">Secondaire</option><option value="cegep">Cégep / DEC</option><option value="baccalaureat">Baccalauréat</option><option value="maitrise">Maîtrise</option><option value="doctorat">Doctorat</option><option value="autre">Autre</option></select></div>' +
-            '<div class="form-group"><label>Comment souhaitez-vous recevoir votre compensation ?</label><select id="payment" required><option value="">-- Sélectionnez --</option><option value="interac">Virement Interac (courriel ci-dessus)</option><option value="pickup">Venir chercher à l\'Université Laval</option><option value="cheque">Chèque par la poste</option></select></div>' +
-            '<button class="btn btn-primary" id="btnDemo">Suivant</button><div id="demoErr" style="color:red; display:none;"></div>';
+            '<h2>' + t('demo_titre') + '</h2>' +
+            '<p style="color:#64748b; font-size:0.9em; margin-bottom:20px;">' + t('demo_description') + '</p>' +
+            '<div class="form-group"><label>' + t('demo_email') + '</label><input type="email" id="email" required></div>' +
+            '<div class="form-group"><label>' + t('demo_age') + '</label><input type="number" id="age" min="18" max="99" required></div>' +
+            '<div class="form-group"><label>' + t('demo_maitrise_langue') + '</label>' +
+                '<select id="lang_prof" required>' +
+                    '<option value="">' + t('demo_select_default') + '</option>' +
+                    '<option value="debutant">' + t('demo_lang_debutant') + '</option>' +
+                    '<option value="intermediaire">' + t('demo_lang_intermediaire') + '</option>' +
+                    '<option value="expert">' + t('demo_lang_expert') + '</option>' +
+                    '<option value="natif">' + t('demo_lang_natif') + '</option>' +
+                '</select>' +
+            '</div>' +
+            '<div class="form-group"><label>' + t('demo_scolarite') + '</label>' +
+                '<select id="niveau" required>' +
+                    '<option value="">' + t('demo_select_default') + '</option>' +
+                    '<option value="secondaire">' + t('demo_scol_secondaire') + '</option>' +
+                    '<option value="cegep">' + t('demo_scol_cegep') + '</option>' +
+                    '<option value="baccalaureat">' + t('demo_scol_bac') + '</option>' +
+                    '<option value="maitrise">' + t('demo_scol_maitrise') + '</option>' +
+                    '<option value="doctorat">' + t('demo_scol_doctorat') + '</option>' +
+                    '<option value="autre">' + t('demo_scol_autre') + '</option>' +
+                '</select>' +
+            '</div>' +
+            '<div class="form-group"><label>' + t('demo_compensation') + '</label>' +
+                '<select id="payment" required>' +
+                    '<option value="">' + t('demo_select_default') + '</option>' +
+                    '<option value="interac">' + t('demo_pay_interac') + '</option>' +
+                    '<option value="pickup">' + t('demo_pay_pickup') + '</option>' +
+                    '<option value="cheque">' + t('demo_pay_cheque') + '</option>' +
+                '</select>' +
+            '</div>' +
+            '<button class="btn btn-primary" id="btnDemo">' + t('btn_suivant') + '</button><div id="demoErr" style="color:red; display:none;"></div>';
 
         document.getElementById('btnDemo').addEventListener('click', async function () {
             var email = document.getElementById('email').value.trim();
@@ -311,7 +341,7 @@
             var payment = document.getElementById('payment').value;
 
             if (!email || !age || !lang || !niveau || !payment) {
-                document.getElementById('demoErr').textContent = "Remplissez tous les champs.";
+                document.getElementById('demoErr').textContent = t('demo_err_champs');
                 document.getElementById('demoErr').style.display = 'block';
                 return;
             }
@@ -329,16 +359,16 @@
     // === 4. INSTRUCTIONS ===
     function renderInstructions() {
         app.innerHTML =
-            '<h2>Instructions</h2>' +
-            '<p>Vous allez répondre à <strong>' + state.researchQuestions.length + ' questions de recherche</strong>.</p>' +
+            '<h2>' + t('instr_titre') + '</h2>' +
+            '<p>' + t('instr_texte', { count: state.researchQuestions.length }) + '</p>' +
             '<ul class="instructions-list">' +
-            '<li><strong>Naviguez librement</strong> dans d\'autres onglets (Google, Wikipédia, etc.) pour trouver vos informations.</li>' +
-            '<li><strong style="color:#dc2626;">Règles strictes :</strong> La navigation privée est interdite. L\'usage d\'Intelligences Artificielles (ChatGPT, Gemini, Claude, etc.) est <strong>strictement interdit</strong>.</li>' +
-            '<li>L\'étude doit être réalisée <strong>d\'une seule traite</strong> (en une seule session continue).</li>' +
-            '<li>Votre réponse devrait idéalement faire <strong>entre 75 et 100 mots</strong> (un indicateur visuel vous guidera, mais vous pouvez valider votre texte même s\'il est plus court).</li>' +
-            '<li>La collecte de données se coupe automatiquement après <strong>1 heure d\'inactivité</strong> ou après un maximum de <strong>4 heures d\'activité</strong> (ne vous en faites pas, l\'étude prend en réalité beaucoup moins de temps que cela !).</li>' +
+                '<li>' + t('instr_item_1') + '</li>' +
+                '<li>' + t('instr_item_2') + '</li>' +
+                '<li>' + t('instr_item_3') + '</li>' +
+                '<li>' + t('instr_item_4') + '</li>' +
+                '<li>' + t('instr_item_5') + '</li>' +
             '</ul>' +
-            '<button class="btn btn-success" id="btnStartQuestions">Commencer</button>';
+            '<button class="btn btn-success" id="btnStartQuestions">' + t('btn_commencer') + '</button>';
 
         document.getElementById('btnStartQuestions').addEventListener('click', function () {
             state.currentResearchIndex = 0;
@@ -346,15 +376,12 @@
         });
     }
 
-    // === 5. RESEARCH ===
-    let initialNavCount = 0; 
-
-    // Vérification asynchrone du travail de recherche effectif
+    // === 5. RESEARCH QUESTIONS ===
     function verifyResearchDone(startTime) {
         return new Promise(resolve => {
             let timeoutId = setTimeout(() => {
                 window.removeEventListener('message', handler);
-                resolve(true); // Sécurité anti-blocage (fallback) si l'extension ne répond pas
+                resolve(true);
             }, 1000);
 
             const handler = (e) => {
@@ -369,18 +396,18 @@
         });
     }
 
-
     function renderResearchQuestion() {
         var idx = state.currentResearchIndex;
         var q = state.researchQuestions[idx];
+        var qText = q.text[state.language] || q.text['fr'];
 
         app.innerHTML =
-            '<h2>Question ' + (idx + 1) + ' / ' + state.researchQuestions.length + '</h2>' +
-            '<div class="question-box"><p>' + q.text + '</p></div>' +
-            '<p style="color:#64748b;">Cherchez la réponse sur Internet puis rédigez-la ici (75 à 100 mots).</p>' +
-            '<textarea id="answerText" placeholder="Rédigez votre réponse ici..."></textarea>' +
-            '<div id="wordCount" class="word-counter red">Mots : 0 / 75-100</div>' +
-            '<button class="btn btn-primary" id="btnSubmitAnswer" disabled>Valider ma réponse</button>';
+            '<h2>' + t('recherche_titre', { index: idx + 1, total: state.researchQuestions.length }) + '</h2>' +
+            '<div class="question-box"><p>' + qText + '</p></div>' +
+            '<p style="color:#64748b;">' + t('recherche_instructions') + '</p>' +
+            '<textarea id="answerText" placeholder="' + t('recherche_placeholder') + '"></textarea>' +
+            '<div id="wordCount" class="word-counter red">' + t('recherche_mots', { count: 0 }) + '</div>' +
+            '<button class="btn btn-primary" id="btnSubmitAnswer" disabled>' + t('btn_valider_reponse') + '</button>';
 
         var textarea = document.getElementById('answerText');
         var btn = document.getElementById('btnSubmitAnswer');
@@ -391,10 +418,10 @@
 
         textarea.addEventListener('input', function () {
             var count = countWords(textarea.value);
-            wc.textContent = "Mots : " + count + " / 75-100";
+            wc.textContent = t('recherche_mots', { count: count });
             if (count < 75) { 
                 wc.className = "word-counter red"; 
-                btn.disabled = (count === 0); // Désactivé uniquement si vide
+                btn.disabled = (count === 0);
             } else if (count >= 75 && count <= 100) { 
                 wc.className = "word-counter green"; 
                 btn.disabled = false; 
@@ -407,7 +434,7 @@
         btn.addEventListener('click', async function () {
             let hasResearched = await verifyResearchDone(state.questionStartTime);
             if (!hasResearched && !existing) {
-                var proceed = confirm("⚠️ Aucune recherche en ligne n'a été détectée pour cette question. Souhaitez-vous tout de même valider votre réponse sans faire de recherche ?");
+                var proceed = confirm(t('alert_pas_de_recherche'));
                 if (!proceed) return;
             } 
             processSubmitResearch(q, textarea.value); 
@@ -419,7 +446,7 @@
 
     function forceSubmitResearch() {
         var q = state.researchQuestions[state.currentResearchIndex];
-        var text = document.getElementById('answerText').value || "[Temps écoulé]";
+        var text = document.getElementById('answerText').value || "[Forced Timeout / Temps écoulé]";
         processSubmitResearch(q, text);
     }
 
@@ -436,12 +463,13 @@
     function renderSelfAssessment() {
         var idx = state.currentResearchIndex;
         var q = state.researchQuestions[idx];
+        var qText = q.text[state.language] || q.text['fr'];
 
-        var html = '<h2>Évaluation</h2><p>Concernant la question : <em>' + q.text + '</em></p>';
+        var html = '<h2>' + t('eval_titre') + '</h2><p>' + t('eval_concerne') + ' <em>' + qText + '</em></p>';
 
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
             '<h3>' + t('q_connaissance_titre') + '</h3>' +
-            '<div class="slider-group"><label>' + t('q_connaissance_item') + '</label>' +
+            '<div class="slider-group"><label class="slider-label">' + t('q_connaissance_item') + '</label>' +
             '<div class="slider-container"><input type="range" id="k_base" class="slider" min="0" max="100" value="0"><div class="slider-value" id="vk_base">0</div></div>' +
             '<div class="slider-labels"><span>0</span><span>100</span></div></div>';
 
@@ -449,7 +477,7 @@
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
             '<h3>' + t('q_confiance_titre') + '</h3>' +
             '<p style="font-size:0.9em; color:#64748b; margin-bottom:10px;">' + t('q_confiance_legende') + '</p>' +
-            '<table class="likert-table"><tr><th>Énoncé</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>';
+            '<table class="likert-table"><tr><th>Énoncé / Statement</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>';
         confItems.forEach(function(item, i) {
             html += '<tr><td>' + item + '</td>';
             for(var v=1; v<=5; v++) html += '<td><input type="radio" name="conf' + (i+1) + '" value="' + v + '"></td>';
@@ -467,7 +495,7 @@
                 '<div class="slider-labels"><span>1</span><span>100</span></div></div>';
         });
 
-        html += '<button class="btn btn-primary" id="btnSubmitScale" style="margin-top:30px;">Valider l\'évaluation</button><div id="evalErr" style="color:red; display:none; margin-top:10px;">Veuillez répondre à toutes les questions du tableau.</div>';
+        html += '<button class="btn btn-primary" id="btnSubmitScale" style="margin-top:30px;">' + t('btn_valider_eval') + '</button><div id="evalErr" style="color:red; display:none; margin-top:10px;">' + t('eval_err_radio') + '</div>';
         app.innerHTML = html;
 
         bindSlider('k_base');
@@ -510,7 +538,7 @@
         var skills = t('q_internet_items');
         var html = '<h2>' + t('q_internet_titre') + '</h2>';
         html += '<p style="font-size:0.9em; color:#64748b; margin-bottom:10px;">' + t('q_internet_legende') + '</p>';
-        html += '<table class="likert-table"><tr><th>Énoncé</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>';
+        html += '<table class="likert-table"><tr><th>Énoncé / Statement</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>';
         
         skills.forEach(function(item, i) {
             html += '<tr><td>' + item + '</td>';
@@ -518,7 +546,7 @@
             html += '</tr>';
         });
         
-        html += '</table><button class="btn btn-primary" id="btnSubmitSkills">Suivant</button><div id="skillsErr" style="color:red; display:none; margin-top:10px;">Veuillez répondre à tous les énoncés.</div>';
+        html += '</table><button class="btn btn-primary" id="btnSubmitSkills">' + t('btn_suivant') + '</button><div id="skillsErr" style="color:red; display:none; margin-top:10px;">' + t('eval_err_radio') + '</div>';
         app.innerHTML = html;
 
         document.getElementById('btnSubmitSkills').addEventListener('click', async function() {
@@ -532,7 +560,7 @@
 
             if(!allAnswered) { document.getElementById('skillsErr').style.display = 'block'; return; }
 
-            await sendToServer( 'internet_skills',null, null, answers);
+            await sendToServer('internet_skills', null, null, answers);
             goTo('memory_intro');
         });
     }
@@ -542,11 +570,11 @@
         window.postMessage({ type: 'SET_PHASE', phase: 'memory' }, '*');
         app.innerHTML =
             '<div style="text-align:center;">' +
-            '<h1>Test de mémoire (Surprise !)</h1>' +
-            '<p style="font-size:1.1em; margin:20px 0;">Vous allez maintenant répondre à <strong>' + state.memoryQuestions.length + ' questions courtes</strong> portant sur les informations que vous avez consultées.</p>' +
-            '<p style="color:#dc2626;"><strong>RÈGLE STRICTE :</strong> Vous devez répondre <strong>de mémoire</strong>. Vous n\'avez pas le droit de chercher la réponse sur Internet.</p>' +
-            '<p>Vous avez <strong>1 minute par question</strong> maximum.</p>' +
-            '<button class="btn btn-primary" id="btnStartMemory">Commencer le test</button>' +
+            '<h1>' + t('mem_intro_titre') + '</h1>' +
+            '<p style="font-size:1.1em; margin:20px 0;">' + t('mem_intro_desc', { count: state.memoryQuestions.length }) + '</p>' +
+            '<p style="color:#dc2626;">' + t('mem_intro_regle') + '</p>' +
+            '<p>' + t('mem_intro_limite') + '</p>' +
+            '<button class="btn btn-primary" id="btnStartMemory">' + t('btn_commencer_memoire') + '</button>' +
             '</div>';
 
         document.getElementById('btnStartMemory').addEventListener('click', function () {
@@ -555,19 +583,19 @@
         });
     }
 
-    // === 9. MEMORY ===
+    // === 9. MEMORY QUESTION ===
     function renderMemoryQuestion() {
-        // Réinitialiser le bypass urgence pour cette nouvelle question
         window.postMessage({ type: 'RESET_MEMORY_BYPASS' }, '*');
 
         var idx = state.currentMemoryIndex;
         var mq = state.memoryQuestions[idx];
+        var mqText = mq.text[state.language] || mq.text['fr'];
 
         app.innerHTML =
-            '<h2>Mémoire ' + (idx + 1) + ' / ' + state.memoryQuestions.length + '</h2>' +
-            '<div class="question-box"><p>' + mq.text + '</p></div>' +
-            '<textarea id="memAnswerText" placeholder="Votre réponse de mémoire..." style="min-height:100px;"></textarea>' +
-            '<button class="btn btn-primary" id="btnSubmitMemory">Valider</button>';
+            '<h2>' + t('mem_titre', { index: idx + 1, total: state.memoryQuestions.length }) + '</h2>' +
+            '<div class="question-box"><p>' + mqText + '</p></div>' +
+            '<textarea id="memAnswerText" placeholder="' + t('mem_placeholder') + '" style="min-height:100px;"></textarea>' +
+            '<button class="btn btn-primary" id="btnSubmitMemory">' + t('btn_valider_memoire') + '</button>';
 
         document.getElementById('btnSubmitMemory').addEventListener('click', function () {
             processSubmitMemory(mq, document.getElementById('memAnswerText').value.trim());
@@ -578,7 +606,7 @@
 
     function forceSubmitMemory() {
         var mq = state.memoryQuestions[state.currentMemoryIndex];
-        var text = document.getElementById('memAnswerText').value || "[Temps écoulé]";
+        var text = document.getElementById('memAnswerText').value || "[Forced Timeout / Temps écoulé]";
         processSubmitMemory(mq, text);
     }
 
@@ -592,17 +620,17 @@
         else goTo('deception_consent');
     }
 
-    // === 10. DECEPTION ===
+    // === 10. DECEPTION CONSENT ===
     function renderDeceptionConsent() {
         window.postMessage({ type: 'SET_PHASE', phase: 'research' }, '*');
         app.innerHTML =
             '<h1 style="text-align:center;">' + t('debriefing_titre') + '</h1>' +
             '<div class="consent-box" style="font-size:0.95em;">' + t('debriefing_texte') + '</div>' +
             '<div class="consent-checks">' +
-            '<label class="consent-label"><input type="radio" name="deceptionChoice" value="maintain"><span>Je souhaite <strong>maintenir</strong> ma participation à l\'étude.</span></label>' +
-            '<label class="consent-label"><input type="radio" name="deceptionChoice" value="withdraw"><span>Je souhaite <strong>mettre fin</strong> à ma participation à l\'étude. (Mes données seront détruites)</span></label>' +
+            '<label class="consent-label"><input type="radio" name="deceptionChoice" value="maintain"><span>' + t('debriefing_choix_maintain') + '</span></label>' +
+            '<label class="consent-label"><input type="radio" name="deceptionChoice" value="withdraw"><span>' + t('debriefing_choix_withdraw') + '</span></label>' +
             '</div>' +
-            '<button class="btn btn-primary" id="btnDeceptionConsent" disabled>Confirmer mon choix</button>';
+            '<button class="btn btn-primary" id="btnDeceptionConsent" disabled>' + t('btn_confirmer_choix') + '</button>';
 
         var radios = document.querySelectorAll('input[name="deceptionChoice"]');
         var btn = document.getElementById('btnDeceptionConsent');
@@ -616,38 +644,34 @@
                 goTo('end');
             } else {
                 sendToServer('deception_consent', null, null, { consent: false, decision: 'withdraw', questionLabel: "Consentement Post-Expérimental (Retiré)" });
-                
-                // On notifie l'extension que c'est fini pour qu'elle se verrouille définitivement
                 window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
                 
-                app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>Merci</h1><p>Nous comprenons votre décision. Vos données seront détruites.</p><p style="color:#64748b; margin-top:16px;">Vous pouvez désinstaller l\'extension Chrome.</p></div>';
+                app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>' + t('consentement_refuse_titre') + '</h1><p>' + t('debriefing_err_retrait') + '</p><p style="color:#64748b; margin-top:16px;">' + t('debriefing_err_desinstaller') + '</p></div>';
                 localStorage.removeItem('questionnaire_progress');
             }
         });
     }
 
-    // === 11. END ===
+    // === 11. END SCREEN ===
     function renderEnd() {
         app.innerHTML =
             '<div class="end-screen">' +
-            '<h1>Merci pour votre participation !</h1>' +
-            '<p style="font-size:1.1em; margin:20px 0;">Vos réponses ont été enregistrées avec succès.</p>' +
+            '<h1>' + t('fin_titre') + '</h1>' +
+            '<p style="font-size:1.1em; margin:20px 0;">' + t('fin_soustitre') + '</p>' +
             t('fin_texte') +
             '</div>';
 
-        // Verrouille l'extension définitivement
         window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
         
         localStorage.removeItem('questionnaire_progress');
-        localStorage.removeItem('study_global_start'); // On efface le timer
+        localStorage.removeItem('study_global_start');
         
         sendToServer('questionnaire_event', null, null, { event: 'questionnaire_completed' });
         progressFill.style.width = '100%';
         progressText.textContent = '100%';
     }
 
-    // === API ===
-    // Modifiée pour intégrer l'en-tête Authorization
+    // === API CALL ===
     async function sendToServer(type, questionId, difficulty, data) {
         var payload = { 
             participantId: state.participantId, 
@@ -659,19 +683,17 @@
         };
 
         const headers = { 'Content-Type': 'application/json' };
-        
-        // Si le jeton est disponible, on l'ajoute aux en-têtes
         if (state.token) {
             headers['Authorization'] = 'Bearer ' + state.token;
         }
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s max
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
             
             await fetch(API_BASE + '/reponse', { 
                 method: 'POST', 
-                headers: headers, // Utilisation des en-têtes configurés
+                headers: headers,
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
@@ -683,25 +705,18 @@
         }
     }
 
-
-    // =========================================================
-    // SÉCURITÉ : INACTIVITÉ (1h) ET DÉLAI GLOBAL (4h)
-    // =========================================================
+    // === SECURITY: INACTIVITY AND MAX SESSION TIMEOUT ===
     let inactivityTimer = null;
     let globalTimer = null;
 
     function triggerStudyTimeout(reason) {
-        let msg = reason === 'inactivity' 
-            ? "La collecte de données s'est arrêtée suite à 1 heure d'inactivité." 
-            : "La collecte de données s'est arrêtée car le délai maximum autorisé de 4 heures est écoulé.";
+        let msg = reason === 'inactivity' ? t('limite_inactivite') : t('limite_max_temps');
         
-        alert("⚠️ " + msg + " Vos données sont invalidées.");
-        
-        // Verrouille l'extension définitivement
+        alert("⚠️ " + msg + " " + t('limite_donnees_invalides'));
         window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
         
         sendToServer('questionnaire_event', null, null, { event: 'study_invalidated', reason: reason });
-        app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1 style="color:#dc2626;">Étude annulée</h1><p>' + msg + '</p><p style="color:#64748b; margin-top:16px;">Vous pouvez désinstaller l\'extension Chrome.</p></div>';
+        app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1 style="color:#dc2626;">' + t('limite_etude_annulee') + '</h1><p>' + msg + '</p><p style="color:#64748b; margin-top:16px;">' + t('debriefing_err_desinstaller') + '</p></div>';
         
         hideTimer();
         localStorage.removeItem('study_global_start');
@@ -711,7 +726,7 @@
     function resetInactivityTimer() {
         if (state.phase === 'end' || state.phase === 'language') return;
         clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(() => triggerStudyTimeout('inactivity'), 3600000); 
+        inactivityTimer = setTimeout(() => triggerStudyTimeout('inactivity'), 3600000); // 1 hour
     }
 
     function checkGlobalTimer() {
@@ -724,7 +739,7 @@
         }
         
         let elapsed = Date.now() - parseInt(start);
-        let remaining = (4 * 3600 * 1000) - elapsed;
+        let remaining = (4 * 3600 * 1000) - elapsed; // 4 hours limit
         
         if (remaining <= 0) triggerStudyTimeout('max_time');
         else {
@@ -738,6 +753,5 @@
     resetInactivityTimer();
     setInterval(checkGlobalTimer, 60000);
 
-    // Initialisation
     init();
 })();
