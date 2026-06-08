@@ -204,25 +204,32 @@ const i18n = {
                     <!-- ÉTAPE 1 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 1 :</strong> Cliquez droit sur l'icône de l'extension.
+                            <strong style="color:#3b82f6;">Étape 1 :</strong> Cliquez sur l'icône des extensions.
                         </p>
-                        <img src="/images/uninstall_1.png" alt="Étape 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/fr_uninstall_1.png" alt="Étape 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
 
                     <!-- ÉTAPE 2 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 2 :</strong> Cliquez sur "Supprimer de Chrome".
+                            <strong style="color:#3b82f6;">Étape 2 :</strong> Cliquez sur le bouton avec les 3 points à côté de l'extension de l'etude.
                         </p>
-                        <img src="/images/uninstall_2.png" alt="Étape 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/fr_uninstall_2.png" alt="Étape 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
 
                     <!-- ÉTAPE 3 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 3 :</strong> Une petite fenêtre s'ouvrira en haut de l'écran. Cliquez sur le bouton "Supprimer" pour confirmer.
+                            <strong style="color:#3b82f6;">Étape 3 :</strong> Cliquez sur le bouton "Supprimer de Chrome".
                         </p>
-                        <img src="/images/uninstall_3.png" alt="Étape 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/fr_uninstall_3.png" alt="Étape 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                    </div>
+                    <!-- ÉTAPE 4 -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
+                            <strong style="color:#3b82f6;">Étape 4 :</strong> Une petite fenêtre s'ouvrira en haut de l'écran. Cliquez sur le bouton "Supprimer" pour confirmer.
+                        </p>
+                        <img src="/images/fr_uninstall_4.png" alt="Étape 4" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
                 </div>
             </div>
@@ -355,31 +362,31 @@ const i18n = {
         q_internet_legende: "Please indicate how much these statements apply to you (1 = Not at all like me, 5 = Highly like me):",
         q_internet_items: [
             "I know how to download files.",
-            "I know how to download/save photos found online.",
-            "I know how to use keyboard shortcuts (e.g., CTRL-C to copy, CTRL-S to save).",
-            "I know how to open a new tab on my web browser.",
+            "I know how to download/save photos I found online.",
+            "I know how to use keyboard shortcuts (e.g., CTRL-C for copy, CTRL-S for save).",
+            "I know how to open a new tab on my browser.",
             "I know how to bookmark a website.",
             "I know where to click to go to a different webpage.",
-            "I have difficulty finding the best keywords for online searches.",
-            "I have difficulty finding a website I have already visited.",
-            "I get tired quickly when searching for information online.",
-            "Sometimes, I find myself browsing a website without really knowing how I got there.",
-            "I am sometimes confused by the way websites are designed.",
-            "I should take a class on how to search for information on the Internet.",
-            "Sometimes, I find it difficult to verify information found online.",
-            "I know what information I should share and what I should not share online.",
-            "I know when to share and when not to share information online.",
-            "I make sure my comments and behaviors online are appropriate for the situation.",
-            "I know how to change who I share information with online (e.g., friends, friends of friends, public).",
-            "I know how to remove people from my friends lists.",
-            "I know how to create new content from images, music, or videos found on the web.",
-            "I know how to make minor changes to content produced by others.",
+            "I find it hard to decide what the best keywords are to use for online searches.",
+            "I find it hard to find a website I visited before.",
+            "I get tired when looking for information online.",
+            "Sometimes I end up on websites without knowing how I got there.",
+            "I find the way in which many websites are designed confusing.",
+            "I should take a course on finding information online.",
+            "Sometimes I find it hard to verify information I have retrieved.",
+            "I know which information I should and shouldn’t share online",
+            "I know when I should and shouldn’t share information online.",
+            "I am careful to make my comments and behaviours appropriate to the situation I find myself in online.",
+            "I know how to change who I share content with (e.g. friends, friends of friends or public).",
+            "I know how to remove friends from my contact lists.",
+            "I know how to create something new from existing online images, music or video.",
+            "I know how to make basic changes to the content that others have produced.",
             "I know how to design a website.",
-            "I am comfortable with the different types of licenses that apply to online content.",
-            "I would feel confident posting a video I created online.",
-            "I know how to install an app on a mobile device.",
-            "I know how to download an app on my mobile device.",
-            "I know how to track the usage costs of mobile apps."
+            "I know which different types of licences apply to online content.",
+            "I would feel confident putting video content I have created online.",
+            "I know how to install apps on a mobile device.",
+            "I know how to download apps to my mobile device.",
+            "I know how to keep track of the costs of mobile app use."
         ],
 
         // --- Memory Test Intro ---
@@ -440,25 +447,32 @@ const i18n = {
                     <!-- STEP 1 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Step 1:</strong> Right-click on the extension icon.
+                            <strong style="color:#3b82f6;">Step 1:</strong> Click on the extensions icon.
                         </p>
-                        <img src="/images/uninstall_1.png" alt="Step 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/en_uninstall_1.png" alt="Step 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
 
                     <!-- STEP 2 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Step 2:</strong> Click on "Remove from Chrome".
+                            <strong style="color:#3b82f6;">Step 2:</strong> Click on "Click on the 3 points button".
                         </p>
-                        <img src="/images/uninstall_2.png" alt="Step 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/en_uninstall_2.png" alt="Step 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
 
                     <!-- STEP 3 -->
                     <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
                         <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Step 3:</strong> A small window will appear at the top of the screen. Click on the "Remove" button to confirm.
+                            <strong style="color:#3b82f6;">Step 3:</strong> Click now on the "Remove from Chrome" button.
                         </p>
-                        <img src="/images/uninstall_3.png" alt="Step 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <img src="/images/en_uninstall_3.png" alt="Step 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                    </div>
+                    <!-- STEP 4 -->
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
+                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
+                            <strong style="color:#3b82f6;">Step 4:</strong> A small window will appear at the top of the screen. Click on the "Remove" button to confirm.
+                        </p>
+                        <img src="/images/en_uninstall_4.png" alt="Step 4" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                     </div>
                 </div>
             </div>
