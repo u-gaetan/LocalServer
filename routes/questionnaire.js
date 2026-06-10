@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Reponse = require('../models/Reponse');
 const auth = require('../middlewares/auth');
-const { adminLimiter } = require('../middlewares/rateLimit');
+const { adminLimiter, getCleanIp } = require('../middlewares/rateLimit');
 const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const { getSecrets } = require('../config/keyVault');
@@ -11,8 +11,13 @@ const { getSecrets } = require('../config/keyVault');
 const participantLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: getCleanIp,                    // ← utilise ta fonction
+    validate: { trustProxy: false, ip: false },  // ← empêche le crash Azure
     message: { erreur: "Trop de requêtes. Patientez." }
 });
+
 
 const PARTICIPANT_ID_RE = /^P-[a-z0-9]{7,10}-[a-z0-9]{4}$/;
 const ALLOWED_TYPES = new Set([

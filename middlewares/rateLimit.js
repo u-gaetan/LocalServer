@@ -49,7 +49,7 @@ const collecteLimiter = rateLimit({
     standardHeaders: true,              // Retourne les headers RateLimit-*
     legacyHeaders: false,               // Désactive X-RateLimit-*
     keyGenerator: getCleanIp,           
-    validate: { trustProxy: false },    // Désactive la validation de proxy interne
+    validate: { trustProxy: false, ip: false },    // Désactive la validation de proxy interne
     message: {
         erreur: "Trop de requêtes. Réessayez dans quelques instants.",
         retryAfterSeconds: 60
@@ -65,10 +65,10 @@ const adminLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: getCleanIp,           
-    validate: { trustProxy: false },    // Désactive la validation de proxy interne
+    validate: { trustProxy: false, ip: false },    // Désactive la validation de proxy interne
     message: {
         erreur: "Trop de requêtes sur l'interface admin. Patientez."
     }
 });
 
-module.exports = { collecteLimiter, adminLimiter };
+module.exports = { collecteLimiter, adminLimiter , getCleanIp};
