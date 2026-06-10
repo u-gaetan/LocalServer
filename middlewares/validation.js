@@ -10,6 +10,7 @@ const ALLOWED_EVENT_TYPES = new Set([
     'scroll',
     'page_quittee',
     'copie',
+    'collage',            // <-- AJOUTÉ : Autorise l'événement de collage
     'selection_texte',
     'frappe_clavier',
     'temps_lecture',
@@ -18,8 +19,11 @@ const ALLOWED_EVENT_TYPES = new Set([
 ]);
 
 const MAX_EVENTS_PER_REQUEST = 5000;
-const MAX_URL_LENGTH = 2048;
-const MAX_STRING_FIELD_LENGTH = 500;
+
+// Ajustement des tailles pour supporter la surcharge du chiffrement RSA-OAEP + AES-GCM
+const MAX_URL_LENGTH = 4096;               // Augmenté de 2048 à 4096 pour les URLs chiffrées
+const MAX_STRING_FIELD_LENGTH = 12000;     // Augmenté de 500 à 12000 pour les textes copiés/collés chiffrés
+
 const SESSION_ID_PATTERN = /^session_\d{12,15}_[a-z0-9]{6}$/;
 const PARTICIPANT_ID_PATTERN = /^P-[a-z0-9]{7,10}-[a-z0-9]{4}$/;
 
@@ -81,6 +85,38 @@ function validateCollecteData(req, res, next) {
             isValid = false;
         }
 
+        // --- VALIDATION SÉCURISÉE DES CHAMPS ENCRYPTEES (CSFLE) ---
+        
+        // Validation du champ URL (en clair ou chiffré)
+        if (event.url && typeof event.url === 'string') {
+            const isEncrypted = event.url.startsWith('ENC:');
+            const limit = isEncrypted ? MAX_URL_LENGTH : 2048;
+            if (event.url.length > limit) {
+                eventWarnings.push(`[${i}] URL trop longue — ignoré`);
+                isValid = false;
+            }
+        }
+
+        // Validation du champ Parent URL (en clair ou chiffré)
+        if (event.parentUrl && typeof event.parentUrl === 'string') {
+            const isEncrypted = event.parentUrl.startsWith('ENC:');
+            const limit = isEncrypted ? MAX_URL_LENGTH : 2048;
+            if (event.parentUrl.length > limit) {
+                eventWarnings.push(`[${i}] parentUrl trop longue — ignoré`);
+                isValid = false;
+            }
+        }
+
+        // Validation du champ Texte (en clair ou chiffré)
+        if (event.texte && typeof event.texte === 'string') {
+            const isEncrypted = event.texte.startsWith('ENC:');
+            const limit = isEncrypted ? MAX_STRING_FIELD_LENGTH : 500;
+            if (event.texte.length > limit) {
+                eventWarnings.push(`[${i}] texte trop long — ignoré`);
+                isValid = false;
+            }
+        }
+
         if (isValid) validEvents.push(event);
         if (eventWarnings.length > 0) warnings.push(...eventWarnings);
     }
@@ -88,7 +124,7 @@ function validateCollecteData(req, res, next) {
     if (validEvents.length === 0) {
         return res.status(400).json({ erreur: 'Aucun événement valide.' });
     }
-
+    
     req.body = validEvents;
     req.validatedParticipantId = participantId;
     next();
