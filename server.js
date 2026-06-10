@@ -21,19 +21,43 @@ app.set('trust proxy', 1);
  * en éliminant le port dynamique ajouté par le proxy d'Azure.
  */
 const getCleanIp = (req) => {
-    let ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-    
-    // Si l'adresse est mappée en IPv6 (ex: ::ffff:132.203.213.224)
-    if (ip.includes('::ffff:')) {
-        ip = ip.replace('::ffff:', '');
+    let ipHeader = req.headers['x-forwarded-for'];
+    let ip = '127.0.0.1';
+
+    if (ipHeader) {
+        // Prend la première IP si plusieurs sont transmises
+        ip = ipHeader.split(',')[0].trim();
+    } else {
+        ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
     }
-    
-    // Si l'IP contient un port à la fin (ex: 132.203.213.224:56894)
-    if (ip.includes(':') && !ip.includes('::')) {
-        ip = ip.split(':')[0];
+
+    // Retrait du préfixe IPv6-mapped (ex: ::ffff:132.203.213.224)
+    if (ip.startsWith('::ffff:')) {
+        ip = ip.substring(7);
     }
-    
-    return ip;
+
+    // Gestion du port pour les formats IPv4 et IPv6 entre crochets
+    if (ip.startsWith('[')) {
+        const closeBracketIndex = ip.indexOf(']');
+        if (closeBracketIndex !== -1) {
+            ip = ip.substring(1, closeBracketIndex);
+        }
+    } else {
+        const colons = ip.split(':');
+        if (colons.length === 2) {
+            // Format standard IPv4:port
+            ip = colons[0];
+        } else if (colons.length > 2) {
+            // Cas d'IPv6 complexe sans crochets avec port à la fin
+            const lastColon = ip.lastIndexOf(':');
+            const lastPart = ip.substring(lastColon + 1);
+            if (!isNaN(lastPart) && ip.includes('.')) {
+                ip = ip.substring(0, lastColon);
+            }
+        }
+    }
+
+    return ip || '127.0.0.1';
 };
 
 const globalLimiter = rateLimit({
@@ -41,7 +65,8 @@ const globalLimiter = rateLimit({
     max: 120,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: getCleanIp // Correction du crash d'Azure
+    keyGenerator: getCleanIp,
+    validate: { trustProxy: false } // Indispensable pour éviter le crash de validation d'express-rate-limit sur Azure
 });
 
 // =========================================================
