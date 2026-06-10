@@ -1,6 +1,14 @@
 // middlewares/rateLimit.js
 const rateLimit = require('express-rate-limit');
 
+
+const getCleanIp = (req) => {
+    let ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    if (ip.includes('::ffff:')) ip = ip.replace('::ffff:', '');
+    if (ip.includes(':') && !ip.includes('::')) ip = ip.split(':')[0];
+    return ip;
+};
+
 // ─────────────────────────────────────────────
 // Rate limiter pour POST /api/collecte
 // L'extension envoie toutes les 3 minutes → 30/min est très généreux

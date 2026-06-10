@@ -1,4 +1,4 @@
-// server.js
+// server.js (Version corrigée Azure / Proxies)
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,12 +6,43 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-// 🆕 Import du module Key Vault
 const { loadSecrets } = require('./config/keyVault');
 
 const app = express();
 
+// Indispensable sur Azure pour lire correctement l'IP derrière le proxy d'Azure
 app.set('trust proxy', 1); 
+
+// =========================================================
+// CORRECTION AZURE RATE-LIMITER (Suppression du port de l'IP)
+// =========================================================
+/**
+ * Nettoie et extrait uniquement l'adresse IP du client,
+ * en éliminant le port dynamique ajouté par le proxy d'Azure.
+ */
+const getCleanIp = (req) => {
+    let ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    
+    // Si l'adresse est mappée en IPv6 (ex: ::ffff:132.203.213.224)
+    if (ip.includes('::ffff:')) {
+        ip = ip.replace('::ffff:', '');
+    }
+    
+    // Si l'IP contient un port à la fin (ex: 132.203.213.224:56894)
+    if (ip.includes(':') && !ip.includes('::')) {
+        ip = ip.split(':')[0];
+    }
+    
+    return ip;
+};
+
+const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: getCleanIp // Correction du crash d'Azure
+});
 
 // =========================================================
 // MIDDLEWARES GLOBAUX
@@ -24,32 +55,29 @@ app.use((req, res, next) => {
     next();
 });
 
-const globalLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false
-});
 app.use('/api/', globalLimiter);
 
 // =========================================================
-// FICHIERS STATIQUES
+// FICHIERS STATIQUES ET PAGES D'INFORMATION
 // =========================================================
+// Servir le dossier à la racine '/' permet d'accéder directement à /privacy.html, /consent.html, etc.
+app.use('/', express.static(path.join(__dirname, 'pages_home_consent_privacy')));
+
 app.use('/questionnaire', express.static(path.join(__dirname, 'questionnaire')));
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
-// Routes explicites pour servir les pages HTML principales
+// Configuration des alias d'URL "propres" (sans extension .html)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'homepage.html'));
+    res.sendFile(path.join(__dirname, 'pages_home_consent_privacy', 'homepage.html'));
 });
 
 app.get('/consent', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'consent.html'));
+    res.sendFile(path.join(__dirname, 'pages_home_consent_privacy', 'consent.html'));
 });
 
 app.get('/privacy', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages', 'privacy.html'));
+    res.sendFile(path.join(__dirname, 'pages_home_consent_privacy', 'privacy.html'));
 });
 
 // =========================================================
@@ -68,46 +96,26 @@ app.get('/questionnaire/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, 'questionnaire', 'index.html'));
 });
 
-app.get('/', (req, res) => {
-    res.json({
-        status: 'ok',
-        environment: process.env.NODE_ENV || 'development',
-        endpoints: {
-            questionnaire: '/questionnaire/',
-            admin: '/admin/',
-            api_collecte: '/api/collecte/',
-            api_questionnaire: '/api/questionnaire/',
-            api_auth: '/api/auth/login'
-        }
-    });
-});
-
 // =========================================================
-// 🆕 DÉMARRAGE ASYNCHRONE (Key Vault → MongoDB → Serveur)
+// DÉMARRAGE ASYNCHRONE (Key Vault → MongoDB → Serveur)
 // =========================================================
 async function startServer() {
     try {
-        // 1. Charger les secrets depuis Key Vault (ou .env en local)
         const secrets = await loadSecrets();
-
-        // 2. Rendre les secrets accessibles globalement via app.locals
-        //    (pour que les middlewares puissent y accéder)
         app.locals.secrets = secrets;
 
-        // 3. Connexion à Cosmos DB (compatible Mongoose !)
         await mongoose.connect(secrets.mongoUri, {
-            dbName: secrets.mongoDbName,         // Force la DB "effort_cognitif_db"
-            retryWrites: false,                  // Cosmos DB ne supporte pas retryWrites
-            directConnection: true,              // Contourne la résolution DNS SRV
-            tls: true,                           // Connexion chiffrée (obligatoire Cosmos)
-            serverSelectionTimeoutMS: 15000,     // 15s timeout
-            socketTimeoutMS: 45000,              // 45s timeout socket
-            family: 4                            // Force IPv4
+            dbName: secrets.mongoDbName,
+            retryWrites: false,
+            directConnection: true,
+            tls: true,
+            serverSelectionTimeoutMS: 15000,
+            socketTimeoutMS: 45000,
+            family: 4
         });
 
         console.log('✅ Connecté à Azure Cosmos DB !');
 
-        // 4. Démarrer le serveur HTTP
         const PORT = process.env.PORT || 8080;
         app.listen(PORT, () => {
             console.log(`\n🚀 Serveur démarré sur le port ${PORT}`);
@@ -123,5 +131,4 @@ async function startServer() {
     }
 }
 
-// Lancer !
 startServer();
