@@ -61,7 +61,7 @@ app.use('/api/', globalLimiter);
 // FICHIERS STATIQUES ET PAGES D'INFORMATION
 // =========================================================
 // Servir le dossier à la racine '/' permet d'accéder directement à /privacy.html, /consent.html, etc.
-app.use('/', express.static(path.join(__dirname, 'pages_home_consent_privacy')));
+app.use('/', express.static(path.join(__dirname, 'pages')));
 
 app.use('/questionnaire', express.static(path.join(__dirname, 'questionnaire')));
 app.use('/images', express.static(path.join(__dirname, 'images')));
@@ -69,15 +69,15 @@ app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
 // Configuration des alias d'URL "propres" (sans extension .html)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages_home_consent_privacy', 'homepage.html'));
+    res.sendFile(path.join(__dirname, 'pages', 'homepage.html'));
 });
 
 app.get('/consent', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages_home_consent_privacy', 'consent.html'));
+    res.sendFile(path.join(__dirname, 'pages', 'consent.html'));
 });
 
 app.get('/privacy', (req, res) => {
-    res.sendFile(path.join(__dirname, 'pages_home_consent_privacy', 'privacy.html'));
+    res.sendFile(path.join(__dirname, 'pages', 'privacy.html'));
 });
 
 // =========================================================
