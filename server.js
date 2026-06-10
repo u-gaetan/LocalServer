@@ -80,7 +80,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use('/api/', globalLimiter);
+//app.use('/api/', globalLimiter);
 
 // =========================================================
 // FICHIERS STATIQUES ET PAGES D'INFORMATION
