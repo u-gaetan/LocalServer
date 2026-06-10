@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Étude Navigation Web — Université Laval</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-size:16px;line-height:1.7;color:#1a1a1a;background:#f7f6f4;padding:2rem 1rem 4rem}
+    .wrap{max-width:680px;margin:0 auto}
+    header{display:flex;align-items:center;gap:1rem;padding:1.5rem 0 1.25rem;border-bottom:1px solid #ddd;margin-bottom:2rem}
+    .ulaval-badge{width:44px;height:44px;background:#003366;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .ulaval-badge svg{width:26px;height:26px;fill:#fff}
+    .hd small{display:block;font-size:12px;color:#888;margin-bottom:2px}
+    .hd strong{font-size:14px;color:#003366;font-weight:600}
+    .lang-toggle{margin-left:auto;display:flex;gap:6px}
+    .lang-btn{padding:4px 12px;border:1px solid #ccc;border-radius:20px;background:#fff;font-size:13px;cursor:pointer;color:#555;transition:all .15s}
+    .lang-btn.active{background:#003366;color:#fff;border-color:#003366}
+    h1{font-size:22px;font-weight:700;color:#003366;margin-bottom:.35rem}
+    .lead{font-size:15px;color:#444;margin-bottom:2rem}
+    .card{background:#fff;border:1px solid #e0ddd6;border-radius:10px;padding:1.5rem 1.75rem;margin-bottom:1rem}
+    .card h2{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:.9rem}
+    .info-row{display:flex;gap:.5rem;padding:.45rem 0;border-bottom:.5px solid #f0ede8;font-size:14px}
+    .info-row:last-child{border-bottom:none;padding-bottom:0}
+    .info-row .lbl{color:#888;min-width:170px;flex-shrink:0}
+    .info-row .val{color:#1a1a1a;font-weight:500}
+    .pill{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:600;background:#e8f0fb;color:#1e429f}
+    .links{display:flex;flex-wrap:wrap;gap:.65rem;margin-top:1.25rem}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;font-size:14px;font-weight:500;text-decoration:none;border:1px solid #ccc;background:#fff;color:#1a1a1a;cursor:pointer;transition:background .15s}
+    .btn:hover{background:#f3f2ef}
+    .btn-primary{background:#003366;color:#fff;border-color:#003366}
+    .btn-primary:hover{background:#004080}
+    .ethics{background:#f0f4fa;border:1px solid #cce0ff;border-radius:8px;padding:.9rem 1.1rem;font-size:13px;color:#1a3a6e;margin-top:1.25rem}
+    .ethics strong{display:block;margin-bottom:.25rem}
+    footer{margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid #e0ddd6;font-size:13px;color:#888;text-align:center}
+    footer a{color:#003366;text-decoration:none}
+    [lang-content]{display:none}
+    [lang-content].visible{display:block}
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="ulaval-badge">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+    </div>
+    <div class="hd">
+      <small>Université Laval — École de psychologie</small>
+      <strong>LEILAH Research Laboratory</strong>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('fr')">FR</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
+  </header>
+
+  <!-- FRENCH -->
+  <div lang-content="fr" class="visible">
+    <h1>Étude sur la recherche d'information Web</h1>
+    <p class="lead">Projet de recherche scientifique — Université Laval</p>
+
+    <div class="card">
+      <h2>Informations sur l'étude</h2>
+      <div class="info-row"><span class="lbl">Titre</span><span class="val">Validation de questions de connaissances générales pour l'étude des processus de recherche d'information Web</span></div>
+      <div class="info-row"><span class="lbl">Chercheur principal</span><span class="val">Alexandre Marois, Ph.D. — École de psychologie, Université Laval</span></div>
+      <div class="info-row"><span class="lbl">Laboratoire</span><span class="val">LEILAH — leilah@ulaval.ca</span></div>
+      <div class="info-row"><span class="lbl">Financement</span><span class="val">Conseil de recherches en sciences naturelles et en génie du Canada (CRSNG)</span></div>
+      <div class="info-row"><span class="lbl">Approbation éthique</span><span class="val"><span class="pill">CÉRUL 2025-460 A-1 / 04-05-2026</span></span></div>
+      <div class="info-row"><span class="lbl">Durée de participation</span><span class="val">Environ 60 minutes</span></div>
+      <div class="info-row"><span class="lbl">Compensation</span><span class="val">30 $ (virement Interac)</span></div>
+    </div>
+
+    <div class="card">
+      <h2>À propos de l'extension</h2>
+      <p style="font-size:14px;color:#333;margin-bottom:.75rem">
+        Cette extension Chrome est un outil de mesure scientifique. Elle enregistre uniquement des métriques de navigation (URLs visitées, temps par page, clics, défilement, frappes agrégées, contenu copié-collé) <strong>pendant la session de recherche</strong>, après votre consentement explicite. Elle ne collecte aucun historique antérieur, aucun mot de passe, aucune communication privée.
+      </p>
+      <p style="font-size:14px;color:#333">
+        Les données sont transmises à une infrastructure Azure sécurisée (Canada Est, Québec) et chiffrées en transit (TLS 1.3) et au repos (AES-256). Un indicateur visuel reste visible à l'écran tout au long de la collecte.
+      </p>
+      <div class="ethics">
+        <strong>Conformité éthique et légale</strong>
+        Loi 25 (Québec) · PIPEDA · EPTC 2 · Politique des trois organismes (CRSNG)
+      </div>
+      <div class="links">
+        <a href="consent.html" class="btn btn-primary">Formulaire de consentement</a>
+        <a href="privacy.html" class="btn">Politique de confidentialité</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Contact</h2>
+      <div class="info-row"><span class="lbl">Laboratoire LEILAH</span><span class="val"><a href="mailto:leilah@ulaval.ca" style="color:#003366">leilah@ulaval.ca</a></span></div>
+      <div class="info-row"><span class="lbl">CÉRUL (plaintes)</span><span class="val"><a href="mailto:cer@vrr.ulaval.ca" style="color:#003366">cer@vrr.ulaval.ca</a></span></div>
+      <div class="info-row"><span class="lbl">Ombudsman ULaval</span><span class="val"><a href="mailto:info@ombudsman.ulaval.ca" style="color:#003366">info@ombudsman.ulaval.ca</a></span></div>
+    </div>
+  </div>
+
+  <!-- ENGLISH -->
+  <div lang-content="en">
+    <h1>Web Information-Seeking Study</h1>
+    <p class="lead">Scientific Research Project — Université Laval</p>
+
+    <div class="card">
+      <h2>Study Information</h2>
+      <div class="info-row"><span class="lbl">Title</span><span class="val">Validation of General Knowledge Questions for the Study of Web Information-Seeking Processes</span></div>
+      <div class="info-row"><span class="lbl">Principal Investigator</span><span class="val">Alexandre Marois, Ph.D. — School of Psychology, Université Laval</span></div>
+      <div class="info-row"><span class="lbl">Laboratory</span><span class="val">LEILAH — leilah@ulaval.ca</span></div>
+      <div class="info-row"><span class="lbl">Funding</span><span class="val">Natural Sciences and Engineering Research Council of Canada (NSERC)</span></div>
+      <div class="info-row"><span class="lbl">Ethics approval</span><span class="val"><span class="pill">CÉRUL 2025-460 A-1 / 04-05-2026</span></span></div>
+      <div class="info-row"><span class="lbl">Participation duration</span><span class="val">Approximately 60 minutes</span></div>
+      <div class="info-row"><span class="lbl">Compensation</span><span class="val">$30 (Interac e-Transfer)</span></div>
+    </div>
+
+    <div class="card">
+      <h2>About the Extension</h2>
+      <p style="font-size:14px;color:#333;margin-bottom:.75rem">
+        This Chrome extension is a scientific measurement tool. It records only navigation metrics (visited URLs, time per page, clicks, scroll, aggregated keystrokes, copy-pasted content) <strong>during the research session</strong>, after your explicit consent. It does not collect any prior browsing history, passwords, or private communications.
+      </p>
+      <p style="font-size:14px;color:#333">
+        Data is transmitted to a secure Azure infrastructure (Canada East, Québec) and encrypted in transit (TLS 1.3) and at rest (AES-256). A visual indicator remains visible on screen throughout data collection.
+      </p>
+      <div class="ethics">
+        <strong>Ethical and legal compliance</strong>
+        Québec Law 25 · PIPEDA · TCPS 2 · Tri-Agency Research Data Management Policy (NSERC)
+      </div>
+      <div class="links">
+        <a href="consent.html" class="btn btn-primary">Consent Form</a>
+        <a href="privacy.html" class="btn">Privacy Policy</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Contact</h2>
+      <div class="info-row"><span class="lbl">LEILAH Laboratory</span><span class="val"><a href="mailto:leilah@ulaval.ca" style="color:#003366">leilah@ulaval.ca</a></span></div>
+      <div class="info-row"><span class="lbl">CÉRUL (complaints)</span><span class="val"><a href="mailto:cer@vrr.ulaval.ca" style="color:#003366">cer@vrr.ulaval.ca</a></span></div>
+      <div class="info-row"><span class="lbl">ULaval Ombudsman</span><span class="val"><a href="mailto:info@ombudsman.ulaval.ca" style="color:#003366">info@ombudsman.ulaval.ca</a></span></div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Université Laval · <a href="https://www.ulaval.ca" target="_blank">ulaval.ca</a> &nbsp;·&nbsp; CÉRUL · <a href="https://www.cerul.ulaval.ca" target="_blank">cerul.ulaval.ca</a></p>
+  </footer>
+
+</div>
+<script>
+function setLang(l){
+  document.querySelectorAll('[lang-content]').forEach(el=>{
+    el.classList.toggle('visible', el.getAttribute('lang-content')===l);
+  });
+  document.querySelectorAll('.lang-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.textContent.toLowerCase()===l);
+  });
+  document.documentElement.lang=l;
+}
+</script>
+</body>
+</html>

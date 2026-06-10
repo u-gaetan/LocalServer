@@ -39,6 +39,19 @@ app.use('/questionnaire', express.static(path.join(__dirname, 'questionnaire')))
 app.use('/images', express.static(path.join(__dirname, 'images')));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
+// Routes explicites pour servir les pages HTML principales
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'pages', 'homepage.html'));
+});
+
+app.get('/consent', (req, res) => {
+    res.sendFile(path.join(__dirname, 'pages', 'consent.html'));
+});
+
+app.get('/privacy', (req, res) => {
+    res.sendFile(path.join(__dirname, 'pages', 'privacy.html'));
+});
+
 // =========================================================
 // ROUTES API
 // =========================================================

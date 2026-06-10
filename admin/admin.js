@@ -1,8 +1,11 @@
+// admin.js (Modifié)
+
 // =========================================================
 // VARIABLES GLOBALES
 // =========================================================
 let AUTH_TOKEN = '';
 const BASE_URL = window.location.origin;
+let researcherPrivateKey = null; // Stocke l'objet CryptoKey en mémoire vive
 
 // =========================================================
 // ÉLÉMENTS DU DOM
@@ -21,6 +24,8 @@ const sessionsTable          = document.getElementById('sessionsTable');
 const loginSection           = document.getElementById('loginSection');
 const loggedSection          = document.getElementById('loggedSection');
 const loggedUser             = document.getElementById('loggedUser');
+const privateKeyFile         = document.getElementById('private-key-file');
+const keyStatus              = document.getElementById('key-status');
 
 // =========================================================
 // DICTIONNAIRE DE TRADUCTION DES COMPÉTENCES INTERNET
@@ -55,6 +60,138 @@ const SKILLS_MAP = {
 };
 
 // =========================================================
+// MODULE CRYPTOGRAPHIQUE (Déchiffrement CSFLE)
+// =========================================================
+
+function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+async function importPrivateKey(pem) {
+    const cleanPem = pem
+        .replace(/-----BEGIN PRIVATE KEY-----/, "")
+        .replace(/-----END PRIVATE KEY-----/, "")
+        .replace(/-----BEGIN RSA PRIVATE KEY-----/, "")
+        .replace(/-----END RSA PRIVATE KEY-----/, "")
+        .replace(/\s/g, "");
+
+    const derBuffer = base64ToArrayBuffer(cleanPem);
+
+    return window.crypto.subtle.importKey(
+        "pkcs8",
+        derBuffer,
+        {
+            name: "RSA-OAEP",
+            hash: "SHA-256"
+        },
+        true,
+        ["decrypt"]
+    );
+}
+
+async function decryptField(encryptedString) {
+    if (!encryptedString || !encryptedString.startsWith("ENC:")) {
+        return encryptedString; // Non chiffré
+    }
+    if (!researcherPrivateKey) {
+        return "[🔒 Champ Chiffré - Chargez la clé]";
+    }
+    try {
+        const parts = encryptedString.split(":");
+        const encAesKeyBuffer = base64ToArrayBuffer(parts[1]);
+        const ivBuffer = base64ToArrayBuffer(parts[2]);
+        const ciphertextBuffer = base64ToArrayBuffer(parts[3]);
+
+        // 1. Déchiffrer la clé de session AES avec la clé privée du chercheur
+        const rawAesKey = await window.crypto.subtle.decrypt(
+            { name: "RSA-OAEP" },
+            researcherPrivateKey,
+            encAesKeyBuffer
+        );
+
+        // 2. Importer cette clé AES
+        const aesKey = await window.crypto.subtle.importKey(
+            "raw",
+            rawAesKey,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
+        );
+
+        // 3. Déchiffrer la donnée originale
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: new Uint8Array(ivBuffer) },
+            aesKey,
+            ciphertextBuffer
+        );
+
+        return new TextDecoder().decode(decryptedBuffer);
+    } catch (err) {
+        console.error("Échec de déchiffrement :", err);
+        return "[⚠️ Erreur Déchiffrement]";
+    }
+}
+
+/**
+ * Déchiffre de façon asynchrone l'intégralité du pack de données d'un participant
+ */
+async function decryptParticipantData(data) {
+    if (!researcherPrivateKey) return data; // On retourne brut si aucune clé n'est configurée
+
+    const events = data.events || [];
+    for (const event of events) {
+        if (event.url) event.url = await decryptField(event.url);
+        if (event.parentUrl) event.parentUrl = await decryptField(event.parentUrl);
+        if (event.texte) event.texte = await decryptField(event.texte);
+    }
+    return data;
+}
+
+// =========================================================
+// ÉCOUTEURS ET INITIALISATION CLÉ PRIVÉE
+// =========================================================
+
+privateKeyFile.addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const content = e.target.result;
+        try {
+            researcherPrivateKey = await importPrivateKey(content);
+            sessionStorage.setItem('tracker_private_key_pem', content); // Persistance temporaire
+            keyStatus.textContent = "✅ Clé privée active - Données déchiffrées automatiquement";
+            keyStatus.style.color = "#34d399";
+        } catch (err) {
+            console.error(err);
+            keyStatus.textContent = "❌ Clé invalide (le format PKCS#8 est requis)";
+            keyStatus.style.color = "#f87171";
+            researcherPrivateKey = null;
+        }
+    };
+    reader.readAsText(file);
+});
+
+// Auto-restauration de la clé privée au rafraîchissement
+const savedKeyPem = sessionStorage.getItem('tracker_private_key_pem');
+if (savedKeyPem) {
+    importPrivateKey(savedKeyPem).then(function(cryptoKey) {
+        researcherPrivateKey = cryptoKey;
+        keyStatus.textContent = "✅ Clé privée active - Données déchiffrées automatiquement";
+        keyStatus.style.color = "#34d399";
+    }).catch(function() {
+        sessionStorage.removeItem('tracker_private_key_pem');
+    });
+}
+
+// =========================================================
 // AU CHARGEMENT : restaurer le token sauvegardé
 // =========================================================
 const savedToken = sessionStorage.getItem('tracker_admin_token');
@@ -66,7 +203,7 @@ if (savedToken) {
 }
 
 // =========================================================
-// EVENT LISTENERS
+// EVENT LISTENERS STANDARD
 // =========================================================
 connectBtn.addEventListener('click', login);
 logoutBtn.addEventListener('click', logout);
@@ -78,7 +215,6 @@ passwordInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') login();
 });
 
-// Écouteur de sélection de masse
 if (selectAllCheckbox) {
     selectAllCheckbox.addEventListener('change', function() {
         const checkboxes = document.querySelectorAll('.participant-checkbox');
@@ -134,6 +270,12 @@ function logout() {
     AUTH_TOKEN = '';
     sessionStorage.removeItem('tracker_admin_token');
     sessionStorage.removeItem('tracker_admin_user');
+    sessionStorage.removeItem('tracker_private_key_pem'); // Effacer la clé par sécurité
+    researcherPrivateKey = null;
+    keyStatus.textContent = "Clé non chargée - Les données sensibles apparaîtront chiffrées";
+    keyStatus.style.color = "#f87171";
+    if (privateKeyFile) privateKeyFile.value = '';
+
     loginSection.style.display = 'flex';
     loggedSection.style.display = 'none';
     mainContent.style.display = 'none';
@@ -189,7 +331,6 @@ async function refreshData() {
             const debut = s.debut ? new Date(s.debut).toLocaleString('fr-FR') : '-';
             const pid = s._id.participant;
 
-            // Case à cocher pour sélection groupée
             const cellCheck = document.createElement('td');
             cellCheck.style.textAlign = 'center';
             const chk = document.createElement('input');
@@ -212,20 +353,17 @@ async function refreshData() {
             cellDebut.textContent = debut;
             const cellActions = document.createElement('td');
 
-            // Bouton de téléchargement JSON individuel
             const btnP = document.createElement('button');
             btnP.className = 'btn btn-blue';
             btnP.textContent = '📥 JSON';
             btnP.addEventListener('click', function() { downloadParticipant(pid); });
 
-            // Bouton de téléchargement Excel individuel (Ajouté)
             const btnE = document.createElement('button');
             btnE.className = 'btn btn-blue';
             btnE.textContent = '📥 Excel';
             btnE.style.marginLeft = '5px';
             btnE.addEventListener('click', function() { downloadParticipantExcel(pid); });
 
-            // Bouton d'analyse visuelle
             const btnV = document.createElement('button');
             btnV.className = 'btn btn-green';
             btnV.textContent = '📊 Analyser';
@@ -266,14 +404,12 @@ function buildWorkbookForParticipant(pid, data) {
     const repRows = [['ParticipantID', 'Heure', 'Type', 'QuestionID', 'QuestionLabel', 'Réponse / Données']];
     const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse']];
 
-    // Filtrage et tri des réponses
     const sortedReps = reps.filter(function(r) {
         return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
     }).sort(function(a, b) {
         return (a.timestamp || '').localeCompare(b.timestamp || '');
     });
 
-    // Construction de la chronologie des blocs
     const periods = [];
     let rc = 0;
     sortedReps.forEach(function(r, i) {
@@ -305,7 +441,6 @@ function buildWorkbookForParticipant(pid, data) {
         return '';
     }
 
-    // Reconstruction de la navigation
     const vis = [];
     const vById = {};
     logs.forEach(function(log) {
@@ -332,7 +467,6 @@ function buildWorkbookForParticipant(pid, data) {
         }
     });
 
-    // Insertion Navigation (Feuille 1)
     vis.forEach(function(v) {
         navRows.push([
             pid, v.q, v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.url, v.nom,
@@ -342,7 +476,6 @@ function buildWorkbookForParticipant(pid, data) {
         ]);
     });
 
-    // Insertion Réponses (Feuille 2) - Regroupées par cellule sans éclater en colonnes
     sortedReps.forEach(function(r) {
         var d = r.data || {};
         var rs = "";
@@ -367,7 +500,6 @@ function buildWorkbookForParticipant(pid, data) {
         repRows.push(rRow);
     });
 
-    // Insertion Globale (Feuille 3)
     var items = [];
     vis.forEach(function(v) {
         items.push({
@@ -404,39 +536,46 @@ function buildWorkbookForParticipant(pid, data) {
 
     return wb;
 }
+
 // =========================================================
-// EXTRACTION INDIVIDUELLE (JSON / EXCEL DIRECT)
+// EXTRACTION INDIVIDUELLE (DÉCHIFFREMENT INTÉGRÉ)
 // =========================================================
 async function downloadParticipant(pid) {
     try {
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
-        const data = await response.json();
+        let data = await response.json();
+        
+        // Déchiffrement CSFLE transparent
+        data = await decryptParticipantData(data);
+
         downloadJSON(data, 'participant_' + pid);
         var nbEvents = data.events ? data.events.length : data.length;
         var nbReponses = data.reponses ? data.reponses.length : 0;
-        showStatus('✅ Participant: ' + nbEvents + ' événements + ' + nbReponses + ' réponses', 'ok');
+        showStatus('✅ Participant: ' + nbEvents + ' événements + ' + nbReponses + ' réponses (déchiffrés)', 'ok');
     } catch (e) { showStatus('❌ ' + e.message, 'err'); }
 }
 
 async function downloadParticipantExcel(pid) {
     try {
-        showStatus('📥 Génération de la feuille Excel pour ' + pid + '...', 'info');
+        showStatus('📥 Génération de la feuille Excel déchiffrée pour ' + pid + '...', 'info');
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
-        const data = await response.json();
+        let data = await response.json();
+        
+        // Déchiffrement CSFLE transparent
+        data = await decryptParticipantData(data);
         
         const wb = buildWorkbookForParticipant(pid, data);
         XLSX.writeFile(wb, 'participant_' + pid + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
-        showStatus('✅ Fichier Excel généré pour ' + pid, 'ok');
+        showStatus('✅ Fichier Excel déchiffré généré pour ' + pid, 'ok');
     } catch (e) {
         showStatus('❌ ' + e.message, 'err');
     }
 }
 
 // =========================================================
-// EXPORTS GROUPÉS (SÉLECTION PAR CASES À COCHER)
+// EXPORTS GROUPÉS (DÉCHIFFREMENT BATCH INTÉGRÉ)
 // =========================================================
 
-// Récupérer la liste des données d'événements et de réponses pour les lignes cochées
 async function fetchSelectedData() {
     const checkboxes = document.querySelectorAll('.participant-checkbox:checked');
     if (checkboxes.length === 0) {
@@ -451,7 +590,11 @@ async function fetchSelectedData() {
         const pid = cb.dataset.pid;
         try {
             const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
-            const data = await response.json();
+            let data = await response.json();
+            
+            // Déchiffrement batch CSFLE transparent
+            data = await decryptParticipantData(data);
+
             records.push({ pid: pid, data: data });
         } catch (err) {
             console.error("Erreur de récupération pour le participant : " + pid, err);
@@ -460,7 +603,6 @@ async function fetchSelectedData() {
     return records;
 }
 
-// Télécharger en JSON cumulé
 async function downloadSelectedJson() {
     const selected = await fetchSelectedData();
     if (!selected) return;
@@ -475,13 +617,12 @@ async function downloadSelectedJson() {
         });
 
         downloadJSON(jsonExport, 'export_selection_participants');
-        showStatus('✅ Export JSON complété pour ' + selected.length + ' participant(s)', 'ok');
+        showStatus('✅ Export JSON déchiffré complété pour ' + selected.length + ' participant(s)', 'ok');
     } catch (e) {
         showStatus('❌ ' + e.message, 'err');
     }
 }
 
-// Télécharger au format Excel (Un fichier Excel par participant dans un ZIP)
 async function downloadSelectedExcel() {
     const selected = await fetchSelectedData();
     if (!selected) return;
@@ -502,22 +643,14 @@ async function downloadSelectedExcel() {
             const pid = item.pid;
             const data = item.data;
             
-            // Génération du classeur Excel individuel structuré pour le participant
             const wb = buildWorkbookForParticipant(pid, data);
-            
-            // Conversion en tableau binaire
             const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-            
-            // Ajout du fichier individuel à l'archive
             zip.file('participant_' + pid + '_' + new Date().toISOString().slice(0, 10) + '.xlsx', excelBuffer);
         });
 
-        showStatus('📦 Création de l\'archive ZIP en cours...', 'info');
-        
-        // Génération de l'archive ZIP
+        showStatus('📦 Création de l\'archive ZIP déchiffrée en cours...', 'info');
         const content = await zip.generateAsync({ type: 'blob' });
         
-        // Déclenchement du téléchargement local
         const url = URL.createObjectURL(content);
         const a = document.createElement('a');
         a.href = url;
@@ -527,7 +660,7 @@ async function downloadSelectedExcel() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        showStatus('✅ ZIP exporté contenant ' + selected.length + ' fichier(s) Excel', 'ok');
+        showStatus('✅ ZIP exporté contenant ' + selected.length + ' fichier(s) Excel déchiffré(s)', 'ok');
     } catch (err) {
         showStatus('❌ Erreur d\'exportation ZIP : ' + err.message, 'err');
     }
@@ -551,12 +684,15 @@ function showStatus(text, type) {
 }
 
 // =========================================================
-// OUVRIR LE DASHBOARD VISUEL
+// OUVRIR LE DASHBOARD VISUEL (DÉCHIFFRÉ)
 // =========================================================
 async function viewParticipant(pid) {
     try {
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
-        const data = await response.json();
+        let data = await response.json();
+
+        // Déchiffrement CSFLE transparent avant stockage dans la session locale
+        data = await decryptParticipantData(data);
 
         sessionStorage.setItem('dashboard_data', JSON.stringify(data));
         sessionStorage.setItem('dashboard_participant_id', pid);

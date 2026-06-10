@@ -1,11 +1,14 @@
+// dashboard.js (Modifié)
+
 'use strict';
 
 // ═══════════════════════════════════════════════════════
-// ÉTAT GLOBAL
+// ÉTAT GLOBAL ET CRYPTO
 // ═══════════════════════════════════════════════════════
 var S = null;
 var CHARTS = {};
 var metInit = false;
+var researcherPrivateKey = null; // Stocke la clé de déchiffrement
 var PAL = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444','#84cc16','#a855f7','#14b8a6','#f43f5e','#eab308'];
 
 const SKILLS_MAP = {
@@ -37,8 +40,95 @@ const SKILLS_MAP = {
     "item_26": "26_Suivi_Couts_App"
 };
 
+// =========================================================
+// MODULE DÉCHIFFREMENT WEB CRYPTO (CSFLE CLIENT-SIDE)
+// =========================================================
+
+function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+async function importPrivateKey(pem) {
+    const cleanPem = pem
+        .replace(/-----BEGIN PRIVATE KEY-----/, "")
+        .replace(/-----END PRIVATE KEY-----/, "")
+        .replace(/-----BEGIN RSA PRIVATE KEY-----/, "")
+        .replace(/-----END RSA PRIVATE KEY-----/, "")
+        .replace(/\s/g, "");
+
+    const derBuffer = base64ToArrayBuffer(cleanPem);
+
+    return window.crypto.subtle.importKey(
+        "pkcs8",
+        derBuffer,
+        {
+            name: "RSA-OAEP",
+            hash: "SHA-256"
+        },
+        true,
+        ["decrypt"]
+    );
+}
+
+async function decryptField(encryptedString) {
+    if (!encryptedString || !encryptedString.startsWith("ENC:")) {
+        return encryptedString;
+    }
+    if (!researcherPrivateKey) {
+        return "[🔒 Champ Chiffré]";
+    }
+    try {
+        const parts = encryptedString.split(":");
+        const encAesKeyBuffer = base64ToArrayBuffer(parts[1]);
+        const ivBuffer = base64ToArrayBuffer(parts[2]);
+        const ciphertextBuffer = base64ToArrayBuffer(parts[3]);
+
+        const rawAesKey = await window.crypto.subtle.decrypt(
+            { name: "RSA-OAEP" },
+            researcherPrivateKey,
+            encAesKeyBuffer
+        );
+
+        const aesKey = await window.crypto.subtle.importKey(
+            "raw",
+            rawAesKey,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
+        );
+
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: new Uint8Array(ivBuffer) },
+            aesKey,
+            ciphertextBuffer
+        );
+
+        return new TextDecoder().decode(decryptedBuffer);
+    } catch (err) {
+        console.error("Échec déchiffrement :", err);
+        return "[⚠️ Erreur déchiffrement]";
+    }
+}
+
+async function decryptParticipantDataInPlace(data) {
+    if (!researcherPrivateKey) return data;
+    const events = data.events || [];
+    for (const event of events) {
+        if (event.url) event.url = await decryptField(event.url);
+        if (event.parentUrl) event.parentUrl = await decryptField(event.parentUrl);
+        if (event.texte) event.texte = await decryptField(event.texte);
+    }
+    return data;
+}
+
 // ═══════════════════════════════════════════════════════
-// UTILITAIRES
+// UTILITAIRES D'AFFICHAGE
 // ═══════════════════════════════════════════════════════
 function shortUrl(u) {
     if (!u) return '?';
@@ -187,7 +277,7 @@ function process(raw) {
             else if (t === 'page_quittee') {
                 vi.scroll = Math.max(vi.scroll, log.maxScroll || 0);
                 vi.tms = Math.max(vi.tms, log.temps_passe_ms || 0);
-                vi.touches_clavier = Math.max(vi.touches_clavier, log.touches_clavier || 0); // Extraction
+                vi.touches_clavier = Math.max(vi.touches_clavier, log.touches_clavier || 0);
             }
             else if (t === 'copie') vi.copies.push(log.texte || '');
             else if (t === 'collage') vi.collages.push(log.texte || '');
@@ -254,14 +344,20 @@ function process(raw) {
 }
 
 // ═══════════════════════════════════════════════════════
-// CHARGEMENT
+// CHARGEMENT ET DÉCHIFFREMENT LOCAL
 // ═══════════════════════════════════════════════════════
 function handleFile(file) {
     setLoading('Chargement du fichier...');
     var reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         try {
             var raw = JSON.parse(e.target.result);
+            
+            // Déchiffrement CSFLE transparent si la clé est chargée
+            if (researcherPrivateKey) {
+                raw = await decryptParticipantDataInPlace(raw);
+            }
+
             process(raw);
             showDash();
         } catch (err) {
@@ -294,7 +390,11 @@ function loadFromAPI(pid) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.json();
         })
-        .then(function(data) {
+        .then(async function(data) {
+            // Déchiffrement si la clé privée est active localement
+            if (researcherPrivateKey) {
+                data = await decryptParticipantDataInPlace(data);
+            }
             process(data);
             showDash();
         })
@@ -337,7 +437,7 @@ function sw(id, btn) {
 }
 
 // ═══════════════════════════════════════════════════════
-// RENDU PRINCIPAL
+// RENDU DU DASHBOARD
 // ═══════════════════════════════════════════════════════
 function render() {
     renderHeader();
@@ -362,7 +462,6 @@ function renderHeader() {
     var c1 = S.consent1 || "Non spécifié";
     var c2 = S.consent2 || "Non spécifié";
     
-    // Nouveaux Badges à Haut Contraste pour les Consentements
     var bg1 = c1.includes('✅') ? '#d1fae5' : (c1.includes('❌') ? '#fee2e2' : '#f8fafc');
     var text1 = c1.includes('✅') ? '#065f46' : (c1.includes('❌') ? '#991b1b' : '#475569');
     
@@ -437,7 +536,6 @@ function renderTree() {
         v.collages.forEach(function(c) { tip += '<div style="font-size:11px;color:#67e8f9;white-space:pre-wrap;">📌 Collé: "' + esc(c) + '"</div>'; });
         tip += '<div style="margin-top:6px;"><a href="' + esc(v.url) + '" target="_blank" style="background:#3b82f6;color:#fff;padding:3px 10px;border-radius:4px;text-decoration:none;font-size:12px;">Ouvrir</a></div></div>';
 
-        // L'action Saisie clavier n'est plus prise en compte dans la taille de la bulle
         var ha = v.clics > 0 || v.copies.length > 0 || v.collages.length > 0;
         nodes.push({
             id: nid, name: nm, x: xi * EX, y: yy,
@@ -470,7 +568,6 @@ function renderTree() {
     var h = '<div class="cb" style="height:600px;overflow:auto;">';
     h += '<div id="c-tree" style="width:' + cw + 'px;height:' + ch + 'px;"></div></div>';
     
-    // Légende mise à jour sans les "Saisies"
     h += '<div class="lg">';
     h += '<div class="li"><div class="lc" style="background:#6366f1"></div>Clics</div>';
     h += '<div class="li"><div class="lc" style="background:#059669"></div>Copies</div>';
@@ -501,7 +598,7 @@ function renderTree() {
 }
 
 // ═══════════════════════════════════════════════════════
-// MÉTRIQUES (lazy)
+// MÉTRIQUES
 // ═══════════════════════════════════════════════════════
 function mkSC(label, val, color) {
     var st = color ? ' style="color:' + color + '"' : '';
@@ -514,7 +611,7 @@ function renderMetrics() {
     h += mkSC('Pages', t.pages, '');
     h += mkSC('Temps total', fr(t.temps / 1000, 0) + 's', '');
     h += mkSC('Clics', t.clics, '#6366f1');
-    h += mkSC('Touches Clavier', t.touches_clavier, '#f59e0b'); // Ajout au dashboard métriques
+    h += mkSC('Touches Clavier', t.touches_clavier, '#f59e0b');
     h += mkSC('Copies', t.copies, '#059669');
     h += mkSC('Collages', t.collages, '#0891b2');
     h += mkSC('Back', t.back, '#ea580c');
@@ -580,6 +677,7 @@ function renderMetrics() {
         series: [{ type: 'bar', data: ds.map(function(d) { return d[1]; }), color: '#8b5cf6', label: { show: true, position: 'right', fontSize: 11 } }]
     });
 }
+
 // ═══════════════════════════════════════════════════════
 // TABLEAU DÉTAILLÉ
 // ═══════════════════════════════════════════════════════
@@ -617,7 +715,7 @@ function renderDetail() {
         th += '<td class="r">' + fr(v.tms / 1000) + '</td>';
         th += '<td class="r">' + v.scroll + '</td>';
         th += '<td class="r">' + v.clics + '</td>';
-        th += '<td class="r">' + v.touches_clavier + '</td>'; // Colonne clavier ajoutée
+        th += '<td class="r">' + v.touches_clavier + '</td>';
         th += '<td class="w">' + esc(v.copies.join('\n') || '—') + '</td>';
         th += '<td class="w">' + esc(v.collages.join('\n') || '—') + '</td>';
         th += '<td class="r">' + (v.closed ? 'Oui' : '') + '</td>';
@@ -646,7 +744,7 @@ function renderAgg() {
         h += '<td class="r">' + fr(g.tms / 1000) + '</td>';
         h += '<td class="r">' + g.scroll + '</td>';
         h += '<td class="r">' + g.clics + '</td>';
-        h += '<td class="r">' + g.touches_clavier + '</td>'; // Colonne clavier ajoutée
+        h += '<td class="r">' + g.touches_clavier + '</td>';
         h += '<td class="w">' + esc(g.copies.join('\n') || '—') + '</td>';
         h += '<td class="w">' + esc(g.collages.join('\n') || '—') + '</td>';
         h += '<td class="r">' + (g.back ? 'Oui' : '') + '</td>';
@@ -659,7 +757,7 @@ function renderAgg() {
 }
 
 // ═══════════════════════════════════════════════════════
-// TABLEAU RÉPONSES (complètes)
+// TABLEAU RÉPONSES
 // ═══════════════════════════════════════════════════════
 function renderRep() {
     var reps = S.reps.filter(function(r) {
@@ -697,9 +795,8 @@ function renderRep() {
     document.getElementById('p-rep').innerHTML = h;
 }
 
-
 // ═══════════════════════════════════════════════════════
-// FILTRES QUESTIONS
+// GESTION FILTRES ET EXPORT STANDARD
 // ═══════════════════════════════════════════════════════
 function filtQ() {
     var cbs = document.querySelectorAll('.qf input[data-q]');
@@ -722,9 +819,6 @@ function togAll(cb) {
     filtQ();
 }
 
-// ═══════════════════════════════════════════════════════
-// EXPORT CSV
-// ═══════════════════════════════════════════════════════
 function csvEncode(arr) {
     return arr.map(function(v) {
         var s = String(v == null ? '' : v);
@@ -777,14 +871,10 @@ function csvRep() {
     dlFile(lines.join('\n'), 'reponses.csv');
 }
 
-// ═══════════════════════════════════════════════════════
-// EXPORT XLSX (3 feuilles)
-// ═══════════════════════════════════════════════════════
 function dlXLSX() {
     if (typeof XLSX === 'undefined') { alert('Bibliothèque XLSX non chargée.'); return; }
     var wb = XLSX.utils.book_new();
 
-    // Feuille 1 : Navigation
     var navD = [['Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
     S.vis.forEach(function(v) {
         navD.push([v.q, tsT(v.ts), v.url, v.nom, +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier,
@@ -793,7 +883,6 @@ function dlXLSX() {
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navD), 'Navigation');
 
-    // Feuille 2 : Réponses (Une seule colonne de données consolidées)
     var reps = S.reps.filter(function(r) {
         return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
     }).sort(function(a, b) { return (a.timestamp || '').localeCompare(b.timestamp || ''); });
@@ -811,7 +900,6 @@ function dlXLSX() {
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repD), 'Réponses');
 
-    // Feuille 3 : Global (Chronologique)
     var globH = ['Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse'];
     var items = [];
     S.vis.forEach(function(v) {
@@ -844,6 +932,8 @@ function dlXLSX() {
 (function init() {
     var dropbox = document.getElementById('dropbox');
     var filein = document.getElementById('filein');
+    const privateKeyFileInput = document.getElementById('private-key-file');
+    const keyStatus = document.getElementById('key-status');
 
     dropbox.addEventListener('click', function() { filein.click(); });
     filein.addEventListener('change', function(e) {
@@ -856,6 +946,45 @@ function dlXLSX() {
         e.preventDefault(); dropbox.classList.remove('over');
         if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
+
+    // Écouteur pour charger la clé si utilisation isolée du dashboard
+    if (privateKeyFileInput) {
+        privateKeyFileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const content = e.target.result;
+                try {
+                    researcherPrivateKey = await importPrivateKey(content);
+                    sessionStorage.setItem('tracker_private_key_pem', content);
+                    keyStatus.textContent = "✅ Clé privée active - Déchiffrement à la volée opérationnel";
+                    keyStatus.style.color = "#10b981";
+                } catch (err) {
+                    console.error(err);
+                    keyStatus.textContent = "❌ Clé de déchiffrement invalide";
+                    keyStatus.style.color = "#ef4444";
+                    researcherPrivateKey = null;
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    // Récupérer et importer la clé privée automatiquement si déjà renseignée dans l'admin
+    const savedKeyPem = sessionStorage.getItem('tracker_private_key_pem');
+    if (savedKeyPem) {
+        importPrivateKey(savedKeyPem).then(function(cryptoKey) {
+            researcherPrivateKey = cryptoKey;
+            if (keyStatus) {
+                keyStatus.textContent = "✅ Clé privée héritée de l'administration active";
+                keyStatus.style.color = "#10b981";
+            }
+        }).catch(function() {
+            sessionStorage.removeItem('tracker_private_key_pem');
+        });
+    }
 
     var params = new URLSearchParams(window.location.search);
     var pid = params.get('pid');
