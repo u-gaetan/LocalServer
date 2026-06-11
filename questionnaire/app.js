@@ -739,44 +739,21 @@
         }
     }
 
-    // === SECURITY: INACTIVITY AND MAX SESSION TIMEOUT ===
-    let inactivityTimer = null;
-    let globalTimer = null;
+        // === FIN D'ÉTUDE PILOTÉE PAR L'EXTENSION ===
+    // Inactivité (1 h) et durée totale (4 h) sont gérées par le service worker
+    // via chrome.alarms : fiable même en arrière-plan, et basé sur l'activité
+    // GLOBALE du navigateur (pas seulement sur cette page).
 
-    function triggerStudyTimeout(reason) {
-        let msg = reason === 'inactivity' ? t('limite_inactivite') : t('limite_max_temps');
-        goTo('terminated', reason);
-    }
-
-    function resetInactivityTimer() {
-        if (state.phase === 'end' || state.phase === 'language') return;
-        clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(() => triggerStudyTimeout('inactivity'), 3600000/60); // 1 hour
-    }
-
-    function checkGlobalTimer() {
-        if (state.phase === 'end' || !state.consentGiven) return;
-        
-        let start = localStorage.getItem('study_global_start');
-        if (!start) {
-            start = Date.now().toString();
-            localStorage.setItem('study_global_start', start);
+    window.addEventListener("message", function (event) {
+        if (event.origin !== window.location.origin) return;
+        if (!event.data) return;
+        if (event.data.type === "EXTERNAL_TERMINATE") {
+            goTo('terminated', event.data.reason || 'stopped_by_user');
         }
-        
-        let elapsed = Date.now() - parseInt(start);
-        let remaining = (4 * 3600 * 1000)/120 - elapsed; // 4 hours limit
-        
-        if (remaining <= 0) triggerStudyTimeout('max_time');
-        else {
-            clearTimeout(globalTimer);
-            globalTimer = setTimeout(() => triggerStudyTimeout('max_time'), remaining);
-        }
-    }
+    });
 
-    ['mousemove', 'keydown', 'scroll', 'click'].forEach(evt => document.addEventListener(evt, resetInactivityTimer));
-    
-        resetInactivityTimer();
-        setInterval(checkGlobalTimer, 60000);
+    init();
+
 
         // ===== ÉCOUTER LES ORDRES D'ARRÊT DE L'EXTENSION =====
         window.addEventListener("message", function (event) {
