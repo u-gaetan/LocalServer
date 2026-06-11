@@ -275,6 +275,7 @@ const i18n = {
         termination_raison_inactivite: "La collecte a pris fin en raison d'une inactivité prolongée (1 heure).",
         termination_raison_max_temps: "La session a expiré après avoir atteint la limite maximale de temps autorisée (4 heures).",
         termination_instructions: "Conformément à vos choix ou aux règles de l'étude, les données associées ont été traitées (supprimées ou sécurisées). Vous devez maintenant désinstaller l'extension de votre navigateur en suivant les étapes ci-dessous.",
+        termination_raison_stopped_by_user: "Vous avez choisi d'arrêter manuellement l'expérience depuis l'extension. Conformément au protocole, les données de navigation récoltées lors de cette session vont être supprimées.",
 
 
         // --- Sécurité et Limite de temps ---
@@ -564,7 +565,7 @@ const i18n = {
         termination_raison_inactivite: "The session expired due to prolonged inactivity (1 hour).",
         termination_raison_max_temps: "The session expired after reaching the maximum 4-hour time limit.",
         termination_instructions: "In accordance with your choices or study guidelines, the corresponding data has been handled (deleted or secured). Please proceed to uninstall the extension from your browser by following the steps below.",
-
+        termination_raison_stopped_by_user: "You chose to manually stop the experience from the extension. In accordance with the protocol, navigation data collected during this session will be deleted.",
         // --- Security and Time limits ---
         limite_inactivite: "Data collection stopped due to 1 hour of inactivity.",
         limite_max_temps: "Data collection stopped because the maximum allowed duration of 4 hours has elapsed.",
