@@ -139,7 +139,7 @@
         history.replaceState({ phase: state.phase }, '', url);
     }
 
-    function goTo(phase) {
+    function goTo(phase, reason) {
         state.phase = phase;
         if (reason) {
             state.terminationReason = reason;
