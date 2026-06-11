@@ -6,7 +6,8 @@ const i18n = {
         btn_continuer: "Continuer / Continue",
 
         // --- Consentement ---
-        consentement_titre: "Formulaire de consentement",
+        consentement_titre: "Formulaire d'information et de consentement",
+        consentement_sous_titre: "Validation de questions de connaissances générales pour l'étude des processus de recherche d'information Web",
         consentement_intro: "Veuillez lire attentivement les informations suivantes avant de participer à l'étude.",
         consentement_checkbox: "J'ai lu et compris les informations ci-dessus et je souhaite participer à l'étude. Je confirme être âgé(e) de 18 ans ou plus.",
         btn_consentement_accepter: "J'accepte et je souhaite participer",
@@ -24,24 +25,45 @@ const i18n = {
             <p>La recherche vise à mieux comprendre la façon dont les individus interagissent avec des technologies de l'information pour la recherche documentaire, plus spécifiquement des technologies web.</p>
             
             <h3>Déroulement de la participation</h3>
-            <p>Une fois cette fiche de consentement lue, vous serez amené(e) à remplir une fiche sur laquelle vous devez préciser quelques-unes de vos caractéristiques sociodémographiques. Nous vous demanderons ensuite d'effectuer une tâche de recherche documentaire. Pour ce faire, nous vous inviterons à répondre à des questions à développement long sur différents sujets de culture générale.</p>
-            <p>Afin de vous soutenir dans votre tâche, vous serez encouragé(e) à utiliser des moteurs de recherche classiques (p. ex. Google). Nous vous demandons de <strong>ne pas utiliser d'outil d'intelligence artificielle</strong> (p. ex. Gemini, ChatGPT ou Copilot) pour réaliser la tâche. Votre navigation sera enregistrée tout au long de l'étude et, conséquemment, l'équipe de recherche devra invalider vos données si vous utilisez ces outils.</p>
-            <p>Après chacune des questions à développement long, quelques questions vous seront posées quant aux processus que vous avez mis en branle lors de la recherche d'information que vous avez effectuée. À la fin, vous aurez également à remplir deux autres questionnaires par rapport à votre expérience.</p>
-            <p>Vos questionnaires ne seront considérés comme complets que si vous consentez à participer à la recherche en sélectionnant l'option correspondante.</p>
-            
+            <p>Une fois cette fiche de consentement implicite lue, vous serez amené à remplir une fiche sur laquelle vous devez préciser quelques-unes de vos caractéristiques sociodémographiques. Nous vous demanderons ensuite d’effectuer une tâche de recherche documentaire. Pour ce faire, nous vous inviterons à installer puis activer une extension qui nous permettra de prélever des informations sur votre navigation Web. À noter que cette extension, développée par l’équipe de recherche, permet de prélever les informations de navigation que lorsqu’elle est activée. Tout au long de l’étude, nous vous guiderons sur son installation, son activation, puis sa désactivation et sa désinstallation définitive de votre ordinateur. Il est à noter que cette extension, essentielle à la réalisation de l’étude, permettra de prélever les informations suivantes : sites Web visités, temps passé et contenu de chaque site visité, manipulations effectuées sur les sites (p. ex., navigation dans la page), activités claviers (i.e. compteur de touches, contenu copié-collé). Puisque la présente étude vise à évaluer les processus de navigation Web pour la recherche documentaire, ces informations sont essentielles. Nous vous encourageons donc à vous concentrer sur la tâche et à seulement réaliser l’expérience, en évitant de naviguer sur des pages Web tierces. Toute page Web ouverte avant l’activation de l’extension ne sera pas enregistrée, mais nous vous encourageons tout de même à les fermer. Notez également que l’extension ne peut que fonctionner sur Google Chrome et ne fonctionne pas en mode Navigation privée. Veuillez donc simplement faire vos recherche Web sur une page habituelle du navigateur Google Chrome.</p>
+            <p>Une fois l’extension activée, nous vous présenterons une interface qui contiendra 5 questions à développement long sur différents sujets de culture générale. Afin de vous soutenir dans votre tâche, vous serez encouragé à utiliser des moteurs de recherche classique (p. ex. Google) ou tout autre site que vous trouvez pertinent, à nouveau, à partir du navigateur Google Chrome. Nous vous demandons de ne pas utiliser d’outil d’intelligence artificielle (p. ex. Gemini, ChatGPT ou Copilot) pour réaliser la tâche. L’extension permet d’ailleurs de bloquer l’outil automatique d’intelligence artificielle Gemini, parfois présenté par défaut sur le navigateur Chrome. Pour rappel, vos informations de navigation Web seront enregistrées tout au long de l’étude et, conséquemment, l’équipe de recherche devra invalider vos données si vous utilisez ces outils. Vous aurez un maximum de 10 minutes pour répondre à chacune des questions du mieux que vous pouvez. Après chacune des questions à développement long, quelques questions vous seront posées quant aux processus que vous avez mis en branle lors de la recherche d’information que vous avez effectuée. À la fin, vous aurez également à remplir deux autres questionnaires par rapport à votre expérience. Vos questionnaires ne seront considérés comme complets que si vous consentez à participer à la recherche en sélectionnant l’option correspondante.</p>
+
             <h3>Avantages et inconvénients</h3>
-            <p>Un avantage à cette étude est que vous contribuerez aux avancements des connaissances liées à l'usage des technologies de l'information afin de soutenir la performance humaine. Ce projet permettra de mettre en lumière les processus mis en branle lors de la recherche documentaire. L'étude permettra aussi de valider et de produire des normes de réponse pour les différentes questions auxquelles vous répondrez.</p>
-            <p>Un inconvénient à ce projet est l'induction d'une certaine fatigue cognitive. Vous aurez en effet à effectuer un effort mental modéré pendant environ 60 min. Le temps consacré au projet peut également représenter un inconvénient. Vous aurez la possibilité de prendre une pause à tout moment si la fatigue que vous ressentez devient trop difficile mais vous devrez tout de même terminer l'étude en une seule période.</p>
+            <p>Un avantage à cette étude est que vous contribuerez aux avancements des connaissances liées à l’usage des technologies de l’information afin de soutenir la performance humaine. Ce projet permettra de mettre en lumière les processus mis en branle lors de la recherche documentaire. L’étude permettra aussi de valider et de produire des normes de réponse pour les différentes questions auxquelles vous répondrez.</p>
+            <p>Un inconvénient à ce projet est l’induction d’une certaine fatigue cognitive. Vous aurez en effet à effectuer un effort mental modéré pendant environ 60 min. Le temps consacré au projet peut également représenter un inconvénient. Vous aurez la possibilité de prendre une pause à tout moment si la fatigue que vous ressentez devient trop difficile mais vous devrez tout de même terminer l’étude en une seule période.</p>
             
+            <h3>Compensation </h3>
+            <p>Une compensation financière est fournie afin de couvrir le temps requis pour réaliser l’étude. Une compensation de 30 $ sera fournie pour votre participation. À noter toutefois que cette compensation n’est fournie que si vous réalisez l’étude dans son ensemble et que vos données demeurent valides, c’est-à-dire exemptes de soutien de l’intelligence artificielle. Les informations afin d’obtenir la compensation monétaire vous seront fournies en fin d’expérience. Ce transfert d’argent sera effectué via virement Interac, retrait à l'université Laval ou par la poste en fonction de ce que vous choisirez.</p>
+
             <h3>Participation volontaire et droit de retrait</h3>
-            <p>Vous êtes libre de participer ou non à cette étude. Le simple retour du questionnaire rempli sera considéré comme l'expression implicite de votre consentement à participer au projet. Si vous désirez vous retirer de l'étude une fois le questionnaire soumis, veuillez communiquer avec le laboratoire par courriel au <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Nous pourrons retirer vos résultats sans préjudice, en gardant votre compensation et sans avoir à justifier votre décision.</p>
+            <p>Vous êtes libre de participer ou non à cette étude. Le simple retour du questionnaire rempli sera considéré comme l’expression implicite de votre consentement à participer au projet. Si vous désirez vous retirer de l’étude une fois le questionnaire soumis, veuillez communiquer avec le laboratoire par courriel au LEILAH@ulaval.ca. Nous pourrons retirer vos résultats sans préjudice, en gardant votre compensation et sans avoir à justifier votre décision.</p>
             
             <h3>Confidentialité et gestion des données</h3>
-            <p>Les données recueillies pendant cette étude sont entièrement confidentielles et ne pourront en aucun cas mener à votre identification. Votre confidentialité sera assurée par l'attribution d'un code numérique qui ne figure pas au présent formulaire à toutes les données de recherche collectées. Les données ne seront accessibles qu'aux membres de l'équipe de recherche, chacun d'eux ayant signé un engagement à la confidentialité.</p>
-            <p>Les données seront conservées par l'équipe de recherche pour utilisation ultérieure sous forme codée de manière irréversible dans une base de données anonyme, c'est-à-dire à la suite de la destruction du matériel de recherche (liste de nom des personnes participantes et tout document permettant de les identifier), jusqu'au plus tard en <strong>décembre 2035</strong>. Les résultats de la recherche, qui pourront être diffusés sous forme d'article scientifique, de rapport de recherche, de présentation à un congrès scientifique et/ou d'une thèse doctorale, ne permettront pas d'identifier les personnes participantes.</p>
+            <p>Les données recueillies pendant cette étude sont entièrement confidentielles et ne pourront en aucun cas mener à votre identification une fois la table de correspondance détruite en décembre 2027. Votre confidentialité sera assurée par l’attribution d’un code numérique qui ne figure pas au présent formulaire à toutes les données de recherche collectées. Les données de navigation seront anonymisées et désassociées de votre identification. Vos coordonnées ne seront accessibles qu’aux membres de l’équipe de recherche, chacun d’eux ayant signé un engagement à la confidentialité. Si des données sensibles ont été collectées (p. ex. identifiant sur des sites de recherche d’information, URLs), notez que celles-ci seront détruites de façon non réversible en décembre 2028. Les seules personnes ayant accès à ces données auront signé une entente de confidentialité et ces informations ne seront pas associées à votre identité.</p>
+            <p>Les données anonymisées et agrégées seront conservées par l’équipe de recherche pour utilisation ultérieure sous forme codée de manière irréversible dans une base de données anonyme, c’est-à-dire à la suite de la destruction du matériel de recherche (liste de nom des personnes participantes et tout document permettant de les identifier), jusqu’au plus tard en décembre 2035. Les résultats de la recherche, qui pourront être diffusés sous forme d’article scientifique, de rapport de recherche, de présentation à un congrès scientifique et/ou d’une thèse doctorale, ne permettront pas d’identifier les personnes participantes.</p>
             
-            <h3>Renseignements supplémentaires et plaintes</h3>
-            <p>Si vous avez des questions, communiquez au <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Toute plainte sur cette étude pourra être adressée au Bureau de l'Ombudsman de l'Université Laval : Pavillon Alphonse-Desjardins, bureau 3320, 2325 rue de l'Université, Québec G1V 0A6. Ligne sans frais : 1 866 323-2271. Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>
+            <h3>Plaintes ou critiques</h3>
+            <p>
+                Toute plainte ou critique sur cette étude pourra être adressée au Bureau de l'Ombudsman de l'Université Laval :
+            </p>
+
+            <p>
+                Pavillon Alphonse-Desjardins, bureau 3320<br>
+                2325, rue de l’Université<br>
+                Université Laval<br>
+                Québec (Québec) G1V 0A6<br>
+                Renseignements - Secrétariat : 1 418 656-3081<br>
+                Ligne sans frais : 1 866 323-2271<br>
+                Courriel :
+                <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a>
+            </p>
+
+            <p style="font-size:0.8em; color:#64748b; margin-top:20px; line-height:1.5;">
+                Ce projet de recherche intitulé « Validation de questions de connaissances générales pour l'étude des processus de recherche
+                d'information Web », mené par Alexandre Marois, professeur à l’École de psychologie de l’Université Laval, est financé par le Conseil de
+                recherches en sciences naturelles et en génie du Canada (CRSNG). Ce projet a été approuvé par le Comité d’éthique de la recherche de
+                l’Université Laval : No d’approbation 2025-460 A-1 / 04-05-2026.
+            </p>
         `,
 
         // --- Démographie ---
@@ -62,8 +84,8 @@ const i18n = {
         demo_scol_maitrise: "Maîtrise",
         demo_scol_doctorat: "Doctorat",
         demo_scol_autre: "Autre",
-        demo_compensation: "Comment souhaitez-vous recevoir votre compensation ?",
-        demo_pay_interac: "Virement Interac (courriel ci-dessus)",
+        demo_compensation: "Comment souhaitez-vous recevoir votre compensation ? (nous vous contacterons après l'étude pour les détails)",
+        demo_pay_interac: "Virement Interac",
         demo_pay_pickup: "Venir chercher à l'Université Laval",
         demo_pay_cheque: "Chèque par la poste",
         demo_err_champs: "Veuillez remplir tous les champs.",
@@ -161,6 +183,7 @@ const i18n = {
 
         // --- Consentement du Débriefing (Duperie) ---
         debriefing_titre: "Formulaire d'information et de consentement post-expérimental",
+        debriefing_sous_titre: "Validation de questions de connaissances générales pour l'étude des processus de recherche d'information sur le Web",
         debriefing_choix_maintain: "Je souhaite <strong>maintenir</strong> ma participation à l'étude.",
         debriefing_choix_withdraw: "Je souhaite <strong>mettre fin</strong> à ma participation à l'étude. (Mes données seront détruites)",
         debriefing_err_retrait: "Nous comprenons votre décision. Vos données seront détruites.",
@@ -174,18 +197,30 @@ const i18n = {
             <p>L'objectif caché de l'étude était en fait de voir si votre stratégie de recherche documentaire affecterait votre performance de mémorisation à ce test de mémoire surprise. La raison de cette dissimulation était que nous voulions nous assurer que vous n'utilisiez pas de stratégie de rétention particulière afin de pouvoir évaluer les effets de votre recherche web. Cette connaissance aurait pu modifier vos comportements et réactions face à la tâche.</p>
 
             <h3>Introduction</h3>
-            <p>Suite à la divulgation de la duperie à laquelle vous avez été exposé(e), nous vous fournissons un addendum post-expérimental au Formulaire d'information et de consentement que vous avez signé avant le début de l'expérience. Ce document explique les éléments qui ont été dissimulés dans le formulaire original et réitère les informations liées à votre consentement. Vous êtes invité(e) à contacter l'équipe du laboratoire si vous avez des questions que vous jugez utiles.</p>
+            <p>Suivant le dévoilement de la duperie à laquelle nous vous avons exposée, nous vous présentons un addendum postexpérimental pour le Formulaire d’information et de consentement que vous avez signé avant le début de l’expérience. Ce document vous explique les éléments qui vous ont été cachés dans le formulaire initial et redonne des informations en lien avec votre consentement. Nous vous invitons à écrire à l’équipe du laboratoire pour poser toutes les questions que vous jugerez utiles.</p>
             
             <h3>Nature de l'étude</h3>
-            <p>Initialement, nous avons indiqué que le but de cette recherche était de mieux comprendre comment les troupes d'individus interagissent avec les technologies de l'information à des fins de recherche d'information, plus spécifiquement les technologies web. Les véritables objectifs de l'étude sont de mieux comprendre comment les stratégies de recherche sur le web peuvent affecter la mémorisation du contenu rencontré dans un contexte de recherche d'information.</p>
+            <p>Initialement, nous avions indiqué que l’objectif de cette recherche était de mieux comprendre la façon dont les individus interagissent avec des technologies de l’information pour la recherche documentaire, plus spécifiquement des technologies web. Les objectifs réels de l’étude sont de mieux comprendre la façon dont les stratégies de recherche Web peuvent affecter la mémorisation de contenu abordé dans un contexte de recherche documentaire.</p>
             
             <h3>Participation volontaire et droit de retrait</h3>
-            <p>Vous êtes libre de maintenir ou de retirer votre consentement suite à la divulgation de cette information. Vous pouvez mettre fin à votre participation sans préjudice, conserver votre compensation, et sans avoir à justifier votre décision. Toutes les informations personnelles vous concernant ainsi que vos réponses seront alors détruites. Veuillez sélectionner l'option qui reflète le mieux votre décision suite à la divulgation de cette duperie.</p>
+            <p>Vous êtes libre de maintenir ou non votre consentement suivant la divulgation de ces informations. Vous pouvez mettre fin à votre participation sans préjudice, en gardant votre compensation et sans avoir à justifier votre décision. Tous les renseignements personnels vous concernant et vos réponses seront alors détruits. Veuillez svp choisir l’option qui vous convient suivant la divulgation de cette duperie.</p>
             
-            <h3>Renseignements supplémentaires et plaintes</h3>
-            <p>Pour toute question, veuillez contacter le laboratoire à <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Les plaintes peuvent être adressées au Bureau de l'Ombudsman de l'Université Laval : Pavillon Alphonse-Desjardins, bureau 3320, 2325, rue de l'Université, Québec (Québec) G1V 0A6. Ligne sans frais : 1 866 323-2271. Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>
-            
-            <p style="font-size:0.8em; color:#64748b; margin-top:20px; line-height:1.5;">Ce projet de recherche intitulé « La métacognition et l'effort mental influencent-ils l'expérience d'interaction avec un agent conversationnel ? », mené par Alexandre Marois, professeur à l’École de psychologie de l’Université Laval, est financé par le Conseil de recherches en sciences naturelles et en génie du Canada (CRSNG). Ce projet a été approuvé par le Comité d’éthique de la recherche de l’Université Laval : No d’approbation 2025-460 / 23-10-2025.</p>
+            <h3>Renseignements supplémentaires</h3>
+            <p>Si vous avez des questions sur la recherche ou sur les implications de votre participation, veuillez communiquer avec le laboratoire par courriel au <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>
+            <h3>Plaintes ou critiques</h3>
+            <p>Toute plainte ou critique sur cette étude pourra être adressée au Bureau de l'Ombudsman de l'Université Laval :</p>
+            <p>Pavillon Alphonse-Desjardins, bureau 3320 <br>
+                2325, rue de l’Université <br>
+                Université Laval <br>
+                Québec (Québec) G1V 0A6 <br>
+                Renseignements - Secrétariat : 1 418 656-3081 <br>
+                Ligne sans frais : 1 866 323-2271 <br>
+                Courriel : info@ombudsman.ulaval.ca 
+            </p>
+            <p style="font-size:0.8em; color:#64748b; margin-top:20px; line-height:1.5;">Ce projet de recherche intitulé « Validation de questions de connaissances générales pour l'étude des processus de recherche
+            d'information Web », mené par Alexandre Marois, professeur à l’École de psychologie de l’Université Laval, est financé par le Conseil de
+            recherches en sciences naturelles et en génie du Canada (CRSNG). Ce projet a été approuvé par le Comité d’éthique de la recherche de
+            l’Université Laval : No d’approbation No d’approbation 2025-460 A-1 / 04-05-2026.</p>
         `,
 
         // --- Fin de l'étude ---
@@ -249,7 +284,8 @@ const i18n = {
         btn_continuer: "Continue / Continuer",
 
         // --- Consent ---
-        consentement_titre: "Consent Form",
+        consentement_titre: "Information and Consent Form",
+        consentement_sous_titre:"Validation of General Knowledge Questions for the Study of Web Information-Seeking Processes",
         consentement_intro: "Please read the following information carefully before participating in the study.",
         consentement_checkbox: "I have read and understood the information above and wish to participate in the study. I confirm that I am 18 years of age or older.",
         btn_consentement_accepter: "I accept and wish to participate",
@@ -258,33 +294,56 @@ const i18n = {
         consentement_refuse_texte: "We understand your decision. You may close this page.",
         consentement_texte: `
             <h3>Researcher Presentation</h3>
-            <p>This research is conducted as part of a grant from the Natural Sciences and Engineering Research Council of Canada, led by Alexandre Marois, Assistant Professor at the School of Psychology of Université Laval and Director of the Laboratory for Interdisciplinary Studies on Human Limits and Augmentation (LEILAH).</p>
+            <p>This research is conducted as part of a grant from the Natural Sciences and Engineering Research Council of Canada and is led by Alexandre Marois, Assistant Professor at the School of Psychology, Université Laval, and Director of the Laboratory for Interdisciplinary Studies on Human Limits and Augmentation (LEILAH).</p>
             
             <h3>Introduction</h3>
-            <p>Before agreeing to participate in this study, please take the time to read and understand the following information. This document explains the purpose of this research, its procedures, benefits, and disadvantages. If you have any questions about the research or the implications of your participation, please contact the laboratory by email at <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>
+            <p>Before agreeing to participate in this study, please take the time to read and understand the information below. This document explains the purpose of the research, its procedures, benefits, and potential inconveniences. If you have any questions, please contact the laboratory by email at <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>
             
             <h3>Nature of the Study</h3>
-            <p>The research aims to better understand how individuals interact with information technologies for literature searches, specifically web technologies.</p>
+            <p>The purpose of this research is to better understand how individuals interact with information technologies for information‑seeking purposes, specifically web‑based technologies.</p>
             
-            <h3>Procedure of Participation</h3>
-            <p>Once you have read this consent form, you will be asked to fill out a form specifying some of your sociodemographic characteristics. We will then ask you to perform a literature search task. To do this, we will invite you to answer long-answer questions on various general knowledge topics.</p>
-            <p>To support you in your task, you are encouraged to use classic search engines (e.g., Google). We ask you <strong>not to use any artificial intelligence tools</strong> (e.g., Gemini, ChatGPT, or Copilot) to perform the task. Your navigation will be recorded throughout the study and, consequently, the research team will have to invalidate your data if you use these tools.</p>
-            <p>After each of the long-answer questions, a few questions will be asked about the processes you used during your information search. At the end, you will also be asked to fill out two other questionnaires regarding your experience.</p>
-            <p>Your questionnaires will only be considered complete if you consent to participate in the research by selecting the corresponding option.</p>
+            <h3>Procedure</h3>
+            <p>After reading this implicit consent form, you will be asked to complete a questionnaire outlining certain sociodemographic characteristics. You will then complete an information-seeking task using web technologies. You will be required to install and activate a browser extension developed by the research team, which allows the collection of web-navigation data when active.</p>
+            <p>The extension collects the following information: websites visited, time spent and content viewed on each site, on-page interactions (e.g., navigation within pages), and keyboard activity (keystroke count, copied and pasted content). The extension functions only on Google Chrome and does not operate in private browsing mode. The use of artificial-intelligence tools (e.g., Gemini, ChatGPT, Copilot) is strictly prohibited and will invalidate your data.</p>
             
             <h3>Benefits and Disadvantages</h3>
-            <p>An advantage of this study is that you will contribute to the advancement of knowledge related to the use of information technologies to support human performance. This project will highlight the processes involved in information retrieval. The study will also validate and produce response standards for the various questions you will answer.</p>
-            <p>A disadvantage of this project is the induction of some cognitive fatigue. You will indeed have to perform moderate mental effort for about 60 minutes. The time dedicated to the project may also represent a disadvantage. You will have the opportunity to take a break at any time if the fatigue you feel becomes too difficult, but you must still complete the study in a single session.</p>
+            <p>A benefit of this study is your contribution to advancing knowledge about the use of information technologies to support human performance. This project will shed light on the different processes involved in information seeking. The study will also allow the validation and the elaboration of response norms for the different questions you will answer to.</p>
+            <p>A potential inconvenience is moderate cognitive fatigue over approximately 60 minutes. The time spent on the project can also be seen as an inconvenience. You will have the possibility to take a break at any moment if the fatigue that you feel is too difficult, but you will be required to finish the study within one single period of time.</p>
             
-            <h3>Voluntary Participation and Right of Withdrawal</h3>
-            <p>You are free to participate or not in this study. Simply returning the completed questionnaire will be considered as an implicit expression of your consent to participate in the project. If you wish to withdraw from the study once the questionnaire is submitted, please contact the laboratory by email at <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. We can remove your results without prejudice, keeping your compensation, and without you having to justify your decision.</p>
+            <h3>Compensation</h3>
+            <p>A financial compensation of $30 will be provided for full participation, provided that the data remain valid and free from AI assistance. Compensation will be provided via Interac e-Transfer, pickup at Université Laval, or by mail, depending on your choice.</p>
+            
+            <h3>Voluntary Participation and Right to Withdraw</h3>
+            <p>Your participation is voluntary. Submission of the completed questionnaire constitutes implicit consent. You may withdraw after submission without penalty while keeping your compensation. If you want to withdraw, please send an email to the research team at: <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. We will remove your data without any prejudice and you will not have to provide any explanation.</p>
             
             <h3>Confidentiality and Data Management</h3>
-            <p>The data collected during this study are completely confidential and cannot, under any circumstances, lead to your identification. Your confidentiality will be ensured by assigning a numeric code, which does not appear on this form, to all collected research data. The data will only be accessible to members of the research team, each of whom has signed a confidentiality agreement.</p>
-            <p>The data will be kept by the research team for future use in an irreversibly coded form in an anonymous database, following the destruction of research material (list of participant names and any documents allowing their identification), until <strong>December 2035</strong> at the latest. The results of the research, which may be disseminated in the form of scientific articles, research reports, presentations at scientific conferences, and/or doctoral theses, will not identify participants.</p>
+            <p>The data collected during this study are entirely confidential and will under no circumstances allow for your identification once the linkage key is destroyed in December 2027. Your confidentiality will be ensured through the assignment of a numerical code, which does not appear on the present form, to all collected research data. Web-navigation data will be anonymized and dissociated from your identity. Your contact information will be accessible only to members of the research team, all of whom have signed a confidentiality agreement. If sensitive data have been collected (e.g., user identifiers on information-seeking websites, URLs), please note that these data will be irreversibly destroyed in December 2028. Only individuals who have signed a confidentiality agreement will have access to these data, and they will not be associated with your identity.<p>
+            <p>Anonymized and aggregated data will be kept by the research team for future use in an irreversibly coded format within an anonymous database, that is, following the destruction of all research materials that could identify participants (list of participants’ names and any identifying documents), until no later than December 2035. Research results, which may be disseminated in the form of scientific articles, research reports, conference presentations, and/or a doctoral dissertation, will not allow for the identification of participants.</p>
             
-            <h3>Additional Information and Complaints</h3>
-            <p>If you have any questions, contact <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Any complaints about this study may be addressed to the Office of the Ombudsman of Université Laval: Pavillon Alphonse-Desjardins, office 3320, 2325 rue de l'Université, Québec G1V 0A6. Toll-free line: 1 866 323-2271. Email: <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>
+            <h3>Additional Information</h3>
+            <p>For any questions, please contact the laboratory at <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>
+            
+            <h3>Complaints or Criticism</h3>
+            <p>Complaints may be directed to the Office of the Ombudsman at Université Laval :</p>
+
+            <p>
+                Pavillon Alphonse-Desjardins, bureau 3320<br>
+                2325, rue de l’Université<br>
+                Université Laval<br>
+                Québec (Québec) G1V 0A6<br>
+                Renseignements - Secrétariat : 1 418 656-3081<br>
+                Ligne sans frais : 1 866 323-2271<br>
+                Courriel :
+                <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a>
+            </p>
+
+            <p style="font-size:0.8em; color:#64748b; margin-top:20px; line-height:1.5;">
+                This research project, entitled "Validation de questions de connaissances générales pour l'étude des processus de recherche
+                d'information Web?”, conducted by Alexandre Marois, Professor at the School of Psychology at Université Laval, is funded by the Natural
+                Sciences and Engineering Research Council of Canada (NSERC). This project has been approved by the Université Laval Research
+                Ethics Committee: Approval No. 2025-460 A-1 / 04-05-2026.
+            </p>
+        
         `,
 
         // --- Demographics ---
@@ -305,7 +364,7 @@ const i18n = {
         demo_scol_maitrise: "Master's Degree",
         demo_scol_doctorat: "Ph.D.",
         demo_scol_autre: "Other",
-        demo_compensation: "How would you like to receive your compensation?",
+        demo_compensation: "How would you like to receive your compensation? (we will contact you after the study for details)",
         demo_pay_interac: "Interac e-Transfer (email above)",
         demo_pay_pickup: "Pick up at Université Laval",
         demo_pay_cheque: "Cheque by mail",
@@ -404,6 +463,7 @@ const i18n = {
 
         // --- Debriefing Consent (Deception) ---
         debriefing_titre: "Post-Experimental Information and Consent Form",
+        debriefing_sous_titre: "Validation of General Knowledge Questions for the Study of Web Information-Seeking Processes",
         debriefing_choix_maintain: "I wish to <strong>maintain</strong> my participation in the study.",
         debriefing_choix_withdraw: "I wish to <strong>withdraw</strong> my participation from the study. (My data will be destroyed)",
         debriefing_err_retrait: "We understand your decision. Your data will be destroyed.",
@@ -417,18 +477,32 @@ const i18n = {
             <p>The hidden objective of the study was actually to see if your document search strategy would affect your memory performance in this surprise memory test. The reason for this deception was to ensure that you did not use any particular memory retention strategies so that we could evaluate the natural effects of your web search. This knowledge could have altered your behaviors and reactions to the task.</p>
 
             <h3>Introduction</h3>
-            <p>Following the disclosure of the deception to which you were exposed, we provide you with a post-experimental addendum to the Information and Consent Form you signed before the start of the experience. This document explains the elements that were hidden in the original form and reiterates the information related to your consent. You are invited to contact the laboratory team if you have any questions you find useful.</p>
+            <p>Following the disclosure of the deception to which you were exposed, we are providing you with a post-experimental addendum to the Information and Consent Form that you signed prior to the beginning of the experiment. This document explains the elements that were concealed in the original form and reiterates information related to your consent. You are invited to contact the laboratory team should you have any questions you deem useful.</p>
             
             <h3>Nature of the Study</h3>
-            <p>Initially, we indicated that the purpose of this research was to better understand how individuals interact with information technologies for information retrieval, specifically web technologies. The true objectives of the study are to better understand how web search strategies can affect memory retention of content encountered in an information retrieval context.</p>
+            <p>Initially, we indicated that the purpose of this research was to better understand how individuals interact with information technologies for information-seeking purposes, more specifically web-based technologies. The true objectives of the study are to better understand how web search strategies may affect the memorization of content encountered in an information-seeking context.</p>
             
-            <h3>Voluntary Participation and Right of Withdrawal</h3>
-            <p>You are free to maintain or withdraw your consent following the disclosure of this information. You can end your participation without prejudice, keep your compensation, and without having to justify your decision. All personal information about you as well as your answers will then be destroyed. Please select the option that best reflects your decision following the disclosure of this deception.</p>
+            <h3>Voluntary Participation and Right to Withdraw</h3>
+            <p>You are free to maintain or withdraw your consent following the disclosure of this information. You may terminate your participation without prejudice, retain your compensation, and without having to justify your decision. All personal information concerning you and your responses will then be destroyed. Please select the option that best reflects your decision following the disclosure of this deception.</p>
             
-            <h3>Additional Information and Complaints</h3>
-            <p>For any questions, please contact the laboratory at <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Complaints can be addressed to the Office of the Ombudsman of Université Laval: Pavillon Alphonse-Desjardins, office 3320, 2325, rue de l'Université, Québec (Québec) G1V 0A6. Toll-free line: 1 866 323-2271. Email: <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a></p>
+            <h3>Additional Information</h3>
+            <p>For any questions, please contact the laboratory at <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>.</p>
             
-            <p style="font-size:0.8em; color:#64748b; margin-top:20px; line-height:1.5;">This research project entitled "Does metacognition and mental effort influence the interaction experience with a conversational agent?", conducted by Alexandre Marois, professor at the School of Psychology of Université Laval, is funded by the Natural Sciences and Engineering Research Council of Canada (NSERC). This project has been approved by the Research Ethics Committee of Université Laval: Approval No. 2025-460 / 23-10-2025.</p>
+            <h3>Complaints or Criticism</h3>
+            <p>Any complaints or criticisms about this study may be addressed to the Office of the Ombudsman at Université Laval:</p>
+            <p>Pavillon Alphonse-Desjardins, bureau 3320<br>
+                2325, rue de l’Université<br>
+                Université Laval<br>
+                Québec (Québec) G1V 0A6<br>
+                Renseignements - Secrétariat : 1 418 656-3081<br>
+                Ligne sans frais : 1 866 323-2271<br>
+                Courriel : <a href="mailto:info@ombudsman.ulaval.ca">info@ombudsman.ulaval.ca</a>
+            </p>
+
+            <p style="font-size:0.8em; color:#64748b; margin-top:20px; line-height:1.5;">This research project, entitled "Validation de questions de connaissances générales pour l'étude des processus de recherche
+            d'information Web?”, conducted by Alexandre Marois, Professor at the School of Psychology at Université Laval, is funded by the Natural
+            Sciences and Engineering Research Council of Canada (NSERC). This project has been approved by the Université Laval Research
+            Ethics Committee: Approval No. 2025-460 A-1 / 04-05-2026.</p>
         `,
 
         // --- End Screen ---

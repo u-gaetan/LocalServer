@@ -111,6 +111,7 @@
             case 'memory_question':   renderMemoryQuestion(); break;
             case 'deception_consent': renderDeceptionConsent(); break;
             case 'end':               renderEnd(); break;
+            case 'terminated':        renderTermination(); break;
         }
         updateProgress();
     }
@@ -140,24 +141,53 @@
 
     function goTo(phase) {
         state.phase = phase;
+        if (reason) {
+            state.terminationReason = reason;
+        }
         saveProgress();
         updateUrl();
         renderPhase();
         window.scrollTo(0, 0);
     }
 
+    function renderTermination() {
+        hideTimer();
+        
+        // Notification immédiate à l'extension pour forcer le verrouillage du popup
+        window.postMessage({ type: 'STUDY_TERMINATED' }, '*');
+
+        var reason = state.terminationReason || 'inactivity';
+        var reasonText = "";
+
+        if (reason === 'consent_refused') reasonText = t('termination_raison_consent_refuse');
+        else if (reason === 'post_consent_refused') reasonText = t('termination_raison_deception_refuse');
+        else if (reason === 'inactivity') reasonText = t('termination_raison_inactivite');
+        else if (reason === 'max_time') reasonText = t('termination_raison_max_temps');
+
+        app.innerHTML =
+            '<div class="end-screen">' +
+            '<h1 style="color:#dc2626;">' + t('termination_titre') + '</h1>' +
+            '<p style="font-size:1.1em; margin:20px 0; font-weight:600; color:#475569;">' + reasonText + '</p>' +
+            '<p style="margin-bottom:24px; color:#64748b;">' + t('termination_instructions') + '</p>' +
+            t('fin_texte') + // Utilise l'explication visuelle de désinstallation déjà présente dans locales.js
+            '</div>';
+
+        // Nettoyage des stockages locaux du questionnaire pour éviter des chargements en boucle
+        localStorage.removeItem('questionnaire_progress');
+        localStorage.removeItem('study_global_start');
+    }
+
     function updateProgress() {
         var totalResearch = state.researchQuestions.length || 3;
         var totalMemory = state.memoryQuestions.length || 6;
-        var hiddenPhases = ['language', 'consent', 'demographics', 'instructions'];
+        var hiddenPhases = ['language', 'consent', 'demographics', 'instructions', 'terminated']; 
         var total = (totalResearch * 2) + 1 + 1 + totalMemory + 1 + 1;
         var current = 0;
-
+        
         if (hiddenPhases.indexOf(state.phase) !== -1) {
             progressBar.classList.add('hidden');
             return;
         }
-        progressBar.classList.remove('hidden');
 
         if (state.phase === 'research_question') current = (state.currentResearchIndex * 2);
         else if (state.phase === 'self_assessment') current = (state.currentResearchIndex * 2) + 1;
@@ -270,6 +300,7 @@
     function renderConsent() {
         app.innerHTML =
             '<h1 style="text-align:center;">' + t('consentement_titre') + '</h1>' +
+            '<h2 style="text-align:center;">' + t('consentement_sous_titre') + '</h2>' +
             '<p style="text-align:center;color:#64748b;">' + t('consentement_intro') + '</p>' +
             '<div class="consent-box">' + t('consentement_texte') + '</div>' +
             '<div class="consent-checks"><label class="consent-label"><input type="checkbox" id="consent1"><span>' + t('consentement_checkbox') + '</span></label></div>' +
@@ -292,7 +323,7 @@
         document.getElementById('btnRefuse').addEventListener('click', function (e) {
             e.preventDefault();
             sendToServer('consent', null, null, { consent: false, questionLabel: "Consentement Initial" });
-            app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>' + t('consentement_refuse_titre') + '</h1><p>' + t('consentement_refuse_texte') + '</p></div>';
+            goTo('terminated', 'consent_refused');
         });
     }
 
@@ -625,6 +656,7 @@
         window.postMessage({ type: 'SET_PHASE', phase: 'research' }, '*');
         app.innerHTML =
             '<h1 style="text-align:center;">' + t('debriefing_titre') + '</h1>' +
+            '<h2>' + t('debriefing_soustitre') + '</h2>' +
             '<div class="consent-box" style="font-size:0.95em;">' + t('debriefing_texte') + '</div>' +
             '<div class="consent-checks">' +
             '<label class="consent-label"><input type="radio" name="deceptionChoice" value="maintain"><span>' + t('debriefing_choix_maintain') + '</span></label>' +
@@ -646,8 +678,7 @@
                 sendToServer('deception_consent', null, null, { consent: false, decision: 'withdraw', questionLabel: "Consentement Post-Expérimental (Retiré)" });
                 window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
                 
-                app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1>' + t('consentement_refuse_titre') + '</h1><p>' + t('debriefing_err_retrait') + '</p><p style="color:#64748b; margin-top:16px;">' + t('debriefing_err_desinstaller') + '</p></div>';
-                localStorage.removeItem('questionnaire_progress');
+                goTo('terminated', 'post_consent_refused');
             }
         });
     }
@@ -711,22 +742,13 @@
 
     function triggerStudyTimeout(reason) {
         let msg = reason === 'inactivity' ? t('limite_inactivite') : t('limite_max_temps');
-        
-        alert("⚠️ " + msg + " " + t('limite_donnees_invalides'));
-        window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
-        
-        sendToServer('questionnaire_event', null, null, { event: 'study_invalidated', reason: reason });
-        app.innerHTML = '<div style="text-align:center;padding:60px 0;"><h1 style="color:#dc2626;">' + t('limite_etude_annulee') + '</h1><p>' + msg + '</p><p style="color:#64748b; margin-top:16px;">' + t('debriefing_err_desinstaller') + '</p></div>';
-        
-        hideTimer();
-        localStorage.removeItem('study_global_start');
-        localStorage.removeItem('questionnaire_progress');
+        goTo('terminated', reason);
     }
 
     function resetInactivityTimer() {
         if (state.phase === 'end' || state.phase === 'language') return;
         clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(() => triggerStudyTimeout('inactivity'), 3600000); // 1 hour
+        inactivityTimer = setTimeout(() => triggerStudyTimeout('inactivity'), 3600000/60); // 1 hour
     }
 
     function checkGlobalTimer() {
@@ -739,7 +761,7 @@
         }
         
         let elapsed = Date.now() - parseInt(start);
-        let remaining = (4 * 3600 * 1000) - elapsed; // 4 hours limit
+        let remaining = (4 * 3600 * 1000)/120 - elapsed; // 4 hours limit
         
         if (remaining <= 0) triggerStudyTimeout('max_time');
         else {
