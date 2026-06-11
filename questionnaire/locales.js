@@ -269,6 +269,13 @@ const i18n = {
                 </div>
             </div>
         `,
+        termination_titre: "Fin de l'étude",
+        termination_raison_consent_refuse: "Vous avez choisi de ne pas accepter le formulaire de consentement initial.",
+        termination_raison_deception_refuse: "Vous avez choisi de retirer votre participation suite aux explications du débriefing.",
+        termination_raison_inactivite: "La collecte a pris fin en raison d'une inactivité prolongée (1 heure).",
+        termination_raison_max_temps: "La session a expiré après avoir atteint la limite maximale de temps autorisée (4 heures).",
+        termination_instructions: "Conformément à vos choix ou aux règles de l'étude, les données associées ont été traitées (supprimées ou sécurisées). Vous devez maintenant désinstaller l'extension de votre navigateur en suivant les étapes ci-dessous.",
+
 
         // --- Sécurité et Limite de temps ---
         limite_inactivite: "La collecte de données s'est arrêtée suite à 1 heure d'inactivité.",
@@ -551,6 +558,12 @@ const i18n = {
                 </div>
             </div>
         `,
+        termination_titre: "Study Terminated",
+        termination_raison_consent_refuse: "You declined the initial consent form.",
+        termination_raison_deception_refuse: "You chose to withdraw your participation following the debriefing.",
+        termination_raison_inactivite: "The session expired due to prolonged inactivity (1 hour).",
+        termination_raison_max_temps: "The session expired after reaching the maximum 4-hour time limit.",
+        termination_instructions: "In accordance with your choices or study guidelines, the corresponding data has been handled (deleted or secured). Please proceed to uninstall the extension from your browser by following the steps below.",
 
         // --- Security and Time limits ---
         limite_inactivite: "Data collection stopped due to 1 hour of inactivity.",
