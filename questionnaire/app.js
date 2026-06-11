@@ -153,7 +153,7 @@
     function renderTermination() {
         hideTimer();
         
-        // Notification immédiate à l'extension pour forcer le verrouillage du popup
+        // Notification à l'extension pour forcer le verrouillage du popup
         window.postMessage({ type: 'STUDY_TERMINATED' }, '*');
 
         var reason = state.terminationReason || 'inactivity';
@@ -163,16 +163,16 @@
         else if (reason === 'post_consent_refused') reasonText = t('termination_raison_deception_refuse');
         else if (reason === 'inactivity') reasonText = t('termination_raison_inactivite');
         else if (reason === 'max_time') reasonText = t('termination_raison_max_temps');
+        else if (reason === 'stopped_by_user') reasonText = t('termination_raison_stopped_by_user');
 
         app.innerHTML =
             '<div class="end-screen">' +
             '<h1 style="color:#dc2626;">' + t('termination_titre') + '</h1>' +
             '<p style="font-size:1.1em; margin:20px 0; font-weight:600; color:#475569;">' + reasonText + '</p>' +
             '<p style="margin-bottom:24px; color:#64748b;">' + t('termination_instructions') + '</p>' +
-            t('fin_texte') + // Utilise l'explication visuelle de désinstallation déjà présente dans locales.js
+            t('fin_texte') +
             '</div>';
 
-        // Nettoyage des stockages locaux du questionnaire pour éviter des chargements en boucle
         localStorage.removeItem('questionnaire_progress');
         localStorage.removeItem('study_global_start');
     }
@@ -309,7 +309,10 @@
 
         var cb = document.getElementById('consent1');
         var btn = document.getElementById('btnConsent');
-        cb.addEventListener('change', function () { btn.disabled = !cb.checked; });
+        
+        cb.addEventListener('change', function () { 
+            btn.disabled = !cb.checked; 
+        });
 
         btn.addEventListener('click', function () {
             state.consentGiven = true;
@@ -656,7 +659,6 @@
         window.postMessage({ type: 'SET_PHASE', phase: 'research' }, '*');
         app.innerHTML =
             '<h1 style="text-align:center;">' + t('debriefing_titre') + '</h1>' +
-            '<h2>' + t('debriefing_soustitre') + '</h2>' +
             '<div class="consent-box" style="font-size:0.95em;">' + t('debriefing_texte') + '</div>' +
             '<div class="consent-checks">' +
             '<label class="consent-label"><input type="radio" name="deceptionChoice" value="maintain"><span>' + t('debriefing_choix_maintain') + '</span></label>' +
@@ -667,7 +669,11 @@
         var radios = document.querySelectorAll('input[name="deceptionChoice"]');
         var btn = document.getElementById('btnDeceptionConsent');
 
-        radios.forEach(function (r) { r.addEventListener('change', function () { btn.disabled = false; }); });
+        radios.forEach(function (r) { 
+            r.addEventListener('change', function () { 
+                btn.disabled = false; 
+            }); 
+        });
 
         btn.addEventListener('click', function () {
             var selected = document.querySelector('input[name="deceptionChoice"]:checked').value;
@@ -676,13 +682,10 @@
                 goTo('end');
             } else {
                 sendToServer('deception_consent', null, null, { consent: false, decision: 'withdraw', questionLabel: "Consentement Post-Expérimental (Retiré)" });
-                window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
-                
                 goTo('terminated', 'post_consent_refused');
             }
         });
     }
-
     // === 11. END SCREEN ===
     function renderEnd() {
         app.innerHTML =
@@ -772,8 +775,19 @@
 
     ['mousemove', 'keydown', 'scroll', 'click'].forEach(evt => document.addEventListener(evt, resetInactivityTimer));
     
-    resetInactivityTimer();
-    setInterval(checkGlobalTimer, 60000);
+        resetInactivityTimer();
+        setInterval(checkGlobalTimer, 60000);
 
-    init();
+        // ===== ÉCOUTER LES ORDRES D'ARRÊT DE L'EXTENSION =====
+        window.addEventListener("message", function (event) {
+            // Sécurité : n'accepter que les messages provenant de notre propre fenêtre/origine
+            if (event.origin !== window.location.origin) return;
+            if (!event.data) return;
+
+            if (event.data.type === "EXTERNAL_TERMINATE") {
+                goTo('terminated', event.data.reason || 'stopped_by_user');
+            }
+        });
+
+        init();
 })();
