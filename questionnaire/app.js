@@ -164,6 +164,7 @@
         window.scrollTo(0, 0);
     }
 
+    
     function renderTermination() {
         hideTimer();
         window.postMessage({ type: 'STUDY_TERMINATED' }, '*');
@@ -185,9 +186,12 @@
             t('fin_texte') +
             '</div>';
 
+        // Nettoyage complet et immédiat des caches de la page
         localStorage.removeItem('questionnaire_progress');
         localStorage.removeItem('study_global_start');
+        sessionStorage.clear();
     }
+
 
     function updateProgress() {
         var totalResearch = state.researchQuestions.length || 3;
@@ -774,8 +778,10 @@
 
         window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
         
+        // Nettoyage complet et immédiat des caches de la page
         localStorage.removeItem('questionnaire_progress');
         localStorage.removeItem('study_global_start');
+        sessionStorage.clear();
         
         sendToServer('questionnaire_event', null, null, { event: 'questionnaire_completed' });
         progressFill.style.width = '100%';
