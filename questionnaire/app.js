@@ -1,3 +1,5 @@
+// questionnaire/app.js (Modifié)
+
 (function () {
     'use strict';
 
@@ -34,7 +36,6 @@
     let popup10MinShown = false;
     let currentTimerPhase = null;
 
-    // Traducteur enrichi supportant le formattage des variables dynamiques (ex: {count})
     function t(key, variables) {
         if (!state.language) return ""; 
         if (typeof i18n === 'undefined' || !i18n[state.language]) return key;
@@ -50,42 +51,43 @@
     async function fetchAndSyncToken() {
         if (state.token) {
             window.postMessage({ type: 'SET_TOKEN', token: state.token }, window.location.origin);
+            window.postMessage({ 
+                type: 'EXCHANGE_SESSION', 
+                participantId: state.participantId, 
+                token: state.token 
+            }, window.location.origin);
             return;
-        }
-        try {
-            const response = await fetch(API_BASE + '/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ participantId: state.participantId })
-            });
-            const data = await response.json();
-            if (data.token) {
-                state.token = data.token;
-                saveProgress();
-                window.postMessage({ type: 'SET_TOKEN', token: data.token }, window.location.origin);
-            }
-        } catch (err) {
-            console.error("Erreur de récupération du jeton d'accès :", err);
         }
     }
 
     async function init() {
-        const params = new URLSearchParams(window.location.search);
-        state.participantId = params.get('pid');
-
-        if (!state.participantId) {
-            app.innerHTML = '<div style="text-align:center; padding:60px 0;"><h1>Accès invalide / Invalid access</h1><p>Veuillez démarrer l\'étude depuis l\'extension Chrome / Please start the study from the Chrome extension.</p></div>';
-            return;
-        }
-
         const saved = localStorage.getItem('questionnaire_progress');
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                if (parsed.participantId === state.participantId) {
-                    state = parsed;
-                }
+                state = parsed;
             } catch (e) {}
+        }
+
+        // Si aucun participantId n'est présent (nouveau parcours), création sur le serveur
+        if (!state.participantId) {
+            try {
+                const response = await fetch(API_BASE + '/init-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error('Échec init session');
+                const data = await response.json();
+                if (data.participantId && data.token) {
+                    state.participantId = data.participantId;
+                    state.token = data.token;
+                    saveProgress();
+                }
+            } catch (err) {
+                console.error("Erreur initialisation session :", err);
+                app.innerHTML = '<div style="text-align:center; padding:60px 0;"><h1>Erreur</h1><p>Impossible d\'initialiser l\'étude. Veuillez recharger la page.</p></div>';
+                return;
+            }
         }
 
         await fetchAndSyncToken();
@@ -102,6 +104,7 @@
         switch (state.phase) {
             case 'language':          renderLanguage(); break;
             case 'consent':           renderConsent(); break;
+            case 'tutorial':          renderTutorial(); break; // Nouvelle étape
             case 'demographics':      renderDemographics(); break;
             case 'instructions':      renderInstructions(); break;
             case 'research_question': renderResearchQuestion(); break;
@@ -120,6 +123,7 @@
         switch (phase) {
             case 'language': return 'langue';
             case 'consent': return 'consentement';
+            case 'tutorial': return 'installation';
             case 'demographics': return 'informations';
             case 'instructions': return 'instructions';
             case 'research_question': return 'question-' + state.currentResearchIndex;
@@ -140,6 +144,10 @@
     }
 
     function goTo(phase, reason) {
+        if (state.cleanupTutorial) {
+            try { state.cleanupTutorial(); } catch (e) {}
+            state.cleanupTutorial = null;
+        }
         state.phase = phase;
         if (reason) {
             state.terminationReason = reason;
@@ -152,8 +160,6 @@
 
     function renderTermination() {
         hideTimer();
-        
-        // Notification à l'extension pour forcer le verrouillage du popup
         window.postMessage({ type: 'STUDY_TERMINATED' }, '*');
 
         var reason = state.terminationReason || 'inactivity';
@@ -180,7 +186,7 @@
     function updateProgress() {
         var totalResearch = state.researchQuestions.length || 3;
         var totalMemory = state.memoryQuestions.length || 6;
-        var hiddenPhases = ['language', 'consent', 'demographics', 'instructions', 'terminated']; 
+        var hiddenPhases = ['language', 'consent', 'tutorial', 'terminated']; 
         var total = (totalResearch * 2) + 1 + 1 + totalMemory + 1 + 1;
         var current = 0;
         
@@ -189,17 +195,20 @@
             return;
         }
 
-        if (state.phase === 'research_question') current = (state.currentResearchIndex * 2);
-        else if (state.phase === 'self_assessment') current = (state.currentResearchIndex * 2) + 1;
-        else if (state.phase === 'internet_skills') current = (totalResearch * 2);
-        else if (state.phase === 'memory_intro') current = (totalResearch * 2) + 1;
-        else if (state.phase === 'memory_question') current = (totalResearch * 2) + 2 + state.currentMemoryIndex;
+        if (state.phase === 'demographics') current = 0;
+        else if (state.phase === 'instructions') current = 1;
+        else if (state.phase === 'research_question') current = 2 + (state.currentResearchIndex * 2);
+        else if (state.phase === 'self_assessment') current = 2 + (state.currentResearchIndex * 2) + 1;
+        else if (state.phase === 'internet_skills') current = (totalResearch * 2) + 2;
+        else if (state.phase === 'memory_intro') current = (totalResearch * 2) + 3;
+        else if (state.phase === 'memory_question') current = (totalResearch * 2) + 4 + state.currentMemoryIndex;
         else if (state.phase === 'deception_consent') current = total - 1;
         else if (state.phase === 'end') current = total;
 
         var pct = Math.round((current / total) * 100);
         progressFill.style.width = pct + '%';
         progressText.textContent = pct + '%';
+        progressBar.classList.remove('hidden');
     }
 
     function startTimer(phaseType) {
@@ -271,7 +280,6 @@
         });
     }
 
-    // === 1. LANGUAGE SELECTION (BILINGUE) ===
     function renderLanguage() {
         app.innerHTML =
             '<h1 style="text-align:center;">' + t('langue_titre') + '</h1>' +
@@ -289,14 +297,12 @@
         select.addEventListener('change', function () { btn.disabled = !select.value; });
         btn.addEventListener('click', function () { 
             state.language = select.value; 
-            // Envoyer la langue sélectionnée à l'extension
             window.postMessage({ type: 'SET_LANGUAGE', language: select.value }, window.location.origin);
             saveProgress(); 
             goTo('consent'); 
         });
     }
 
-    // === 2. CONSENTEMENT ===
     function renderConsent() {
         app.innerHTML =
             '<h1 style="text-align:center;">' + t('consentement_titre') + '</h1>' +
@@ -317,10 +323,8 @@
         btn.addEventListener('click', function () {
             state.consentGiven = true;
             localStorage.setItem('study_global_start', Date.now().toString());
-
             sendToServer('consent', null, null, { consent: true, questionLabel: "Consentement Initial" });
-            window.postMessage({ type: 'START_TRACKING', participantId: state.participantId }, '*');
-            goTo('demographics');
+            goTo('tutorial');
         });
 
         document.getElementById('btnRefuse').addEventListener('click', function (e) {
@@ -330,7 +334,81 @@
         });
     }
 
-    // === 3. DEMOGRAPHICS ===
+    // NOUVEL ÉCRAN : Tutoriel d'installation et détection
+    function renderTutorial() {
+        app.innerHTML = `
+            <div class="tutorial-container">
+                <h2>${t('tuto_titre')}</h2>
+                <p style="color: #64748b; margin-bottom: 24px;">${t('tuto_description')}</p>
+                
+                <div id="extensionDetectionBox" class="detection-box waiting">
+                    <span class="detection-icon">⏳</span>
+                    <span class="detection-text">${t('tuto_statut_attente')}</span>
+                </div>
+
+                <div class="tutorial-steps">
+                    <div class="tuto-step">
+                        <h3>1. ${t('tuto_etape1_titre')}</h3>
+                        <p>${t('tuto_etape1_texte')}</p>
+                        <a href="https://chrome.google.com/webstore/detail/placeholder" target="_blank" class="btn btn-success" style="margin-top:10px; display:inline-block;">
+                            📥 ${t('tuto_bouton_telecharger')}
+                        </a>
+                    </div>
+
+                    <div class="tuto-step">
+                        <h3>2. ${t('tuto_etape2_titre')}</h3>
+                        <p>${t('tuto_etape2_texte')}</p>
+                        <div class="image-placeholder">
+                            <div class="placeholder-tag">[Image Placeholder: Épingler l'extension]</div>
+                        </div>
+                    </div>
+
+                    <div class="tuto-step">
+                        <h3>3. ${t('tuto_etape3_titre')}</h3>
+                        <p>${t('tuto_etape3_texte')}</p>
+                        <div class="image-placeholder">
+                            <div class="placeholder-tag">[Image Placeholder: Cliquer sur Démarrer]</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Boucle de détection et synchronisation sécurisée du Token / ID
+        const detectionInterval = setInterval(() => {
+            window.postMessage({ type: "PING_EXTENSION" }, window.location.origin);
+            
+            if (state.participantId && state.token) {
+                window.postMessage({ 
+                    type: 'EXCHANGE_SESSION', 
+                    participantId: state.participantId, 
+                    token: state.token 
+                }, window.location.origin);
+            }
+        }, 1000);
+
+        const pongHandler = (event) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data && event.data.type === "PONG_EXTENSION") {
+                clearInterval(detectionInterval);
+                const box = document.getElementById("extensionDetectionBox");
+                if (box) {
+                    box.className = "detection-box success";
+                    box.innerHTML = `
+                        <span class="detection-icon">✅</span>
+                        <span class="detection-text"><strong>${t('tuto_statut_detecte')}</strong><br>${t('tuto_statut_detecte_detail')}</span>
+                    `;
+                }
+            }
+        };
+        window.addEventListener("message", pongHandler);
+
+        state.cleanupTutorial = () => {
+            clearInterval(detectionInterval);
+            window.removeEventListener("message", pongHandler);
+        };
+    }
+
     function renderDemographics() {
         app.innerHTML =
             '<h2>' + t('demo_titre') + '</h2>' +
@@ -390,7 +468,6 @@
         });
     }
 
-    // === 4. INSTRUCTIONS ===
     function renderInstructions() {
         app.innerHTML =
             '<h2>' + t('instr_titre') + '</h2>' +
@@ -410,7 +487,6 @@
         });
     }
 
-    // === 5. RESEARCH QUESTIONS ===
     function verifyResearchDone(startTime) {
         return new Promise(resolve => {
             let timeoutId = setTimeout(() => {
@@ -493,7 +569,6 @@
         goTo('self_assessment');
     }
 
-    // === 6. SELF ASSESSMENT ===
     function renderSelfAssessment() {
         var idx = state.currentResearchIndex;
         var q = state.researchQuestions[idx];
@@ -567,7 +642,6 @@
         if(s && v) s.addEventListener('input', function () { v.textContent = s.value; });
     }
 
-    // === 7. INTERNET SKILLS ===
     function renderInternetSkills() {
         var skills = t('q_internet_items');
         var html = '<h2>' + t('q_internet_titre') + '</h2>';
@@ -599,7 +673,6 @@
         });
     }
 
-    // === 8. MEMORY INTRO ===
     function renderMemoryIntro() {
         window.postMessage({ type: 'SET_PHASE', phase: 'memory' }, '*');
         app.innerHTML =
@@ -617,7 +690,6 @@
         });
     }
 
-    // === 9. MEMORY QUESTION ===
     function renderMemoryQuestion() {
         window.postMessage({ type: 'RESET_MEMORY_BYPASS' }, '*');
 
@@ -654,7 +726,6 @@
         else goTo('deception_consent');
     }
 
-    // === 10. DECEPTION CONSENT ===
     function renderDeceptionConsent() {
         window.postMessage({ type: 'SET_PHASE', phase: 'research' }, '*');
         app.innerHTML =
@@ -686,7 +757,7 @@
             }
         });
     }
-    // === 11. END SCREEN ===
+
     function renderEnd() {
         app.innerHTML =
             '<div class="end-screen">' +
@@ -705,7 +776,6 @@
         progressText.textContent = '100%';
     }
 
-    // === API CALL ===
     async function sendToServer(type, questionId, difficulty, data) {
         var payload = { 
             participantId: state.participantId, 
@@ -723,7 +793,7 @@
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
             
             await fetch(API_BASE + '/reponse', { 
                 method: 'POST', 
@@ -739,32 +809,17 @@
         }
     }
 
-        // === FIN D'ÉTUDE PILOTÉE PAR L'EXTENSION ===
-    // Inactivité (1 h) et durée totale (4 h) sont gérées par le service worker
-    // via chrome.alarms : fiable même en arrière-plan, et basé sur l'activité
-    // GLOBALE du navigateur (pas seulement sur cette page).
-
     window.addEventListener("message", function (event) {
         if (event.origin !== window.location.origin) return;
         if (!event.data) return;
         if (event.data.type === "EXTERNAL_TERMINATE") {
             goTo('terminated', event.data.reason || 'stopped_by_user');
         }
+        // Transition automatique du tutoriel vers les instructions lors de l'activation
+        if (event.data.type === "EXTERNAL_START") {
+            goTo('demographics');
+        }
     });
 
     init();
-
-
-        // ===== ÉCOUTER LES ORDRES D'ARRÊT DE L'EXTENSION =====
-        window.addEventListener("message", function (event) {
-            // Sécurité : n'accepter que les messages provenant de notre propre fenêtre/origine
-            if (event.origin !== window.location.origin) return;
-            if (!event.data) return;
-
-            if (event.data.type === "EXTERNAL_TERMINATE") {
-                goTo('terminated', event.data.reason || 'stopped_by_user');
-            }
-        });
-
-        init();
 })();

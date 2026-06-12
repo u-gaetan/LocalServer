@@ -5,6 +5,19 @@ const i18n = {
         langue_select_default: "-- Sélectionnez / Select --",
         btn_continuer: "Continuer / Continue",
 
+        tuto_titre: "Installation de l'extension",
+        tuto_description: "Pour réaliser cette recherche, vous devez installer notre extension Chrome temporaire. Celle-ci transmettra vos données d'analyse uniquement durant les étapes requises de l'étude.",
+        tuto_statut_attente: "En attente de l'installation de l'extension...",
+        tuto_statut_detecte: "Extension détectée avec succès !",
+        tuto_statut_detecte_detail: "Veuillez maintenant cliquer sur l'icône de l'extension dans la barre d'outils de votre navigateur, puis cliquez sur 'DÉMARRER L'ÉTUDE'.",
+        tuto_etape1_titre: "Télécharger l'extension",
+        tuto_etape1_texte: "Cliquez sur le bouton ci-dessous pour accéder au téléchargement de l'extension Chrome d'étude de navigation.",
+        tuto_bouton_telecharger: "Ajouter à Chrome (Placeholder)",
+        tuto_etape2_titre: "Épingler l'extension",
+        tuto_etape2_texte: "Cliquez sur l'icône de pièce de puzzle en haut à droite, puis sur l'icône d'épingle à côté de l'extension pour la rendre visible en permanence.",
+        tuto_etape3_titre: "Démarrer l'étude",
+        tuto_etape3_texte: "Cliquez sur l'icône de l'extension de l'Université Laval puis sur le bouton bleu pour démarrer la collecte et continuer l'expérience.",
+
         // --- Consentement ---
         consentement_titre: "Formulaire d'information et de consentement",
         consentement_sous_titre: "Validation de questions de connaissances générales pour l'étude des processus de recherche d'information Web",
@@ -276,7 +289,7 @@ const i18n = {
         termination_raison_max_temps: "La session a expiré après avoir atteint la limite maximale de temps autorisée (4 heures).",
         termination_instructions: "Conformément à vos choix ou aux règles de l'étude, les données associées ont été traitées (supprimées ou sécurisées). Vous devez maintenant désinstaller l'extension de votre navigateur en suivant les étapes ci-dessous.",
         termination_raison_stopped_by_user: "Vous avez choisi d'arrêter manuellement l'expérience depuis l'extension. Conformément au protocole, les données de navigation récoltées lors de cette session vont être supprimées.",
-
+        
 
         // --- Sécurité et Limite de temps ---
         limite_inactivite: "La collecte de données s'est arrêtée suite à 1 heure d'inactivité.",
@@ -291,6 +304,18 @@ const i18n = {
         langue_select_default: "-- Select / Sélectionnez --",
         btn_continuer: "Continue / Continuer",
 
+        tuto_titre: "Extension Installation",
+        tuto_description: "To perform this research, you must install our temporary Chrome extension. It will transmit your browsing data only during the required steps of the study.",
+        tuto_statut_attente: "Waiting for the extension to be installed...",
+        tuto_statut_detecte: "Extension successfully detected!",
+        tuto_statut_detecte_detail: "Please now click on the extension icon in your browser toolbar, then click on 'START THE STUDY'.",
+        tuto_etape1_titre: "Download the extension",
+        tuto_etape1_texte: "Click the button below to download the Chrome extension dedicated to our web navigation research project.",
+        tuto_bouton_telecharger: "Add to Chrome (Placeholder)",
+        tuto_etape2_titre: "Pin the extension",
+        tuto_etape2_texte: "Click on the puzzle piece icon in the top right corner, then click on the pin icon next to our extension to keep it visible.",
+        tuto_etape3_titre: "Start the study",
+        tuto_etape3_texte: "Click on the extension icon and press the blue button to initiate data collection and continue the study.",
         // --- Consent ---
         consentement_titre: "Information and Consent Form",
         consentement_sous_titre:"Validation of General Knowledge Questions for the Study of Web Information-Seeking Processes",

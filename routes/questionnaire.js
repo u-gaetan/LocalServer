@@ -26,6 +26,29 @@ const ALLOWED_TYPES = new Set([
     'memory_answer', 'questionnaire_event', 'internet_skills'
 ]);
 
+// Génération et signature d'une session participant vierge
+router.post('/init-session', participantLimiter, async (req, res) => {
+    try {
+        const secrets = getSecrets();
+        
+        // Génération du participantId : P-[timestamp Base36]-[random]
+        const timestamp = Date.now().toString(36);
+        const random = Math.random().toString(36).slice(2, 6);
+        const participantId = `P-${timestamp}-${random}`;
+
+        // Signature du jeton d'accès pour ce participant
+        const token = jwt.sign(
+            { participantId, role: 'participant' },
+            secrets.jwtSecret,
+            { expiresIn: '12h' }
+        );
+
+        res.json({ participantId, token });
+    } catch (err) {
+        res.status(500).json({ erreur: err.message });
+    }
+});
+
 // --- NOUVEAU : Route pour distribuer un JWT temporaire au Participant ---
 router.post('/token', participantLimiter, async (req, res) => {
     try {
