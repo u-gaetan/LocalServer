@@ -344,7 +344,6 @@
         });
     }
 
-    // NOUVEL ÉCRAN : Tutoriel d'installation et détection
     function renderTutorial() {
         app.innerHTML = `
             <div class="tutorial-container">
@@ -384,7 +383,7 @@
             </div>
         `;
 
-        // Boucle de détection et synchronisation sécurisée du Token / ID
+        // Boucle de détection et synchronisation immédiate et sécurisée du Token / ID
         const detectionInterval = setInterval(() => {
             window.postMessage({ type: "PING_EXTENSION" }, window.location.origin);
             
@@ -408,6 +407,15 @@
                         <span class="detection-icon">✅</span>
                         <span class="detection-text"><strong>${t('tuto_statut_detecte')}</strong><br>${t('tuto_statut_detecte_detail')}</span>
                     `;
+                }
+
+                // Échange direct et instantané des identifiants au moment de la détection
+                if (state.participantId && state.token) {
+                    window.postMessage({ 
+                        type: 'EXCHANGE_SESSION', 
+                        participantId: state.participantId, 
+                        token: state.token 
+                    }, window.location.origin);
                 }
             }
         };
