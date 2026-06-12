@@ -61,35 +61,41 @@
     }
 
     async function init() {
+        // 1. Tenter de charger la progression existante
         const saved = localStorage.getItem('questionnaire_progress');
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                state = parsed;
-            } catch (e) {}
+                if (parsed.participantId && parsed.token) {
+                    state = parsed; // Restaure l'état, y compris le participantId et le token
+                }
+            } catch (e) {
+                console.error("Échec de lecture du stockage local", e);
+            }
         }
 
-        // Si aucun participantId n'est présent (nouveau parcours), création sur le serveur
-        if (!state.participantId) {
+        // 2. Si AUCUNE session n'existe en mémoire, on demande au serveur d'en créer une
+        if (!state.participantId || !state.token) {
             try {
                 const response = await fetch(API_BASE + '/init-session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
-                if (!response.ok) throw new Error('Échec init session');
+                if (!response.ok) throw new Error('Échec init-session');
                 const data = await response.json();
                 if (data.participantId && data.token) {
                     state.participantId = data.participantId;
                     state.token = data.token;
-                    saveProgress();
+                    saveProgress(); // Sauvegarde immédiate dans localStorage
                 }
             } catch (err) {
-                console.error("Erreur initialisation session :", err);
-                app.innerHTML = '<div style="text-align:center; padding:60px 0;"><h1>Erreur</h1><p>Impossible d\'initialiser l\'étude. Veuillez recharger la page.</p></div>';
+                console.error("Erreur d'initialisation de session :", err);
+                app.innerHTML = '<div style="text-align:center; padding:60px 0;"><h1>Erreur système</h1><p>Impossible de se connecter au serveur de recherche. Veuillez rafraîchir la page.</p></div>';
                 return;
             }
         }
 
+        // 3. Synchronisation avec l'extension
         await fetchAndSyncToken();
         renderPhase();
         updateUrl();

@@ -17,7 +17,7 @@ const i18n = {
         tuto_etape2_texte: "Cliquez sur l'icône de pièce de puzzle en haut à droite, puis sur l'icône d'épingle à côté de l'extension pour la rendre visible en permanence.",
         tuto_etape3_titre: "Démarrer l'étude",
         tuto_etape3_texte: "Cliquez sur l'icône de l'extension de l'Université Laval puis sur le bouton bleu pour démarrer la collecte et continuer l'expérience.",
-
+        tuto_statut_attente: "En attente de l'installation de l'extension... (Si vous venez de l'installer, rafraîchissez cette page)",
         // --- Consentement ---
         consentement_titre: "Formulaire d'information et de consentement",
         consentement_sous_titre: "Validation de questions de connaissances générales pour l'étude des processus de recherche d'information Web",
@@ -316,6 +316,8 @@ const i18n = {
         tuto_etape2_texte: "Click on the puzzle piece icon in the top right corner, then click on the pin icon next to our extension to keep it visible.",
         tuto_etape3_titre: "Start the study",
         tuto_etape3_texte: "Click on the extension icon and press the blue button to initiate data collection and continue the study.",
+        tuto_statut_attente: "Waiting for the extension to be installed... (If you just installed it, please refresh this page)",
+        
         // --- Consent ---
         consentement_titre: "Information and Consent Form",
         consentement_sous_titre:"Validation of General Knowledge Questions for the Study of Web Information-Seeking Processes",
