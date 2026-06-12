@@ -344,6 +344,7 @@
         });
     }
 
+    // NOUVEL ÉCRAN : Tutoriel d'installation et détection
     function renderTutorial() {
         app.innerHTML = `
             <div class="tutorial-container">
@@ -383,7 +384,7 @@
             </div>
         `;
 
-        // Boucle de détection et synchronisation immédiate et sécurisée du Token / ID
+        // Boucle de détection et synchronisation immédiate et sécurisée du Token / ID / Langue
         const detectionInterval = setInterval(() => {
             window.postMessage({ type: "PING_EXTENSION" }, window.location.origin);
             
@@ -391,7 +392,8 @@
                 window.postMessage({ 
                     type: 'EXCHANGE_SESSION', 
                     participantId: state.participantId, 
-                    token: state.token 
+                    token: state.token,
+                    language: state.language
                 }, window.location.origin);
             }
         }, 1000);
@@ -409,12 +411,13 @@
                     `;
                 }
 
-                // Échange direct et instantané des identifiants au moment de la détection
+                // Échange direct et instantané des identifiants et de la langue au moment de la détection
                 if (state.participantId && state.token) {
                     window.postMessage({ 
                         type: 'EXCHANGE_SESSION', 
                         participantId: state.participantId, 
-                        token: state.token 
+                        token: state.token,
+                        language: state.language
                     }, window.location.origin);
                 }
             }
