@@ -167,7 +167,7 @@
     
     function renderTermination() {
         hideTimer();
-        window.postMessage({ type: 'STUDY_TERMINATED' }, '*');
+        window.postMessage({ type: 'STUDY_TERMINATED', reason: reason  }, '*');
 
         var reason = state.terminationReason || 'inactivity';
         var reasonText = "";
