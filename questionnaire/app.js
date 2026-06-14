@@ -167,10 +167,11 @@
     
     function renderTermination() {
         hideTimer();
-        window.postMessage({ type: 'STUDY_TERMINATED', reason: reason  }, '*');
+        
 
         var reason = state.terminationReason || 'inactivity';
         var reasonText = "";
+        window.postMessage({ type: 'STUDY_TERMINATED', reason: reason  }, '*');
 
         if (reason === 'consent_refused') reasonText = t('termination_raison_consent_refuse');
         else if (reason === 'post_consent_refused') reasonText = t('termination_raison_deception_refuse');
