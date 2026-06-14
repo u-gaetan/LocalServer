@@ -369,27 +369,27 @@
                     <div class="tuto-step">
                         <h3>2. ${t('tuto_etape2_titre')}</h3>
                         <p>${t('tuto_etape2_texte')}</p>
-                        <img src="images/fr_install_2.png"
-                            alt="${t('tuto_etape2')}"
-                            class="tuto-image"
+                        <img src="/images/fr_install_1.png"
+                            alt="step 2"
+                            style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);"
                             loading="lazy">
                     </div>
 
                     <div class="tuto-step">
                         <h3>3. ${t('tuto_etape3_titre')}</h3>
                         <p>${t('tuto_etape3_texte')}</p>
-                        <img src="images/fr_install_3.png"
-                            alt="${t('tuto_etape3')}"
-                            class="tuto-image"
+                        <img src="/images/fr_install_2.png"
+                            alt="step 3"
+                            style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);"
                             loading="lazy">
                     </div>
 
                     <div class="tuto-step">
                         <h3>4. ${t('tuto_etape4_titre')}</h3>
                         <p>${t('tuto_etape4_texte')}</p>
-                        <img src="images/fr_install_4.png"
-                            alt="${t('tuto_etape4')}"
-                            class="tuto-image"
+                        <img src="/images/fr_install_3.png"
+                            alt="step 4"
+                            style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);"
                             loading="lazy">
                     </div>
                 </div>
