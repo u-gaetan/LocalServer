@@ -369,17 +369,28 @@
                     <div class="tuto-step">
                         <h3>2. ${t('tuto_etape2_titre')}</h3>
                         <p>${t('tuto_etape2_texte')}</p>
-                        <div class="image-placeholder">
-                            <div class="placeholder-tag">[Image Placeholder: Épingler l'extension]</div>
-                        </div>
+                        <img src="images/fr_install_2.png"
+                            alt="${t('tuto_etape2')}"
+                            class="tuto-image"
+                            loading="lazy">
                     </div>
 
                     <div class="tuto-step">
                         <h3>3. ${t('tuto_etape3_titre')}</h3>
                         <p>${t('tuto_etape3_texte')}</p>
-                        <div class="image-placeholder">
-                            <div class="placeholder-tag">[Image Placeholder: Cliquer sur Démarrer]</div>
-                        </div>
+                        <img src="images/fr_install_3.png"
+                            alt="${t('tuto_etape3')}"
+                            class="tuto-image"
+                            loading="lazy">
+                    </div>
+
+                    <div class="tuto-step">
+                        <h3>4. ${t('tuto_etape4_titre')}</h3>
+                        <p>${t('tuto_etape4_texte')}</p>
+                        <img src="images/fr_install_4.png"
+                            alt="${t('tuto_etape4')}"
+                            class="tuto-image"
+                            loading="lazy">
                     </div>
                 </div>
             </div>
