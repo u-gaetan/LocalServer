@@ -112,8 +112,8 @@ const i18n = {
         instr_item_1: "<strong>Naviguez librement</strong> dans d'autres onglets (Google, Wikipédia, etc.) pour trouver vos informations.",
         instr_item_2: "<strong style='color:#dc2626;'>Règles strictes :</strong> La navigation privée est interdite. L'usage d'Intelligences Artificielles (ChatGPT, Gemini, Claude, etc.) est <strong>strictement interdit</strong>.",
         instr_item_3: "L'étude doit être réalisée <strong>d'une seule traite</strong> (en une seule session continue).",
-        instr_item_4: "Votre réponse devrait idéalement faire <strong>entre 75 et 100 mots</strong> (un indicateur visuel vous guidera, mais vous pouvez valider votre texte même s'il est plus court).",
-        instr_item_5: "La collecte de données se coupe automatiquement après <strong>1 heure d'inactivité</strong> ou après un maximum de <strong>4 heures d'activité</strong> (ne vous en faites pas, l'étude prend en réalité beaucoup moins de temps que cela !).",
+        instr_item_4: "Vous avez 10 min pour répondre à chaque question. Votre réponse devrait idéalement faire <strong>entre 75 et 100 mots</strong> (un indicateur visuel vous guidera, mais vous pouvez valider votre texte même s'il est plus court ou plus long).",
+        instr_item_5: "La collecte de données se coupe automatiquement après <strong>1 heure d'inactivité</strong> ou après un maximum de <strong>4 heures d'activité</strong> (c'est une sécurité, l'étude prend en réalité beaucoup moins de temps que cela !).",
         btn_commencer: "Commencer",
 
         // --- Questions de Recherche ---
@@ -431,8 +431,8 @@ const i18n = {
         instr_item_1: "<strong>Browse freely</strong> in other tabs (Google, Wikipedia, etc.) to find your information.",
         instr_item_2: "<strong style='color:#dc2626;'>Strict Rules:</strong> Private browsing is prohibited. The use of Artificial Intelligence tools (ChatGPT, Gemini, Claude, etc.) is <strong>strictly prohibited</strong>.",
         instr_item_3: "The study must be completed <strong>in one single run</strong> (in one continuous session).",
-        instr_item_4: "Your answer should ideally be <strong>between 75 and 100 words</strong> (a visual indicator will guide you, but you can submit your text even if it is shorter).",
-        instr_item_5: "Data collection stops automatically after <strong>1 hour of inactivity</strong> or after a maximum of <strong>4 hours of activity</strong> (don't worry, the study actually takes much less time than that!).",
+        instr_item_4: "You have 10 minutes to answer each question. Your answer should ideally be <strong>between 75 and 100 words</strong> (a visual indicator will guide you, but you can submit your text even if it is shorter).",
+        instr_item_5: "Data collection stops automatically after <strong>1 hour of inactivity</strong> or after a maximum of <strong>4 hours of activity</strong> (don't worry this is a safety measure, the study actually takes much less time than that!).",
         btn_commencer: "Start",
 
         // --- Research Questions ---
