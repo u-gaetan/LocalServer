@@ -263,8 +263,9 @@ const i18n = {
                     <p style="margin:14px 0 10px 0; font-size:14px; color:#475569; line-height:1.5;">
                         <strong>Étape 2 :</strong> Confirmez la suppression dans la boîte de dialogue native qui apparaît en haut de votre écran en cliquant sur <strong>"Supprimer"</strong>.
                     </p>
-                    <div style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; text-align:center; margin-top:10px;">
-                        <span style="font-size:12px; color:#64748b; font-style:italic;">[Image de confirmation native de désinstallation - Placeholder]</span>
+                    <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Étape D :</strong> Une petite fenêtre s'ouvrira en haut de l'écran. Cliquez sur le bouton "Supprimer" pour confirmer.</p>
+                            <img src="/images/fr_uninstall_4.png" alt="Étape D" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                     </div>
                 </div>
 
@@ -583,8 +584,9 @@ const i18n = {
                     <p style="margin:14px 0 10px 0; font-size:14px; color:#475569; line-height:1.5;">
                         <strong>Step 2:</strong> Confirm the deletion in the native dialog box that appears at the top of your screen by clicking <strong>"Remove"</strong>.
                     </p>
-                    <div style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; text-align:center; margin-top:10px;">
-                        <span style="font-size:12px; color:#64748b; font-style:italic;">[Native uninstallation confirmation image - Placeholder]</span>
+                    <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Step D:</strong> A small window will appear at the top of the screen. Click on the "Remove" button to confirm.</p>
+                            <img src="/images/en_uninstall_4.png" alt="Step D" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                     </div>
                 </div>
 
