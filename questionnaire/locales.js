@@ -244,42 +244,56 @@ const i18n = {
         fin_texte: `
             <div style="margin-top:32px; padding:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; text-align:left;">
                 <h3 style="margin:0 0 16px; font-size:18px; color:#dc2626;">Dernière étape cruciale : Désinstaller l'extension</h3>
-                <p style="font-size:14px; color:#475569; margin-bottom:12px;">L'étude est maintenant terminée. Vous devez retirer l'extension de votre navigateur.</p>
+                <p style="font-size:14px; color:#475569; margin-bottom:12px;">L'étude est maintenant terminée. Vous devez retirer l'extension de votre fureteur pour compléter le processus.</p>
                 
-                <p style="font-size:13px; color:#b91c1c; font-weight:600; margin-bottom:20px; background:#fee2e2; padding:12px; border-radius:6px; border:1px dashed #fca5a5; line-height:1.5;">
-                    Si vous rencontrez des problèmes pour désinstaller l'extension, contactez l'équipe à l'adresse courriel suivante : <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Mais ne vous en faites pas, même si elle reste installée, l'extension ne collectera plus aucune donnée.
+                <p style="font-size:13px; color:#b91c1c; font-weight:600; margin-bottom:24px; background:#fee2e2; padding:12px; border-radius:6px; border:1px dashed #fca5a5; line-height:1.5;">
+                    Si vous rencontrez des problèmes pour désinstaller l'extension, contactez l'équipe à l'adresse courriel suivante : <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. Mais ne vous en faites pas, même si elle restait installée, l'extension ne collectera plus aucune donnée.
                 </p>
 
-                <div style="display:flex; flex-direction:column; gap:20px; margin-bottom:20px;">
-                    <!-- ÉTAPE 1 -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 1 :</strong> Cliquez sur l'icône des extensions.
-                        </p>
-                        <img src="/images/fr_uninstall_1.png" alt="Étape 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <!-- MÉTHODE 1 (PRINCIPALE ET RAPIDE) -->
+                <div style="background:#fff; border:1px solid #cbd5e1; border-left:4px solid #ef4444; border-radius:8px; padding:16px; margin-bottom:20px;">
+                    <h4 style="margin:0 0 12px 0; font-size:16px; color:#1e293b;">
+                        ⚡ Méthode 1 : Désinstallation instantanée (Recommandée)
+                    </h4>
+                    <p style="margin:0 0 14px 0; font-size:14px; color:#475569; line-height:1.5;">
+                        <strong>Étape 1 :</strong> Cliquez sur le bouton rouge ci-dessous pour déclencher la désinstallation :
+                        <br>
+                        <button id="btnUninstallFromPage" style="margin-top:10px; padding:12px 24px; font-weight:bold; background-color:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; display:inline-block; font-family:inherit; font-size:14px;">🗑️ Désinstaller l'extension</button>
+                    </p>
+                    <p style="margin:14px 0 10px 0; font-size:14px; color:#475569; line-height:1.5;">
+                        <strong>Étape 2 :</strong> Confirmez la suppression dans la boîte de dialogue native qui apparaît en haut de votre écran en cliquant sur <strong>"Supprimer"</strong>.
+                    </p>
+                    <div style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; text-align:center; margin-top:10px;">
+                        <span style="font-size:12px; color:#64748b; font-style:italic;">[Image de confirmation native de désinstallation - Placeholder]</span>
                     </div>
+                </div>
 
-                    <!-- ÉTAPE 2 -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 2 :</strong> Cliquez sur le bouton avec les 3 points à côté de l'extension de l'etude.
-                        </p>
-                        <img src="/images/fr_uninstall_2.png" alt="Étape 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                    </div>
+                <!-- MÉTHODE 2 (ALTERNATIVE ET MANUELLE) -->
+                <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:10px;">
+                    <h4 style="margin:0 0 12px 0; font-size:15px; color:#475569;">
+                        🧩 Méthode 2 : Désinstallation manuelle (Alternative)
+                    </h4>
+                    <p style="font-size:13px; color:#64748b; margin-top:-8px; margin-bottom:16px;">
+                        <em>Utilisez cette méthode uniquement si le bouton rouge ci-dessus ne répond pas.</em>
+                    </p>
 
-                    <!-- ÉTAPE 3 -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 3 :</strong> Cliquez sur le bouton "Supprimer de Chrome".
-                        </p>
-                        <img src="/images/fr_uninstall_3.png" alt="Étape 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                    </div>
-                    <!-- ÉTAPE 4 -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Étape 4 :</strong> Une petite fenêtre s'ouvrira en haut de l'écran. Cliquez sur le bouton "Supprimer" pour confirmer.
-                        </p>
-                        <img src="/images/fr_uninstall_4.png" alt="Étape 4" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="display:flex; flex-direction:column; gap:16px;">
+                        <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Étape A :</strong> Cliquez sur l'icône de pièce de puzzle (menu Extensions) en haut à droite.</p>
+                            <img src="/images/fr_uninstall_1.png" alt="Étape A" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        </div>
+                        <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Étape B :</strong> Cliquez sur le bouton avec les 3 points à côté de l'extension de l'étude.</p>
+                            <img src="/images/fr_uninstall_2.png" alt="Étape B" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        </div>
+                        <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Étape C :</strong> Cliquez sur le bouton "Supprimer de Chrome".</p>
+                            <img src="/images/fr_uninstall_3.png" alt="Étape C" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        </div>
+                        <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Étape D :</strong> Une petite fenêtre s'ouvrira en haut de l'écran. Cliquez sur le bouton "Supprimer" pour confirmer.</p>
+                            <img src="/images/fr_uninstall_4.png" alt="Étape D" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -291,7 +305,7 @@ const i18n = {
         termination_raison_max_temps: "La session a expiré après avoir atteint la limite maximale de temps autorisée (4 heures).",
         termination_instructions: "Conformément à vos choix ou aux règles de l'étude, les données associées ont été traitées (supprimées ou sécurisées). Vous devez maintenant désinstaller l'extension de votre navigateur en suivant les étapes ci-dessous.",
         termination_raison_stopped_by_user: "Vous avez choisi d'arrêter manuellement l'expérience depuis l'extension. Conformément au protocole, les données de navigation récoltées lors de cette session vont être supprimées.",
-        
+        desinstaller_txt: "Désinstaller l'extension",
 
         // --- Sécurité et Limite de temps ---
         limite_inactivite: "La collecte de données s'est arrêtée suite à 1 heure d'inactivité.",
@@ -404,7 +418,7 @@ const i18n = {
         demo_scol_doctorat: "Ph.D.",
         demo_scol_autre: "Other",
         demo_compensation: "How would you like to receive your compensation? (we will contact you after the study for details)",
-        demo_pay_interac: "Interac e-Transfer (email above)",
+        demo_pay_interac: "Interac e-Transfer",
         demo_pay_pickup: "Pick up at Université Laval",
         demo_pay_cheque: "Cheque by mail",
         demo_err_champs: "Please fill out all fields.",
@@ -550,42 +564,56 @@ const i18n = {
         fin_texte: `
             <div style="margin-top:32px; padding:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; text-align:left;">
                 <h3 style="margin:0 0 16px; font-size:18px; color:#dc2626;">Last crucial step: Uninstall the extension</h3>
-                <p style="font-size:14px; color:#475569; margin-bottom:12px;">The study is now complete. You must remove the extension from your browser.</p>
+                <p style="font-size:14px; color:#475569; margin-bottom:12px;">The study is now complete. You must remove the extension from your browser to complete the process.</p>
                 
-                <p style="font-size:13px; color:#b91c1c; font-weight:600; margin-bottom:20px; background:#fee2e2; padding:12px; border-radius:6px; border:1px dashed #fca5a5; line-height:1.5;">
+                <p style="font-size:13px; color:#b91c1c; font-weight:600; margin-bottom:24px; background:#fee2e2; padding:12px; border-radius:6px; border:1px dashed #fca5a5; line-height:1.5;">
                     If you encounter any problems uninstalling the extension, contact the team at the following email address: <a href="mailto:LEILAH@ulaval.ca">LEILAH@ulaval.ca</a>. But do not worry, even if it remains installed, the extension will no longer collect any data.
                 </p>
 
-                <div style="display:flex; flex-direction:column; gap:20px; margin-bottom:20px;">
-                    <!-- STEP 1 -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Step 1:</strong> Click on the extensions icon.
-                        </p>
-                        <img src="/images/en_uninstall_1.png" alt="Step 1" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <!-- METHOD 1 (PRIMARY AND FAST) -->
+                <div style="background:#fff; border:1px solid #cbd5e1; border-left:4px solid #ef4444; border-radius:8px; padding:16px; margin-bottom:20px;">
+                    <h4 style="margin:0 0 12px 0; font-size:16px; color:#1e293b;">
+                        ⚡ Method 1: Instant Uninstallation (Recommended)
+                    </h4>
+                    <p style="margin:0 0 14px 0; font-size:14px; color:#475569; line-height:1.5;">
+                        <strong>Step 1:</strong> Click the red button below to trigger the uninstallation:
+                        <br>
+                        <button id="btnUninstallFromPage" style="margin-top:10px; padding:12px 24px; font-weight:bold; background-color:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; display:inline-block; font-family:inherit; font-size:14px;">🗑️ Uninstall the extension</button>
+                    </p>
+                    <p style="margin:14px 0 10px 0; font-size:14px; color:#475569; line-height:1.5;">
+                        <strong>Step 2:</strong> Confirm the deletion in the native dialog box that appears at the top of your screen by clicking <strong>"Remove"</strong>.
+                    </p>
+                    <div style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; text-align:center; margin-top:10px;">
+                        <span style="font-size:12px; color:#64748b; font-style:italic;">[Native uninstallation confirmation image - Placeholder]</span>
                     </div>
+                </div>
 
-                    <!-- STEP 2 -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Step 2:</strong> Click on "Click on the 3 points button".
-                        </p>
-                        <img src="/images/en_uninstall_2.png" alt="Step 2" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                    </div>
+                <!-- METHOD 2 (ALTERNATIVE AND MANUAL) -->
+                <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:16px; margin-bottom:10px;">
+                    <h4 style="margin:0 0 12px 0; font-size:15px; color:#475569;">
+                        🧩 Method 2: Manual Uninstallation (Alternative)
+                    </h4>
+                    <p style="font-size:13px; color:#64748b; margin-top:-8px; margin-bottom:16px;">
+                        <em>Only use this method if the red button above does not respond.</em>
+                    </p>
 
-                    <!-- STEP 3 -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Step 3:</strong> Click now on the "Remove from Chrome" button.
-                        </p>
-                        <img src="/images/en_uninstall_3.png" alt="Step 3" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                    </div>
-                    <!-- STEP 4 -->
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px;">
-                        <p style="margin:0 0 10px 0; font-size:15px; color:#334155;">
-                            <strong style="color:#3b82f6;">Step 4:</strong> A small window will appear at the top of the screen. Click on the "Remove" button to confirm.
-                        </p>
-                        <img src="/images/en_uninstall_4.png" alt="Step 4" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="display:flex; flex-direction:column; gap:16px;">
+                        <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Step A:</strong> Click on the extensions icon (puzzle piece menu) in the top-right corner.</p>
+                            <img src="/images/en_uninstall_1.png" alt="Step A" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        </div>
+                        <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Step B:</strong> Click on the 3 dots button next to the study extension.</p>
+                            <img src="/images/en_uninstall_2.png" alt="Step B" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        </div>
+                        <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Step C:</strong> Click now on the "Remove from Chrome" button.</p>
+                            <img src="/images/en_uninstall_3.png" alt="Step C" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        </div>
+                        <div style="border-top:1px solid #f1f5f9; padding-top:12px;">
+                            <p style="margin:0 0 8px 0; font-size:13px; color:#334155;"><strong>Step D:</strong> A small window will appear at the top of the screen. Click on the "Remove" button to confirm.</p>
+                            <img src="/images/en_uninstall_4.png" alt="Step D" style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -597,6 +625,8 @@ const i18n = {
         termination_raison_max_temps: "The session expired after reaching the maximum 4-hour time limit.",
         termination_instructions: "In accordance with your choices or study guidelines, the corresponding data has been handled (deleted or secured). Please proceed to uninstall the extension from your browser by following the steps below.",
         termination_raison_stopped_by_user: "You chose to manually stop the experience from the extension. In accordance with the protocol, navigation data collected during this session will be deleted.",
+        desinstaller_txt: "Uninstall the extension",
+        
         // --- Security and Time limits ---
         limite_inactivite: "Data collection stopped due to 1 hour of inactivity.",
         limite_max_temps: "Data collection stopped because the maximum allowed duration of 4 hours has elapsed.",

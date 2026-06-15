@@ -183,16 +183,16 @@
             '<h1 style="color:#dc2626;">' + t('termination_titre') + '</h1>' +
             '<p style="font-size:1.1em; margin:20px 0; font-weight:600; color:#475569;">' + reasonText + '</p>' +
             '<p style="margin-bottom:24px; color:#64748b;">' + t('termination_instructions') + '</p>' +
-            t('fin_texte') +
-            '<div style="margin-top:30px; text-align:center;">' +
-            '<button class="btn btn-danger" id="btnUninstallFromPage" style="padding:12px 24px; font-weight:bold; background-color:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">🗑️ Désinstaller l\'extension</button>' +
-            '</div>' +
+            t('fin_texte') + // Contient le bloc complet avec le bouton intégré
             '</div>';
 
-        // Écouteur d'événement pour le clic de désinstallation
-        document.getElementById('btnUninstallFromPage').addEventListener('click', function() {
-            window.postMessage({ type: 'REQUEST_UNINSTALL' }, window.location.origin);
-        });
+        // Liaison de l'écouteur d'événement sur le bouton injecté dans le bloc i18n
+        const btn = document.getElementById('btnUninstallFromPage');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                window.postMessage({ type: 'REQUEST_UNINSTALL' }, window.location.origin);
+            });
+        }
 
         // Nettoyage complet et immédiat des caches de la page
         localStorage.removeItem('questionnaire_progress');
@@ -803,18 +803,18 @@
             '<div class="end-screen">' +
             '<h1>' + t('fin_titre') + '</h1>' +
             '<p style="font-size:1.1em; margin:20px 0;">' + t('fin_soustitre') + '</p>' +
-            t('fin_texte') +
-            '<div style="margin-top:30px; text-align:center;">' +
-            '<button class="btn btn-danger" id="btnUninstallFromPage" style="padding:12px 24px; font-weight:bold; background-color:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer;">🗑️ Désinstaller l\'extension</button>' +
-            '</div>' +
+            t('fin_texte') + // Contient le bloc complet avec le bouton intégré
             '</div>';
 
         window.postMessage({ type: 'QUESTIONNAIRE_COMPLETED' }, '*');
         
-        // Écouteur d'événement pour le clic de désinstallation
-        document.getElementById('btnUninstallFromPage').addEventListener('click', function() {
-            window.postMessage({ type: 'REQUEST_UNINSTALL' }, window.location.origin);
-        });
+        // Liaison de l'écouteur d'événement sur le bouton injecté dans le bloc i18n
+        const btn = document.getElementById('btnUninstallFromPage');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                window.postMessage({ type: 'REQUEST_UNINSTALL' }, window.location.origin);
+            });
+        }
         
         // Nettoyage complet et immédiat des caches de la page
         localStorage.removeItem('questionnaire_progress');
