@@ -308,6 +308,9 @@ async function apiCall(path) {
 // =========================================================
 // CHARGER LES DONNÉES DU TABLEAU
 // =========================================================
+// =========================================================
+// CHARGER LES DONNÉES DU TABLEAU
+// =========================================================
 async function refreshData() {
     try {
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
@@ -320,7 +323,7 @@ async function refreshData() {
         sessionsTable.innerHTML = '';
 
         if (!data.sessions || data.sessions.length === 0) {
-            sessionsTable.innerHTML = '<tr><td colspan="7" class="empty">Aucune donnée collectée</td></tr>';
+            sessionsTable.innerHTML = '<tr><td colspan="9" class="empty">Aucune donnée collectée</td></tr>';
             document.getElementById('totalEvents').textContent = '0';
             return;
         }
@@ -342,6 +345,18 @@ async function refreshData() {
 
             const cellPid = document.createElement('td');
             cellPid.innerHTML = '<strong>' + pid + '</strong>';
+
+            // Nouvelle cellule Consentement C1
+            const cellC1 = document.createElement('td');
+            cellC1.textContent = s.c1 || "Non spécifié";
+            if (s.c1 && s.c1.includes('✅')) cellC1.style.color = '#34d399';
+            if (s.c1 && s.c1.includes('❌')) cellC1.style.color = '#f87171';
+
+            // Nouvelle cellule Consentement C2
+            const cellC2 = document.createElement('td');
+            cellC2.textContent = s.c2 || "Non spécifié";
+            if (s.c2 && s.c2.includes('✅')) cellC2.style.color = '#34d399';
+            if (s.c2 && s.c2.includes('🚨')) cellC2.style.color = '#f87171';
             
             const cellEvents = document.createElement('td');
             cellEvents.textContent = s.nbEvenements;
@@ -376,6 +391,8 @@ async function refreshData() {
 
             row.appendChild(cellCheck);
             row.appendChild(cellPid);
+            row.appendChild(cellC1);
+            row.appendChild(cellC2);
             row.appendChild(cellEvents);
             row.appendChild(cellPages);
             row.appendChild(cellClics);

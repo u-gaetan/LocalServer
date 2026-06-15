@@ -158,14 +158,22 @@ router.get('/export/participant/:id', adminLimiter, validateParamId('id'), async
     try {
         const events = await Evenement.find({ participantId: req.params.id })
             .sort({ timestamp: 1 }).lean();
-        if (events.length === 0) {
+        
+        const includeResponses = req.query.include_responses === 'true';
+        let reponses = [];
+
+        if (includeResponses) {
+            const Reponse = require('../models/Reponse');
+            reponses = await Reponse.find({ participantId: req.params.id })
+                .sort({ timestamp: 1 }).lean();
+        }
+
+        // Si aucun événement ni réponse n'est trouvé, renvoyer une erreur 404
+        if (events.length === 0 && (!includeResponses || reponses.length === 0)) {
             return res.status(404).json({ erreur: "Participant non trouvé." });
         }
 
-        if (req.query.include_responses === 'true') {
-            const Reponse = require('../models/Reponse');
-            const reponses = await Reponse.find({ participantId: req.params.id })
-                .sort({ timestamp: 1 }).lean();
+        if (includeResponses) {
             return res.json({
                 participantId: req.params.id,
                 events,
@@ -178,7 +186,6 @@ router.get('/export/participant/:id', adminLimiter, validateParamId('id'), async
         res.status(500).json({ erreur: err.message });
     }
 });
-
 
 router.get('/export/session/:id', adminLimiter, validateParamId('id'), async (req, res) => {
     try {
@@ -210,26 +217,113 @@ router.get('/export/session/:id', adminLimiter, validateParamId('id'), async (re
 
 
 // =========================================================
-// 📊 RÉSUMÉ pour le dashboard admin
+// 📊 RÉSUMÉ pour le dashboard admin (Fusion Evenement + Reponse)
 // =========================================================
 router.get('/resume', adminLimiter, async (req, res) => {
     try {
-        const summary = await Evenement.aggregate([
+        // 1. Aggréger les données de la collection Evenement
+        const eventSummary = await Evenement.aggregate([
             {
                 $group: {
-                    _id: { participant: "$participantId" },
+                    _id: "$participantId",
                     nbEvenements: { $sum: 1 },
                     debut: { $min: "$timestamp" },
                     nbPages: { $sum: { $cond: [{ $eq: ["$type", "navigation"] }, 1, 0] } },
                     nbClics: { $sum: { $cond: [{ $eq: ["$type", "clic"] }, 1, 0] } }
                 }
-            },
-            { $sort: { debut: -1 } }
+            }
         ]);
 
+        // 2. Récupérer les informations de consentement de la collection Reponse
+        const Reponse = require('../models/Reponse');
+        const consents = await Reponse.find(
+            { type: { $in: ['consent', 'deception_consent'] } },
+            { participantId: 1, type: 1, data: 1, timestamp: 1 }
+        ).lean();
+
+        // Récupérer tous les participants de la collection Reponse
+        const allRepParticipants = await Reponse.aggregate([
+            {
+                $group: {
+                    _id: "$participantId",
+                    debut: { $min: "$timestamp" }
+                }
+            }
+        ]);
+
+        // Structurer la map des consentements par participant
+        const consentMap = {};
+        consents.forEach(r => {
+            const pid = r.participantId;
+            if (!pid) return;
+            if (!consentMap[pid]) {
+                consentMap[pid] = { c1: "Non spécifié", c2: "Non spécifié" };
+            }
+            if (r.type === 'consent') {
+                consentMap[pid].c1 = (r.data && r.data.consent) ? "✅ Accepté" : "❌ Refusé";
+            }
+            if (r.type === 'deception_consent') {
+                consentMap[pid].c2 = (r.data && r.data.decision === 'maintain') ? "✅ Maintenu" : "🚨 RETIRÉ";
+            }
+        });
+
+        // Fusionner les données de tous les participants uniques
+        const participantMap = {};
+
+        // Ajout des participants de la collection Evenement
+        eventSummary.forEach(item => {
+            const pid = item._id;
+            if (pid) {
+                participantMap[pid] = {
+                    _id: { participant: pid },
+                    nbEvenements: item.nbEvenements,
+                    debut: item.debut,
+                    nbPages: item.nbPages,
+                    nbClics: item.nbClics,
+                    c1: "Non spécifié",
+                    c2: "Non spécifié"
+                };
+            }
+        });
+
+        // Ajout/Mise à jour avec les participants uniquement présents dans la collection Reponse
+        allRepParticipants.forEach(item => {
+            const pid = item._id;
+            if (pid) {
+                if (!participantMap[pid]) {
+                    participantMap[pid] = {
+                        _id: { participant: pid },
+                        nbEvenements: 0,
+                        debut: item.debut,
+                        nbPages: 0,
+                        nbClics: 0,
+                        c1: "Non spécifié",
+                        c2: "Non spécifié"
+                    };
+                } else if (!participantMap[pid].debut || new Date(item.debut) < new Date(participantMap[pid].debut)) {
+                    participantMap[pid].debut = item.debut;
+                }
+            }
+        });
+
+        // Attacher les états de consentement (C1 et C2) à la carte globale
+        Object.keys(consentMap).forEach(pid => {
+            if (participantMap[pid]) {
+                participantMap[pid].c1 = consentMap[pid].c1;
+                participantMap[pid].c2 = consentMap[pid].c2;
+            }
+        });
+
+        // Convertir en tableau trié du plus récent au plus ancien
+        const mergedSummary = Object.values(participantMap).sort((a, b) => {
+            const dateA = a.debut ? new Date(a.debut) : new Date(0);
+            const dateB = b.debut ? new Date(b.debut) : new Date(0);
+            return dateB - dateA;
+        });
+
         res.json({
-            totalParticipants: summary.length,
-            sessions: summary
+            totalParticipants: mergedSummary.length,
+            sessions: mergedSummary
         });
     } catch (err) {
         res.status(500).json({ erreur: err.message });
