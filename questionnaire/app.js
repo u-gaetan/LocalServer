@@ -357,11 +357,6 @@
                     <span class="detection-text">${t('tuto_statut_attente')}</span>
                 </div>
 
-                <!-- Message d'aide en cas d'onglet déjà ouvert avant installation -->
-                <p class="refresh-warning" style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: -10px; margin-bottom: 20px;">
-                    💡 Si vous venez tout juste d'activer l'extension, veuillez rafraîchir cette page pour terminer l'installation.
-                </p>
-
                 <div class="tutorial-steps">
                     <div class="tuto-step">
                         <h3>1. ${t('tuto_etape1_titre')}</h3>
