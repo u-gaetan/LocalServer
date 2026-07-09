@@ -366,11 +366,20 @@
 
                 <div class="tutorial-steps">
                     <div class="tuto-step">
-                        <h3>1. ${t('tuto_etape1_titre')}</h3>
-                        <p>${t('tuto_etape1_texte')}</p>
-                        <a href="https://chrome.google.com/webstore/detail/placeholder" target="_blank" class="btn btn-success" style="margin-top:10px; display:inline-block;">
+                        <h3>1. ${t('tuto_etape0_titre')}</h3>
+                        <p>${t('tuto_etape0_texte')}</p>
+                        <a href="https://chromewebstore.google.com/detail/%C3%A9tude-navigation-web-%E2%80%94-un/pmoefbopcbaojmfobgkgbdbllpihhfec" target="_blank" class="btn btn-success" style="margin-top:10px; display:inline-block;">
                             📥 ${t('tuto_bouton_telecharger')}
                         </a>
+                    </div>
+
+                    <div class="tuto-step">
+                        <h3>2. ${t('tuto_etape1_titre')}</h3>
+                        <p>${t('tuto_etape1_texte')}</p>
+                        <img src="/images/fr_install_0.png"
+                            alt="step 2"
+                            style="max-width:100%; border:1px solid #cbd5e1; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.1);"
+                            loading="lazy">
                     </div>
 
                     <div class="tuto-step">
