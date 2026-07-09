@@ -375,7 +375,7 @@
 
 
                     <div class="tuto-step">
-                        <h3>3. ${t('tuto_etape1_titre')}</h3>
+                        <h3>2. ${t('tuto_etape1_titre')}</h3>
                         <p>${t('tuto_etape1_texte')}</p>
                         <img src="/images/fr_install_0.png"
                             alt="step 2"
@@ -384,7 +384,7 @@
                     </div>
 
                     <div class="tuto-step">
-                        <h3>2. ${t('tuto_etape1_5_titre')}</h3>
+                        <h3>3. ${t('tuto_etape1_5_titre')}</h3>
                         <p>${t('tuto_etape1_5_texte')}</p>
                         <img src="/images/fr_install_0.5.png"
                             alt="step 3 "
