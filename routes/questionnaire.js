@@ -138,6 +138,14 @@ router.post('/reponse', participantLimiter, auth, async (req, res) => {
     try {
         const { participantId, type, questionId, difficulty, data, timestamp } = req.body;
 
+        console.log('[reponse reçue]', {
+            participantId,
+            type,
+            event: data && data.event,
+            language: data && data.language
+        });
+
+
         if (!participantId || !PARTICIPANT_ID_RE.test(participantId)) {
             return res.status(400).json({ erreur: 'participantId invalide.' });
         }
@@ -192,13 +200,25 @@ router.post('/reponse', participantLimiter, auth, async (req, res) => {
         }
 
         if (isCompletionEvent && !alreadyHadCompletionEvent) {
+            console.log('[completion] Événement de fin détecté, envoi email...', {
+                participantId,
+                language: data.language
+            });
+
             sendCompletionEmail({
                 participantId,
                 language: data.language
+            }).then(() => {
+                console.log('[completion-email] Email envoyé avec succès.');
             }).catch(err => {
-                console.error('[completion-email]', err.message);
+                console.error('[completion-email] Erreur:', err);
+            });
+        } else if (isCompletionEvent && alreadyHadCompletionEvent) {
+            console.log('[completion] Événement déjà existant, email non renvoyé.', {
+                participantId
             });
         }
+
 
         res.status(200).json({
             message: 'Réponse enregistrée.',

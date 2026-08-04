@@ -44,16 +44,25 @@ function getTransporter() {
 }
 
 async function sendCompletionEmail({ participantId, language }) {
+    console.log('[emailService] Tentative envoi email...', {
+        participantId,
+        language,
+        smtpHost: process.env.SMTP_HOST,
+        smtpUser: process.env.SMTP_USER,
+        smtpFrom: process.env.SMTP_FROM,
+        recipients: process.env.COMPLETION_EMAIL_TO
+    });
+
     const mailer = getTransporter();
 
     if (!mailer) {
-        console.log('[emailService] Courriel de complétion non envoyé : configuration SMTP absente.');
+        console.log('[emailService] Email non envoyé : configuration SMTP absente.');
         return;
     }
 
     const recipients = getRecipients();
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
         from: process.env.SMTP_FROM,
         to: recipients,
         subject: `[Questionnaire] Complétion participant ${participantId}`,
@@ -64,7 +73,15 @@ Participant : ${participantId}
 Langue : ${language || 'non précisée'}
 Date UTC : ${new Date().toISOString()}`
     });
+
+    console.log('[emailService] Résultat envoi:', {
+        messageId: info.messageId,
+        accepted: info.accepted,
+        rejected: info.rejected,
+        response: info.response
+    });
 }
+
 
 module.exports = {
     sendCompletionEmail
