@@ -8,35 +8,66 @@ const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const { getSecrets } = require('../config/keyVault');
 
+const {
+    drawBalancedQuestions,
+    markResearchQuestionCompleted
+} = require('../services/questionBankService');
+
+const {
+    sendCompletionEmail
+} = require('../services/emailService');
+
 const participantLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 60,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: getCleanIp,                    // ← utilise ta fonction
-    validate: { trustProxy: false, ip: false },  // ← empêche le crash Azure
+    keyGenerator: getCleanIp,
+    validate: { trustProxy: false, ip: false },
     message: { erreur: "Trop de requêtes. Patientez." }
 });
 
-
 const PARTICIPANT_ID_RE = /^P-[a-z0-9]{7,10}-[a-z0-9]{4}$/;
+
 const ALLOWED_TYPES = new Set([
     'consent', 'deception_consent',
     'demographics', 'research_answer', 'self_assessment',
     'memory_answer', 'questionnaire_event', 'internet_skills'
 ]);
 
+function getTokenParticipantId(req) {
+    return (
+        req.user?.participantId ||
+        req.participant?.participantId ||
+        req.auth?.participantId ||
+        req.participantId ||
+        null
+    );
+}
+
+function participantMatchesToken(req, participantId) {
+    const tokenParticipantId = getTokenParticipantId(req);
+
+    // Si le middleware auth ne publie pas l'id sur req, on ne bloque pas.
+    // Le JWT reste tout de même vérifié par auth.
+    if (!tokenParticipantId) return true;
+
+    return tokenParticipantId === participantId;
+}
+
+function normalizeLanguage(language) {
+    return language === 'en' ? 'en' : 'fr';
+}
+
 // Génération et signature d'une session participant vierge
 router.post('/init-session', participantLimiter, async (req, res) => {
     try {
         const secrets = getSecrets();
-        
-        // Génération du participantId : P-[timestamp Base36]-[random]
+
         const timestamp = Date.now().toString(36);
         const random = Math.random().toString(36).slice(2, 6);
         const participantId = `P-${timestamp}-${random}`;
 
-        // Signature du jeton d'accès pour ce participant
         const token = jwt.sign(
             { participantId, role: 'participant' },
             secrets.jwtSecret,
@@ -49,17 +80,17 @@ router.post('/init-session', participantLimiter, async (req, res) => {
     }
 });
 
-// --- NOUVEAU : Route pour distribuer un JWT temporaire au Participant ---
+// Route pour distribuer un JWT temporaire au participant
 router.post('/token', participantLimiter, async (req, res) => {
     try {
         const { participantId } = req.body;
+
         if (!participantId || !PARTICIPANT_ID_RE.test(participantId)) {
             return res.status(400).json({ erreur: 'Format du participantId invalide.' });
         }
 
         const secrets = getSecrets();
-        
-        // Signature du jeton d'accès pour le participant
+
         const token = jwt.sign(
             { participantId, role: 'participant' },
             secrets.jwtSecret,
@@ -72,7 +103,37 @@ router.post('/token', participantLimiter, async (req, res) => {
     }
 });
 
-// --- SÉCURISÉ : Soumission d'une réponse (Requiert désormais le Jeton JWT) ---
+// Nouveau : tirage équilibré depuis les fichiers Excel
+router.post('/draw-questions', participantLimiter, auth, async (req, res) => {
+    try {
+        const { participantId, language } = req.body;
+
+        if (!participantId || !PARTICIPANT_ID_RE.test(participantId)) {
+            return res.status(400).json({ erreur: 'participantId invalide.' });
+        }
+
+        if (!participantMatchesToken(req, participantId)) {
+            return res.status(403).json({ erreur: 'Participant non autorisé pour ce jeton.' });
+        }
+
+        const lang = normalizeLanguage(language);
+
+        const draw = await drawBalancedQuestions({
+            participantId,
+            language: lang
+        });
+
+        res.json(draw);
+    } catch (err) {
+        console.error('[draw-questions]', err);
+        res.status(500).json({
+            erreur: 'Erreur lors du tirage des questions.',
+            details: process.env.NODE_ENV === 'production' ? undefined : err.message
+        });
+    }
+});
+
+// Soumission d'une réponse
 router.post('/reponse', participantLimiter, auth, async (req, res) => {
     try {
         const { participantId, type, questionId, difficulty, data, timestamp } = req.body;
@@ -80,14 +141,38 @@ router.post('/reponse', participantLimiter, auth, async (req, res) => {
         if (!participantId || !PARTICIPANT_ID_RE.test(participantId)) {
             return res.status(400).json({ erreur: 'participantId invalide.' });
         }
+
+        if (!participantMatchesToken(req, participantId)) {
+            return res.status(403).json({ erreur: 'Participant non autorisé pour ce jeton.' });
+        }
+
         if (!type || !ALLOWED_TYPES.has(type)) {
             return res.status(400).json({ erreur: `type invalide : "${type}"` });
         }
+
         if (!data || typeof data !== 'object') {
             return res.status(400).json({ erreur: 'data doit être un objet.' });
         }
+
         if (!timestamp || isNaN(Date.parse(timestamp))) {
             return res.status(400).json({ erreur: 'timestamp invalide.' });
+        }
+
+        const isCompletionEvent =
+            type === 'questionnaire_event' &&
+            data &&
+            data.event === 'questionnaire_completed';
+
+        let alreadyHadCompletionEvent = false;
+
+        if (isCompletionEvent) {
+            const existingCompletion = await Reponse.findOne({
+                participantId,
+                type: 'questionnaire_event',
+                'data.event': 'questionnaire_completed'
+            }).lean();
+
+            alreadyHadCompletionEvent = Boolean(existingCompletion);
         }
 
         const filter = { participantId, type };
@@ -99,20 +184,39 @@ router.post('/reponse', participantLimiter, auth, async (req, res) => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
+        if (type === 'research_answer' && questionId) {
+            await markResearchQuestionCompleted({
+                participantId,
+                questionId
+            });
+        }
+
+        if (isCompletionEvent && !alreadyHadCompletionEvent) {
+            sendCompletionEmail({
+                participantId,
+                language: data.language
+            }).catch(err => {
+                console.error('[completion-email]', err.message);
+            });
+        }
+
         res.status(200).json({
             message: 'Réponse enregistrée.',
             id: reponse._id
         });
 
     } catch (err) {
+        console.error('[reponse]', err);
+
         if (err.code === 11000) {
             return res.status(200).json({ message: 'Réponse déjà enregistrée.' });
         }
+
         res.status(500).json({ erreur: "Erreur serveur." });
     }
 });
 
-// --- SÉCURISÉ : Routes d'administration ---
+// Routes d'administration
 router.get('/resultats', auth, adminLimiter, async (req, res) => {
     try {
         const summary = await Reponse.aggregate([
@@ -126,6 +230,7 @@ router.get('/resultats', auth, adminLimiter, async (req, res) => {
             },
             { $sort: { debut: -1 } }
         ]);
+
         res.json({ total: summary.length, resultats: summary });
     } catch (err) {
         res.status(500).json({ erreur: err.message });
@@ -135,10 +240,13 @@ router.get('/resultats', auth, adminLimiter, async (req, res) => {
 router.get('/resultats/:participantId', auth, adminLimiter, async (req, res) => {
     try {
         const pid = req.params.participantId;
+
         if (!PARTICIPANT_ID_RE.test(pid)) {
             return res.status(400).json({ erreur: 'participantId invalide.' });
         }
+
         const reponses = await Reponse.find({ participantId: pid }).sort({ timestamp: 1 }).lean();
+
         res.json({ participantId: pid, count: reponses.length, reponses });
     } catch (err) {
         res.status(500).json({ erreur: err.message });

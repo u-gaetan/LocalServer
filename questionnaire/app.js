@@ -1,4 +1,8 @@
 // questionnaire/app.js (Modifié)
+var RESEARCH_WORD_MIN = 150;
+var RESEARCH_WORD_MAX = 200;
+var RESEARCH_TIME_LIMIT_SECONDS = 720;
+var RESEARCH_WARNING_SECONDS = 600;
 
 (function () {
     'use strict';
@@ -202,8 +206,8 @@
 
 
     function updateProgress() {
-        var totalResearch = state.researchQuestions.length || 3;
-        var totalMemory = state.memoryQuestions.length || 6;
+        var totalResearch = state.researchQuestions.length || 5;
+        var totalMemory = state.memoryQuestions.length || 5;
         var hiddenPhases = ['language', 'consent', 'tutorial', 'terminated']; 
         var total = (totalResearch * 2) + 1 + 1 + totalMemory + 1 + 1;
         var current = 0;
@@ -243,20 +247,26 @@
             updateTimerDisplay();
 
             if (currentTimerPhase === 'research') {
-                if (elapsedSeconds < 480) timerEl.className = 'timer green';
-                else if (elapsedSeconds < 600) timerEl.className = 'timer orange';
-                else timerEl.className = 'timer red blink';
+                if (elapsedSeconds < 480) {
+                    timerEl.className = 'timer green';
+                } else if (elapsedSeconds < RESEARCH_WARNING_SECONDS) {
+                    timerEl.className = 'timer orange';
+                } else {
+                    timerEl.className = 'timer red blink';
+                }
 
-                if (elapsedSeconds === 600 && !popup10MinShown) {
+                if (elapsedSeconds >= RESEARCH_WARNING_SECONDS && !popup10MinShown) {
                     popup10MinShown = true;
                     alert(t('alert_10_min_warning'));
                 }
-                if (elapsedSeconds >= 720) {
+
+                if (elapsedSeconds >= RESEARCH_TIME_LIMIT_SECONDS) {
                     clearInterval(timerInterval);
                     alert(t('alert_temps_ecoule_recherche'));
                     forceSubmitResearch();
                 }
-            } 
+            }
+
             else if (currentTimerPhase === 'memory') {
                 if (elapsedSeconds < 45) timerEl.className = 'timer green';
                 else timerEl.className = 'timer red blink';
@@ -277,7 +287,14 @@
         var s = String(elapsedSeconds % 60).padStart(2, '0');
         timerEl.textContent = m + ':' + s;
     }
-    function countWords(str) { return str.trim().split(/\s+/).filter(w => w.length > 0).length; }
+    function countWords(str) {
+        return String(str || '')
+            .trim()
+            .split(/\s+/)
+            .filter(function (w) { return w.length > 0; })
+            .length;
+    }
+
 
     function getNavCount() {
         return new Promise(resolve => {
@@ -518,13 +535,28 @@
                 return;
             }
 
-            state.demographics = { email, age: parseInt(age), langue: lang, niveau_etudes: niveau, paiement: payment };
+            state.demographics = {
+                email: email,
+                age: parseInt(age),
+                langue: lang,
+                niveau_etudes: niveau,
+                paiement: payment
+            };
+
             await sendToServer('demographics', null, null, state.demographics);
 
-            var drawn = drawQuestions();
-            state.researchQuestions = drawn.researchQuestions;
-            state.memoryQuestions = drawn.memoryQuestions;
-            goTo('instructions');
+            try {
+                await fetchBalancedQuestionsFromServer();
+                saveProgress();
+                goTo('instructions');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('demoErr').textContent = state.language === 'en'
+                    ? 'An error occurred while loading the questions. Please contact the research team.'
+                    : 'Une erreur est survenue lors du chargement des questions. Veuillez contacter l’équipe de recherche.';
+                document.getElementById('demoErr').style.display = 'block';
+            }
+
         });
     }
 
@@ -569,7 +601,10 @@
     function renderResearchQuestion() {
         var idx = state.currentResearchIndex;
         var q = state.researchQuestions[idx];
-        var qText = q.text[state.language] || q.text['fr'];
+
+        var qText = typeof q.text === 'object'
+            ? (q.text[state.language] || q.text['fr'] || q.text['en'] || '')
+            : q.text;
 
         app.innerHTML =
             '<h2>' + t('recherche_titre', { index: idx + 1, total: state.researchQuestions.length }) + '</h2>' +
@@ -584,55 +619,129 @@
         var wc = document.getElementById('wordCount');
 
         var existing = state.answers[idx];
-        if (existing) textarea.value = existing.data.answer;
+        if (existing && existing.data && existing.data.answer) {
+            textarea.value = existing.data.answer;
+        }
 
-        textarea.addEventListener('input', function () {
+        function updateWordCounter() {
             var count = countWords(textarea.value);
             wc.textContent = t('recherche_mots', { count: count });
-            if (count < 75) { 
-                wc.className = "word-counter red"; 
-                btn.disabled = (count === 0);
-            } else if (count >= 75 && count <= 100) { 
-                wc.className = "word-counter green"; 
-                btn.disabled = false; 
-            } else { 
-                wc.className = "word-counter red";
+
+            if (count >= RESEARCH_WORD_MIN && count <= RESEARCH_WORD_MAX) {
+                wc.className = "word-counter green";
                 btn.disabled = false;
+            } else {
+                wc.className = "word-counter red";
+                btn.disabled = true;
             }
-        });
+        }
+
+        textarea.addEventListener('input', updateWordCounter);
 
         btn.addEventListener('click', async function () {
+            var text = textarea.value.trim();
+            var count = countWords(text);
+
+            if (count < RESEARCH_WORD_MIN || count > RESEARCH_WORD_MAX) {
+                alert(t('alert_nb_mots_invalide'));
+                return;
+            }
+
             let hasResearched = await verifyResearchDone(state.questionStartTime);
+
             if (!hasResearched && !existing) {
                 var proceed = confirm(t('alert_pas_de_recherche'));
                 if (!proceed) return;
-            } 
-            processSubmitResearch(q, textarea.value); 
+            }
+
+            processSubmitResearch(q, text, false);
         });
         
         startTimer('research');
-        textarea.dispatchEvent(new Event('input'));
+        updateWordCounter();
     }
+
 
     function forceSubmitResearch() {
         var q = state.researchQuestions[state.currentResearchIndex];
-        var text = document.getElementById('answerText').value || "[Forced Timeout / Temps écoulé]";
-        processSubmitResearch(q, text);
+        var textarea = document.getElementById('answerText');
+
+        var text = textarea && textarea.value
+            ? textarea.value.trim()
+            : "[Forced Timeout / Temps écoulé]";
+
+        processSubmitResearch(q, text, true);
     }
 
-    async function processSubmitResearch(question, text) {
+
+    async function processSubmitResearch(question, text, forcedTimeout) {
         var timeSpent = stopTimer();
         var wordCount = countWords(text);
-        var data = { answer: text, wordCount: wordCount, timeSpentSeconds: timeSpent, forcedTimeout: timeSpent >= 720 };
-        state.answers[state.currentResearchIndex] = { questionId: question.id, data: data };
-        await sendToServer('research_answer', question.id, null, data);
+
+        var data = {
+            questionNumber: question.number || null,
+            language: state.language,
+            answer: text,
+            wordCount: wordCount,
+            timeSpentSeconds: timeSpent,
+            forcedTimeout: Boolean(forcedTimeout) || timeSpent >= RESEARCH_TIME_LIMIT_SECONDS
+        };
+
+        state.answers[state.currentResearchIndex] = {
+            questionId: question.id,
+            difficulty: question.difficulty || null,
+            data: data
+        };
+
+        await sendToServer('research_answer', question.id, question.difficulty || null, data);
         goTo('self_assessment');
     }
+
+
+    async function fetchBalancedQuestionsFromServer() {
+        const headers = { 'Content-Type': 'application/json' };
+
+        if (state.token) {
+            headers['Authorization'] = 'Bearer ' + state.token;
+        }
+
+        const response = await fetch(API_BASE + '/draw-questions', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+                participantId: state.participantId,
+                language: state.language
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error('Impossible de charger les questions : ' + errText);
+        }
+
+        const draw = await response.json();
+
+        state.researchQuestions = draw.researchQuestions || [];
+        state.memoryQuestions = draw.memoryQuestions || [];
+
+        if (state.researchQuestions.length !== 5) {
+            throw new Error('Le serveur doit retourner exactement 5 questions principales.');
+        }
+
+        if (state.memoryQuestions.length !== 5) {
+            throw new Error('Le serveur doit retourner exactement 5 questions de mémorisation.');
+        }
+        saveProgress();
+
+    }
+
 
     function renderSelfAssessment() {
         var idx = state.currentResearchIndex;
         var q = state.researchQuestions[idx];
-        var qText = q.text[state.language] || q.text['fr'];
+        var qText = typeof q.text === 'object'
+            ? (q.text[state.language] || q.text['fr'] || q.text['en'] || '')
+            : q.text;
 
         var html = '<h2>' + t('eval_titre') + '</h2><p>' + t('eval_concerne') + ' <em>' + qText + '</em></p>';
 
@@ -642,59 +751,75 @@
             '<div class="slider-container"><input type="range" id="k_base" class="slider" min="0" max="100" value="0"><div class="slider-value" id="vk_base">0</div></div>' +
             '<div class="slider-labels"><span>0</span><span>100</span></div></div>';
 
-        var confItems = t('q_confiance_items');
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
-            '<h3>' + t('q_confiance_titre') + '</h3>' +
-            '<p style="font-size:0.9em; color:#64748b; margin-bottom:10px;">' + t('q_confiance_legende') + '</p>' +
-            '<table class="likert-table"><tr><th>Énoncé / Statement</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>';
-        confItems.forEach(function(item, i) {
-            html += '<tr><td>' + item + '</td>';
-            for(var v=1; v<=5; v++) html += '<td><input type="radio" name="conf' + (i+1) + '" value="' + v + '"></td>';
-            html += '</tr>';
-        });
-        html += '</table>';
+            '<h3>' + t('q_difficulte_titre') + '</h3>' +
+            '<p style="font-size:0.9em; color:#64748b; margin-bottom:10px;">' + t('q_difficulte_item') + '</p>' +
+            '<div style="max-width:520px; margin:20px auto 10px auto;">' +
+                '<div style="display:grid; grid-template-columns:repeat(7, 1fr); align-items:end; gap:8px; margin-bottom:8px;">' +
+                    '<div style="grid-column:1 / 2; text-align:center; font-size:0.85em; color:#475569;">' + t('q_difficulte_facile') + '</div>' +
+                    '<div style="grid-column:7 / 8; text-align:center; font-size:0.85em; color:#475569;">' + t('q_difficulte_difficile') + '</div>' +
+                '</div>' +
+                '<div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:8px; text-align:center;">';
+
+        for (var d = 1; d <= 7; d++) {
+            html += '<label style="display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer;">' +
+                '<input type="radio" name="perceivedDifficulty" value="' + d + '">' +
+                '<span>' + d + '</span>' +
+            '</label>';
+        }
+
+        html += '</div></div>';
 
         var nasaItems = t('q_nasa_items');
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
             '<h3>' + t('q_nasa_titre') + '</h3>' +
             '<p style="font-size:0.9em; color:#64748b; margin-bottom:10px;">' + t('q_nasa_legende') + '</p>';
+
         nasaItems.forEach(function(item) {
             html += '<div class="slider-group"><label style="margin-bottom:4px;"><strong>' + item.titre + ' :</strong> ' + item.desc + '</label>' +
                 '<div class="slider-container"><input type="range" id="' + item.id + '" class="slider" min="1" max="100" value="1"><div class="slider-value" id="v' + item.id + '">1</div></div>' +
                 '<div class="slider-labels"><span>1</span><span>100</span></div></div>';
         });
 
-        html += '<button class="btn btn-primary" id="btnSubmitScale" style="margin-top:30px;">' + t('btn_valider_eval') + '</button><div id="evalErr" style="color:red; display:none; margin-top:10px;">' + t('eval_err_radio') + '</div>';
+        html += '<button class="btn btn-primary" id="btnSubmitScale" style="margin-top:30px;">' + t('btn_valider_eval') + '</button>' +
+            '<div id="evalErr" style="color:red; display:none; margin-top:10px;">' + t('eval_err_radio') + '</div>';
+
         app.innerHTML = html;
 
         bindSlider('k_base');
         nasaItems.forEach(function(item) { bindSlider(item.id); });
 
         document.getElementById('btnSubmitScale').addEventListener('click', async function () {
-            var c1 = document.querySelector('input[name="conf1"]:checked');
-            var c2 = document.querySelector('input[name="conf2"]:checked');
-            var c3 = document.querySelector('input[name="conf3"]:checked');
+            var perceivedDifficulty = document.querySelector('input[name="perceivedDifficulty"]:checked');
 
-            if (!c1 || !c2 || !c3) { document.getElementById('evalErr').style.display = 'block'; return; }
+            if (!perceivedDifficulty) {
+                document.getElementById('evalErr').style.display = 'block';
+                return;
+            }
 
             var payload = {
+                questionNumber: q.number || null,
+                language: state.language,
                 knowledgeBase: parseInt(document.getElementById('k_base').value),
-                confidenceAnswer: parseInt(c1.value),
-                confidenceUsedDigital: parseInt(c2.value),
-                confidenceSource: parseInt(c3.value)
+                perceivedDifficulty: parseInt(perceivedDifficulty.value)
             };
-            
-            nasaItems.forEach(function(item) { 
-                payload[item.id] = parseInt(document.getElementById(item.id).value); 
+
+            nasaItems.forEach(function(item) {
+                payload[item.id] = parseInt(document.getElementById(item.id).value);
             });
 
-            await sendToServer('self_assessment', q.id, null, payload);
+            await sendToServer('self_assessment', q.id, q.difficulty || null, payload);
 
             state.currentResearchIndex++;
-            if (state.currentResearchIndex < state.researchQuestions.length) goTo('research_question');
-            else goTo('internet_skills');
+
+            if (state.currentResearchIndex < state.researchQuestions.length) {
+                goTo('research_question');
+            } else {
+                goTo('internet_skills');
+            }
         });
     }
+
 
     function bindSlider(id) {
         var s = document.getElementById(id);
@@ -755,7 +880,10 @@
 
         var idx = state.currentMemoryIndex;
         var mq = state.memoryQuestions[idx];
-        var mqText = mq.text[state.language] || mq.text['fr'];
+        var mqText = typeof mq.text === 'object'
+            ? (mq.text[state.language] || mq.text['fr'] || mq.text['en'] || '')
+            : mq.text;
+
 
         app.innerHTML =
             '<h2>' + t('mem_titre', { index: idx + 1, total: state.memoryQuestions.length }) + '</h2>' +
@@ -778,7 +906,15 @@
 
     async function processSubmitMemory(memoryQ, text) {
         var timeSpent = stopTimer();
-        var payload = { sourceQuestionId: memoryQ.sourceQuestionId, answerText: text, timeSpentSeconds: timeSpent, forcedTimeout: timeSpent >= 60 };
+        var payload = {
+            sourceQuestionId: memoryQ.sourceQuestionId,
+            questionNumber: memoryQ.number || null,
+            language: state.language,
+            answerText: text,
+            timeSpentSeconds: timeSpent,
+            forcedTimeout: timeSpent >= 60
+        };
+
         await sendToServer('memory_answer', memoryQ.id, null, payload);
 
         state.currentMemoryIndex++;
@@ -841,7 +977,11 @@
         localStorage.removeItem('study_global_start');
         sessionStorage.clear();
         
-        sendToServer('questionnaire_event', null, null, { event: 'questionnaire_completed' });
+        sendToServer('questionnaire_event', null, null, {
+            event: 'questionnaire_completed',
+            language: state.language
+        });
+
         progressFill.style.width = '100%';
         progressText.textContent = '100%';
     }

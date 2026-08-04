@@ -116,25 +116,32 @@ const i18n = {
         instr_item_1: "<strong>Naviguez librement</strong> dans d'autres onglets (Google, Wikipédia, etc.) pour trouver vos informations.",
         instr_item_2: "<strong style='color:#dc2626;'>Règles strictes :</strong> La navigation privée est interdite. L'usage d'Intelligences Artificielles (ChatGPT, Gemini, Claude, etc.) est <strong>strictement interdit</strong>.",
         instr_item_3: "L'étude doit être réalisée <strong>d'une seule traite</strong> (en une seule session continue).",
-        instr_item_4: "Vous avez 10 min pour répondre à chaque question. Votre réponse devrait idéalement faire <strong>entre 75 et 100 mots</strong> (un indicateur visuel vous guidera, mais vous pouvez valider votre texte même s'il est plus court ou plus long).",
+        instr_item_4: "Vous avez 12 minutes pour répondre à chaque question. Votre réponse doit faire entre <strong>150 et 200 mots</strong>. Une réponse de moins de 150 mots ou de plus de 200 mots ne peut pas être soumise manuellement.",
         instr_item_5: "La collecte de données se coupe automatiquement après <strong>1 heure d'inactivité</strong> ou après un maximum de <strong>4 heures d'activité</strong> (c'est une sécurité, l'étude prend en réalité beaucoup moins de temps que cela !).",
         btn_commencer: "Commencer",
 
         // --- Questions de Recherche ---
         recherche_titre: "Question {index} / {total}",
-        recherche_instructions: "Cherchez la réponse sur Internet puis rédigez-la ici (75 à 100 mots).",
+        recherche_instructions: "Cherchez la réponse sur Internet, puis rédigez votre réponse ici. Votre réponse doit faire entre 150 et 200 mots.",
         recherche_placeholder: "Rédigez votre réponse ici...",
-        recherche_mots: "Mots : {count} / 75-100",
+        recherche_mots: "Mots : {count} / 150-200",
         btn_valider_reponse: "Valider ma réponse",
+        alert_nb_mots_invalide: "Votre réponse doit contenir entre 150 et 200 mots pour être soumise.",
         alert_pas_de_recherche: "⚠️ Aucune recherche en ligne n'a été détectée pour cette question. Souhaitez-vous tout de même valider votre réponse sans faire de recherche ?",
         alert_temps_ecoule_recherche: "⏱️ Temps écoulé (12 minutes). Vous allez être redirigé vers l'auto-évaluation.",
-        alert_10_min_warning: "⚠️ Cela fait 10 minutes que vous êtes sur cette question. Veuillez finaliser votre réponse et passer à la suite.",
+        alert_10_min_warning: "⚠️ Cela fait 10 minutes que vous êtes sur cette question. Il ne vous reste que 2 minutes pour finaliser votre réponse.",
 
         // --- Auto-évaluation & NASA-TLX ---
         eval_titre: "Évaluation",
         eval_concerne: "Concernant la question :",
         eval_err_radio: "Veuillez répondre à toutes les questions du tableau.",
         btn_valider_eval: "Valider l'évaluation",
+
+        q_difficulte_titre: 'Difficulté perçue',
+        q_difficulte_item: 'À quel point cette question vous a-t-elle semblé difficile ?',
+        q_difficulte_facile: 'Très facile',
+        q_difficulte_difficile: 'Très difficile',
+
         q_connaissance_titre: "Niveau de connaissance de base",
         q_connaissance_item: "Sur une échelle de 0 à 100, j’estime ma connaissance initiale par rapport au sujet de la question au niveau suivant :",
         q_confiance_titre: "Confiance envers la réponse et les sources",
@@ -439,25 +446,32 @@ const i18n = {
         instr_item_1: "<strong>Browse freely</strong> in other tabs (Google, Wikipedia, etc.) to find your information.",
         instr_item_2: "<strong style='color:#dc2626;'>Strict Rules:</strong> Private browsing is prohibited. The use of Artificial Intelligence tools (ChatGPT, Gemini, Claude, etc.) is <strong>strictly prohibited</strong>.",
         instr_item_3: "The study must be completed <strong>in one single run</strong> (in one continuous session).",
-        instr_item_4: "You have 10 minutes to answer each question. Your answer should ideally be <strong>between 75 and 100 words</strong> (a visual indicator will guide you, but you can submit your text even if it is shorter).",
+        instr_item_4: "You have 12 minutes to answer each question. Your answer must be between <strong>150 and 200 words</strong>. An answer with fewer than 150 words or more than 200 words cannot be submitted manually.",
         instr_item_5: "Data collection stops automatically after <strong>1 hour of inactivity</strong> or after a maximum of <strong>4 hours of activity</strong> (don't worry this is a safety measure, the study actually takes much less time than that!).",
         btn_commencer: "Start",
 
         // --- Research Questions ---
         recherche_titre: "Question {index} / {total}",
-        recherche_instructions: "Search for the answer on the Internet and then write it here (75 to 100 words).",
+        recherche_instructions: "Search for the answer on the Internet and then write it here (150 to 200 words).",
         recherche_placeholder: "Write your answer here...",
-        recherche_mots: "Words: {count} / 75-100",
+        recherche_mots: "Words: {count} / 150-200",
         btn_valider_reponse: "Submit my answer",
+        alert_nb_mots_invalide: "Your answer must contain between 150 and 200 words to be submitted.",
         alert_pas_de_recherche: "⚠️ No online search was detected for this question. Do you still want to validate your answer without searching?",
         alert_temps_ecoule_recherche: "⏱️ Time's up (12 minutes). You will be redirected to the self-assessment.",
-        alert_10_min_warning: "⚠️ You have been on this question for 10 minutes. Please finalize your response and proceed to the next step.",
+        alert_10_min_warning: "⚠️ You have been on this question for 10 minutes. You only have 2 minutes left to finalize your answer.",
 
         // --- Self-Assessment & NASA-TLX ---
         eval_titre: "Evaluation",
         eval_concerne: "Concerning the question:",
         eval_err_radio: "Please answer all questions in the table.",
         btn_valider_eval: "Submit evaluation",
+
+        q_difficulte_titre: 'Perceived difficulty',
+        q_difficulte_item: 'How difficult did this question feel to you?',
+        q_difficulte_facile: 'Very easy',
+        q_difficulte_difficile: 'Very difficult',
+
         q_connaissance_titre: "Initial Knowledge Level",
         q_connaissance_item: "On a scale of 0 to 100, I estimate my initial knowledge regarding the topic of the question at the following level:",
         q_confiance_titre: "Confidence in Answer and Sources",
