@@ -41,6 +41,22 @@ function shuffle(array) {
     return arr;
 }
 
+function getCellText(sheet, address) {
+    const cell = sheet[address];
+    if (!cell || cell.v === undefined || cell.v === null) return '';
+    return String(cell.v).trim();
+}
+
+function extractQuestionNumber(value) {
+    const str = String(value || '').trim();
+
+    // Accepte : 1, "1", "1.", "Question 1", "Q1"
+    const match = str.match(/(\d+)/);
+    if (!match) return NaN;
+
+    return parseInt(match[1], 10);
+}
+
 function loadQuestionBank(language, forceReload = false) {
     const lang = language === 'en' ? 'en' : 'fr';
 
@@ -50,40 +66,37 @@ function loadQuestionBank(language, forceReload = false) {
 
     const filePath = getExcelPath(lang);
     const workbook = XLSX.readFile(filePath);
+
     const firstSheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[firstSheetName];
 
-    const rows = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: ''
-    });
+    if (!sheet || !sheet['!ref']) {
+        throw new Error(`Feuille Excel vide ou invalide : ${filePath}`);
+    }
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const lastRow = range.e.r + 1;
 
     const questions = [];
 
-    // Ligne 6 Excel => index JS 5.
-    // Si la ligne 6 est une ligne d'en-tête, elle sera ignorée car B ne sera pas numérique.
-    for (let r = 5; r < rows.length; r++) {
-        const row = rows[r];
+    // Les questions du tableau commencent à la ligne 7.
+    for (let row = 7; row <= lastRow; row++) {
+        const rawNumber = getCellText(sheet, `B${row}`);
+        const rawQuestion = getCellText(sheet, `C${row}`);
+        const rawMemory = getCellText(sheet, `E${row}`);
 
-        const rawNumber = row[1]; // Colonne B
-        const rawQuestion = row[2]; // Colonne C
-        const rawMemory = row[4]; // Colonne E
-
-        const number = parseInt(String(rawNumber).trim(), 10);
+        const number = extractQuestionNumber(rawNumber);
 
         if (!Number.isInteger(number) || number < 1 || number > 20) {
             continue;
         }
 
-        const questionText = String(rawQuestion || '').trim();
-        const memoryText = String(rawMemory || '').trim();
-
-        if (!questionText) {
-            throw new Error(`Question vide pour le numéro ${number} dans ${filePath}`);
+        if (!rawQuestion) {
+            throw new Error(`Question vide en C${row}, numéro ${number}`);
         }
 
-        if (!memoryText) {
-            throw new Error(`Question de mémorisation vide pour le numéro ${number} dans ${filePath}`);
+        if (!rawMemory) {
+            throw new Error(`Question mémoire vide en E${row}, numéro ${number}`);
         }
 
         const difficulty = classifyDifficulty(number);
@@ -93,28 +106,32 @@ function loadQuestionBank(language, forceReload = false) {
             number,
             difficulty,
             text: {
-                [lang]: questionText
+                [lang]: rawQuestion
             },
             memoryQuestion: {
                 id: `m_q${number}`,
                 sourceQuestionId: `q${number}`,
                 number,
                 text: {
-                    [lang]: memoryText
+                    [lang]: rawMemory
                 }
             }
         });
     }
 
     if (questions.length !== 20) {
-        throw new Error(`La banque ${lang} doit contenir 20 questions valides. Questions trouvées : ${questions.length}`);
+        throw new Error(
+            `La banque ${lang} doit contenir 20 questions valides. Questions trouvées : ${questions.length}. ` +
+            `Vérifie que les numéros sont bien en colonne B, les questions en C, les questions mémoire en E, à partir de la ligne 6.`
+        );
     }
 
     questions.sort((a, b) => a.number - b.number);
-    cache[lang] = questions;
 
+    cache[lang] = questions;
     return questions;
 }
+
 
 async function getUsageMap(language) {
     const rows = await QuestionAllocation.aggregate([
