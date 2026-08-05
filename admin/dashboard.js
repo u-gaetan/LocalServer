@@ -759,6 +759,25 @@ function renderAgg() {
 // ═══════════════════════════════════════════════════════
 // TABLEAU RÉPONSES
 // ═══════════════════════════════════════════════════════
+function extractResponseText(d) {
+    if (!d) return '';
+    if (typeof d === 'string') return d.trim();
+    if (typeof d === 'object') {
+        if (d.answer && typeof d.answer === 'string') return d.answer.trim();
+        if (d.answerText && typeof d.answerText === 'string') return d.answerText.trim();
+        if (d.response && typeof d.response === 'string') return d.response.trim();
+        if (d.reponse && typeof d.reponse === 'string') return d.reponse.trim();
+        if (d.texte && typeof d.texte === 'string') return d.texte.trim();
+        if (d.userAnswer && typeof d.userAnswer === 'string') return d.userAnswer.trim();
+
+        if (d.answers) return extractResponseText(d.answers);
+
+        const stringValues = Object.values(d).filter(v => typeof v === 'string' && v.trim().length > 0);
+        if (stringValues.length > 0) return stringValues.join(' | ');
+    }
+    return JSON.stringify(d);
+}
+
 function renderRep() {
     var reps = S.reps.filter(function(r) {
         return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
@@ -769,38 +788,32 @@ function renderRep() {
     var h = '<div class="bar"><button class="bt bs" onclick="csvRep()">⬇ CSV Réponses</button>';
     h += '<span class="cnt">' + reps.length + ' réponses</span></div>';
     h += '<div class="tw"><table><thead><tr>';
-    h += '<th>Heure</th><th>Type</th><th>Question ID</th><th>Réponse / Mots</th><th>MATTR</th><th>MTLD</th><th>Données complètes</th>';
+    h += '<th>Heure</th><th>Type</th><th>Question ID</th><th>Difficulté</th><th>Temps (s)</th><th>Réponse Rédigée</th><th>Mots</th><th>MATTR</th><th>MTLD</th>';
     h += '</tr></thead><tbody>';
 
     reps.forEach(function(r) {
         var d = r.data || {};
-        var ds = "";
+        var answerText = extractResponseText(d);
         var mattr = "—", mtld = "—", wordCount = "—";
+        var diff = r.difficulty || d.difficulty || '—';
+        var timeSpent = d.timeSpentSeconds !== undefined ? d.timeSpentSeconds + 's' : '—';
 
-        if (r.type === 'research_answer') {
-            var txt = d.answerText || d.texte || (typeof d === 'string' ? d : '');
-            wordCount = tokenizeText(txt).length;
-            mattr = calculateMATTR(txt);
-            mtld = calculateMTLD(txt);
-            ds = txt;
-        } else if (typeof d === 'object' && !Array.isArray(d)) {
-            var targetObj = (d.answers && typeof d.answers === 'object') ? d.answers : d;
-            ds = Object.entries(targetObj).map(function(e) {
-                var label = SKILLS_MAP[e[0]] || e[0];
-                return label + ': ' + e[1];
-            }).join('\n');
-        } else {
-            ds = String(d);
+        if (r.type === 'research_answer' || r.type === 'memory_answer') {
+            wordCount = tokenizeText(answerText).length;
+            mattr = calculateMATTR(answerText);
+            mtld = calculateMTLD(answerText);
         }
 
         h += '<tr>';
         h += '<td class="m">' + tsT(r.timestamp) + '</td>';
         h += '<td><span class="tg">' + esc(r.type) + '</span></td>';
         h += '<td><strong>' + esc(r.questionId || '') + '</strong></td>';
-        h += '<td>' + esc(ds) + (wordCount !== "—" ? '<br><small style="color:#64748b">(' + wordCount + ' mots)</small>' : '') + '</td>';
+        h += '<td>' + esc(diff) + '</td>';
+        h += '<td>' + timeSpent + '</td>';
+        h += '<td class="w"><strong>' + esc(answerText) + '</strong></td>';
+        h += '<td class="r">' + wordCount + '</td>';
         h += '<td class="r"><strong>' + mattr + '</strong></td>';
         h += '<td class="r"><strong>' + mtld + '</strong></td>';
-        h += '<td class="w">' + esc(JSON.stringify(d)) + '</td>';
         h += '</tr>';
     });
     h += '</tbody></table></div>';

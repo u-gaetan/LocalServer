@@ -409,11 +409,30 @@ async function refreshData() {
 }
 
 // =========================================================
-// FONCTIONS DE COMPILATION EXCEL MODULES REUTILISABLES
+// EXTRACTION DES RÉPONSES (ADAPTÉ AU FORMAT MONGODB)
 // =========================================================
+function extractResponseText(d) {
+    if (!d) return '';
+    if (typeof d === 'string') return d.trim();
+    if (typeof d === 'object') {
+        // Ta clé MongoDB exacte est d.answer
+        if (d.answer && typeof d.answer === 'string') return d.answer.trim();
+        if (d.answerText && typeof d.answerText === 'string') return d.answerText.trim();
+        if (d.response && typeof d.response === 'string') return d.response.trim();
+        if (d.reponse && typeof d.reponse === 'string') return d.reponse.trim();
+        if (d.texte && typeof d.texte === 'string') return d.texte.trim();
+        if (d.userAnswer && typeof d.userAnswer === 'string') return d.userAnswer.trim();
+        
+        if (d.answers) return extractResponseText(d.answers);
+        
+        const stringValues = Object.values(d).filter(v => typeof v === 'string' && v.trim().length > 0);
+        if (stringValues.length > 0) return stringValues.join(' | ');
+    }
+    return JSON.stringify(d);
+}
 
 // =========================================================
-// ALGORITHMES DE DIVERSITÉ LEXICALE (MATTR & MTLD) EN JS
+// ALGORITHMES DE DIVERSITÉ LEXICALE (MATTR & MTLD)
 // =========================================================
 function tokenizeText(text) {
     if (!text || typeof text !== 'string') return [];
@@ -473,21 +492,21 @@ function calculateMTLD(text, factorThreshold = 0.72) {
 }
 
 // =========================================================
-// CONSTRUCTEUR DU CLASSEUR EXCEL
+// GENERATEUR EXCEL 5 FEUILLES
 // =========================================================
 function buildWorkbookForParticipant(pid, data) {
     const logs = data.events || [];
     const reps = data.reponses || [];
     const wb = XLSX.utils.book_new();
 
-    // Headers des 5 feuilles
+    // Entêtes des colonnes Excel
     const navRows = [['ParticipantID', 'Question', 'Visite_ID', 'Heure_Entree', 'Heure_Sortie', 'Duree_Sec', 'URL', 'Nom_Page', 'Scroll_Max_%', 'Clics', 'Touches_Clavier', 'Copies_Count', 'Collages_Count', 'Onglet_Ferme', 'Backward', 'Forward']];
     const copyPasteRows = [['ParticipantID', 'Question', 'Type_Action', 'Timestamp_Exact', 'URL', 'Texte_Extrait']];
-    const researchRows = [['ParticipantID', 'Question_ID', 'Heure_Soumission', 'Reponse_Textuelle', 'Nombre_Mots', 'MATTR', 'MTLD', 'Textes_Copies_Pendant_Q', 'Textes_Colles_Pendant_Q']];
+    const researchRows = [['ParticipantID', 'Question_ID', 'Difficulte', 'Langue', 'Heure_Soumission', 'Temps_Reponse_Sec', 'Temps_Ecoule_Timeout', 'Reponse_Textuelle', 'Nombre_Mots', 'MATTR', 'MTLD', 'Textes_Copies_Pendant_Q', 'Textes_Colles_Pendant_Q']];
     const evalRows = [['ParticipantID', 'Heure', 'Type_Evaluation', 'QuestionID', 'QuestionLabel', 'Donnees_Reponses']];
     const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Réponse_Donnees']];
 
-    // 1. Périodes des questions
+    // 1. Périodes par Question
     const sortedReps = reps.filter(r => r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills'))
                            .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
 
@@ -520,7 +539,7 @@ function buildWorkbookForParticipant(pid, data) {
         return '';
     }
 
-    // 2. Structuration de la Navigation et Copies/Collages
+    // 2. Navigation et Copies/Collages
     const vis = [];
     const vById = {};
 
@@ -570,32 +589,34 @@ function buildWorkbookForParticipant(pid, data) {
         ]);
     });
 
-    // 3. Réponses de recherche + Diversité Lexicale
+    // 3. Extraction des Réponses de Recherche
     sortedReps.forEach(r => {
         const d = r.data || {};
-        if (r.type === 'research_answer') {
-            const answerText = d.answerText || d.texte || (typeof d === 'string' ? d : '');
+        const answerText = extractResponseText(d);
+
+        if (r.type === 'research_answer' || r.type === 'memory_answer') {
             const wordCount = tokenizeText(answerText).length;
             const mattr = calculateMATTR(answerText);
             const mtld = calculateMTLD(answerText);
 
-            // Copies / collages associés durant cette période de question
+            const difficulty = r.difficulty || d.difficulty || 'Non spécifié';
+            const lang = d.language || 'fr';
+            const timeSpentSec = d.timeSpentSeconds !== undefined ? d.timeSpentSeconds : '—';
+            const forcedTimeout = d.forcedTimeout ? 'Oui' : 'Non';
+
             const qCopies = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'copie').map(row => row[5]).join(' | ');
             const qPastes = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'collage').map(row => row[5]).join(' | ');
 
             researchRows.push([
-                pid, r.questionId || '',
+                pid, r.questionId || r.type, difficulty, lang,
                 r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '',
+                timeSpentSec, forcedTimeout,
                 answerText, wordCount, mattr, mtld, qCopies, qPastes
             ]);
         } else {
-            let rs = (typeof d === 'object' && !Array.isArray(d))
-                ? Object.entries(d.answers || d).map(e => (SKILLS_MAP[e[0]] || e[0]) + '=' + e[1]).join('; ')
-                : String(d);
-
             evalRows.push([
                 pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '',
-                r.type, r.questionId || '', r.questionLabel || '', rs
+                r.type, r.questionId || '', r.questionLabel || '', answerText
             ]);
         }
     });
@@ -609,17 +630,16 @@ function buildWorkbookForParticipant(pid, data) {
         });
     });
     sortedReps.forEach(r => {
-        const d = r.data || {};
-        let rs = typeof d === 'object' ? JSON.stringify(d) : String(d);
+        const answerText = extractResponseText(r.data);
         items.push({
             ts: r.timestamp || '',
-            row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type, '', '', '', '', '', '', '', '', '', rs]
+            row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type, '', '', '', '', '', '', '', '', '', answerText]
         });
     });
     items.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
     items.forEach(it => globRows.push(it.row));
 
-    // Création des feuilles Excel
+    // Génération du classeur Excel
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navRows), 'Navigation');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(copyPasteRows), 'Copies_Collages');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(researchRows), 'Reponses_Recherche');
