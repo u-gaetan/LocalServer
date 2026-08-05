@@ -539,7 +539,7 @@ function buildWorkbookForParticipant(pid, data) {
         return '';
     }
 
-    // 2. Navigation et Copies/Collages
+    // 2. Traitement des Événements Navigation et calcul exact de l'heure de sortie
     const vis = [];
     const vById = {};
 
@@ -560,7 +560,7 @@ function buildWorkbookForParticipant(pid, data) {
                 id: vis.length, url: url, vid: vid,
                 clics: 0, scroll: 0, tms: 0, touches_clavier: 0, copies: [], collages: [],
                 closed: t === 'tab_closed', ib: log.transitionType === 'back_forward', ifw: false,
-                nom: url.substring(0, 40), q: qLabel, tsEntree: log.timestamp || '', tsSortie: ''
+                nom: url.substring(0, 40), q: qLabel, tsEntree: log.timestamp || ''
             };
             vis.push(v);
             if (vid) vById[vid] = v;
@@ -571,29 +571,33 @@ function buildWorkbookForParticipant(pid, data) {
                 vi.scroll = Math.max(vi.scroll, log.maxScroll || 0);
                 vi.tms = Math.max(vi.tms, log.temps_passe_ms || 0);
                 vi.touches_clavier = Math.max(vi.touches_clavier, log.touches_clavier || 0);
-                vi.tsSortie = log.timestamp || '';
             }
             else if (t === 'copie') vi.copies.push(log.texte || '');
             else if (t === 'collage') vi.collages.push(log.texte || '');
         }
     });
 
-    vis.forEach(v => {
-        // Calcul intelligent de l'heure de sortie :
-        // Soit le timestamp direct de page_quittee, soit Heure_Entree + Temps_Passe
+    vis.forEach((v, index) => {
+        let heureEntreeFormatted = v.tsEntree ? new Date(v.tsEntree).toTimeString().substring(0, 8) : '';
         let heureSortieFormatted = '';
-        if (v.tsSortie) {
-            heureSortieFormatted = new Date(v.tsSortie).toTimeString().substring(0, 8);
-        } else if (v.tsEntree && v.tms > 0) {
-            const calculatedExit = new Date(new Date(v.tsEntree).getTime() + v.tms);
-            heureSortieFormatted = calculatedExit.toTimeString().substring(0, 8);
+
+        // RÈGLE D'OR : Sortie = Entrée + Temps passé
+        if (v.tsEntree && v.tms > 0) {
+            const entryMs = new Date(v.tsEntree).getTime();
+            const exitMs = entryMs + v.tms;
+            heureSortieFormatted = new Date(exitMs).toTimeString().substring(0, 8);
+        } else if (index < vis.length - 1 && vis[index + 1].tsEntree) {
+            // Fallback si le temps passé est 0s : prendre l'entrée de la page suivante
+            heureSortieFormatted = new Date(vis[index + 1].tsEntree).toTimeString().substring(0, 8);
+        } else {
+            heureSortieFormatted = heureEntreeFormatted;
         }
 
         navRows.push([
             pid, 
             v.q, 
             v.vid,
-            v.tsEntree ? new Date(v.tsEntree).toTimeString().substring(0, 8) : '',
+            heureEntreeFormatted,
             heureSortieFormatted,
             +(v.tms / 1000).toFixed(2), 
             v.url, 

@@ -705,12 +705,24 @@ function renderDetail() {
     th += '<th>Fermé</th><th>Backward</th><th>Forward</th>';
     th += '</tr></thead><tbody>';
 
-    S.vis.forEach(function(v) {
+    S.vis.forEach(function(v, index) {
         var q = v.q, qcc = S.qc[q] || '#64748b';
         var qb = q ? '<span class="qb" style="background:' + qcc + '">' + q + '</span>' : '—';
+        
+        var hEntree = tsT(v.ts);
+        var hSortie = '—';
+        
+        if (v.ts && v.tms > 0) {
+            var exitMs = new Date(v.ts).getTime() + v.tms;
+            hSortie = new Date(exitMs).toTimeString().substring(0, 8);
+        } else if (index < S.vis.length - 1 && S.vis[index + 1].ts) {
+            hSortie = tsT(S.vis[index + 1].ts);
+        }
+
         th += '<tr data-q="' + q + '">';
         th += '<td>' + qb + '</td>';
-        th += '<td class="m">' + tsT(v.ts) + '</td>';
+        th += '<td class="m">' + hEntree + '</td>';
+        th += '<td class="m">' + hSortie + '</td>';
         th += '<td><a href="' + esc(v.url) + '" target="_blank" class="lk">' + esc(v.nom) + '</a></td>';
         th += '<td class="r">' + fr(v.tms / 1000) + '</td>';
         th += '<td class="r">' + v.scroll + '</td>';
