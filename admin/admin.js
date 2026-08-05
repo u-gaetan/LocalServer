@@ -579,13 +579,33 @@ function buildWorkbookForParticipant(pid, data) {
     });
 
     vis.forEach(v => {
+        // Calcul intelligent de l'heure de sortie :
+        // Soit le timestamp direct de page_quittee, soit Heure_Entree + Temps_Passe
+        let heureSortieFormatted = '';
+        if (v.tsSortie) {
+            heureSortieFormatted = new Date(v.tsSortie).toTimeString().substring(0, 8);
+        } else if (v.tsEntree && v.tms > 0) {
+            const calculatedExit = new Date(new Date(v.tsEntree).getTime() + v.tms);
+            heureSortieFormatted = calculatedExit.toTimeString().substring(0, 8);
+        }
+
         navRows.push([
-            pid, v.q, v.vid,
+            pid, 
+            v.q, 
+            v.vid,
             v.tsEntree ? new Date(v.tsEntree).toTimeString().substring(0, 8) : '',
-            v.tsSortie ? new Date(v.tsSortie).toTimeString().substring(0, 8) : '',
-            +(v.tms / 1000).toFixed(2), v.url, v.nom, v.scroll, v.clics, v.touches_clavier,
-            v.copies.length, v.collages.length,
-            v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : ''
+            heureSortieFormatted,
+            +(v.tms / 1000).toFixed(2), 
+            v.url, 
+            v.nom, 
+            v.scroll, 
+            v.clics, 
+            v.touches_clavier,
+            v.copies.length, 
+            v.collages.length,
+            v.closed ? 'Oui' : '', 
+            v.ib ? 'Oui' : '', 
+            v.ifw ? 'Oui' : ''
         ]);
     });
 
