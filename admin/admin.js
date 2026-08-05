@@ -412,34 +412,96 @@ async function refreshData() {
 // FONCTIONS DE COMPILATION EXCEL MODULES REUTILISABLES
 // =========================================================
 
+// =========================================================
+// ALGORITHMES DE DIVERSITÉ LEXICALE (MATTR & MTLD) EN JS
+// =========================================================
+function tokenizeText(text) {
+    if (!text || typeof text !== 'string') return [];
+    return text
+        .toLowerCase()
+        .replace(/[^\w\s\u00C0-\u024F]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 0);
+}
+
+function calculateMATTR(text, windowSize = 50) {
+    const tokens = tokenizeText(text);
+    if (tokens.length === 0) return 0;
+    if (tokens.length < windowSize) {
+        const unique = new Set(tokens);
+        return +(unique.size / tokens.length).toFixed(4);
+    }
+    let totalTTR = 0;
+    const numWindows = tokens.length - windowSize + 1;
+    for (let i = 0; i < numWindows; i++) {
+        const window = tokens.slice(i, i + windowSize);
+        const unique = new Set(window);
+        totalTTR += (unique.size / windowSize);
+    }
+    return +(totalTTR / numWindows).toFixed(4);
+}
+
+function calculateMTLD(text, factorThreshold = 0.72) {
+    const tokens = tokenizeText(text);
+    if (tokens.length === 0) return 0;
+
+    function getFactors(wordList) {
+        let factors = 0;
+        let currentTokens = [];
+        for (let i = 0; i < wordList.length; i++) {
+            currentTokens.push(wordList[i]);
+            const unique = new Set(currentTokens);
+            const ttr = unique.size / currentTokens.length;
+            if (ttr < factorThreshold) {
+                factors++;
+                currentTokens = [];
+            }
+        }
+        if (currentTokens.length > 0) {
+            const unique = new Set(currentTokens);
+            const ttr = unique.size / currentTokens.length;
+            const excess = (1 - ttr) / (1 - factorThreshold);
+            factors += Math.min(1, Math.max(0, excess));
+        }
+        return factors === 0 ? 1 : factors;
+    }
+
+    const forwardFactors = getFactors(tokens);
+    const backwardFactors = getFactors([...tokens].reverse());
+    const avgFactors = (forwardFactors + backwardFactors) / 2;
+    return +(tokens.length / avgFactors).toFixed(2);
+}
+
+// =========================================================
+// CONSTRUCTEUR DU CLASSEUR EXCEL
+// =========================================================
 function buildWorkbookForParticipant(pid, data) {
     const logs = data.events || [];
     const reps = data.reponses || [];
     const wb = XLSX.utils.book_new();
 
-    const navRows = [['ParticipantID', 'Question', 'Heure', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward']];
-    const repRows = [['ParticipantID', 'Heure', 'Type', 'QuestionID', 'QuestionLabel', 'Réponse / Données']];
-    const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Backward', 'Forward', 'Réponse']];
+    // Headers des 5 feuilles
+    const navRows = [['ParticipantID', 'Question', 'Visite_ID', 'Heure_Entree', 'Heure_Sortie', 'Duree_Sec', 'URL', 'Nom_Page', 'Scroll_Max_%', 'Clics', 'Touches_Clavier', 'Copies_Count', 'Collages_Count', 'Onglet_Ferme', 'Backward', 'Forward']];
+    const copyPasteRows = [['ParticipantID', 'Question', 'Type_Action', 'Timestamp_Exact', 'URL', 'Texte_Extrait']];
+    const researchRows = [['ParticipantID', 'Question_ID', 'Heure_Soumission', 'Reponse_Textuelle', 'Nombre_Mots', 'MATTR', 'MTLD', 'Textes_Copies_Pendant_Q', 'Textes_Colles_Pendant_Q']];
+    const evalRows = [['ParticipantID', 'Heure', 'Type_Evaluation', 'QuestionID', 'QuestionLabel', 'Donnees_Reponses']];
+    const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Réponse_Donnees']];
 
-    const sortedReps = reps.filter(function(r) {
-        return r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills');
-    }).sort(function(a, b) {
-        return (a.timestamp || '').localeCompare(b.timestamp || '');
-    });
+    // 1. Périodes des questions
+    const sortedReps = reps.filter(r => r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills'))
+                           .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
 
     const periods = [];
     let rc = 0;
-    sortedReps.forEach(function(r, i) {
-        var lb;
+    sortedReps.forEach((r, i) => {
+        let lb;
         if (r.type === 'research_answer') { rc++; lb = 'Q' + rc; }
         else if (r.type === 'self_assessment') { lb = 'Q' + rc + '.5'; }
         else if (r.type === 'demographics') { lb = 'Démo'; }
         else if (r.type === 'memory_answer') { lb = 'Mém'; }
         else if (r.type === 'consent') { lb = 'Consentement 1'; }
         else if (r.type === 'deception_consent') { lb = 'Consentement 2'; }
-        else if (r.type === 'internet_skills' || (r.type === 'questionnaire_event' && r.data && r.data.event === 'internet_skills')) { 
-            lb = 'Compétences Internet'; 
-        }
+        else if (r.type === 'internet_skills') { lb = 'Compétences Internet'; }
         else { lb = 'R' + (i + 1); }
         periods.push({
             label: lb, type: r.type, qid: r.questionId || '',
@@ -450,106 +512,119 @@ function buildWorkbookForParticipant(pid, data) {
 
     function getQL(ts) {
         if (!periods.length || !ts) return '';
-        for (var i = 0; i < periods.length; i++) {
-            var p = periods[i];
+        for (let i = 0; i < periods.length; i++) {
+            let p = periods[i];
             if ((p.start === null || ts >= p.start) && ts <= p.end) return p.label;
         }
         if (ts > periods[periods.length - 1].end) return 'Post-Q';
         return '';
     }
 
+    // 2. Structuration de la Navigation et Copies/Collages
     const vis = [];
     const vById = {};
-    logs.forEach(function(log) {
-        var t = log.type, url = log.url || '', vid = log.visitId;
+
+    logs.forEach(log => {
+        const t = log.type, url = log.url || '', vid = log.visitId;
+        const qLabel = getQL(log.timestamp || '');
+
+        if (t === 'copie' || t === 'collage') {
+            copyPasteRows.push([
+                pid, qLabel, t,
+                log.timestamp ? new Date(log.timestamp).toTimeString().substring(0, 8) : '',
+                url, log.texte || ''
+            ]);
+        }
+
         if (t === 'navigation' || t === 'tab_activated') {
-            var v = {
+            const v = {
                 id: vis.length, url: url, vid: vid,
                 clics: 0, scroll: 0, tms: 0, touches_clavier: 0, copies: [], collages: [],
                 closed: t === 'tab_closed', ib: log.transitionType === 'back_forward', ifw: false,
-                nom: url.substring(0, 40), q: getQL(log.timestamp || ''), ts: log.timestamp || ''
+                nom: url.substring(0, 40), q: qLabel, tsEntree: log.timestamp || '', tsSortie: ''
             };
             vis.push(v);
             if (vid) vById[vid] = v;
         } else if (vid && vById[vid]) {
-            var vi = vById[vid];
+            const vi = vById[vid];
             if (t === 'clic') vi.clics++;
             else if (t === 'page_quittee') {
                 vi.scroll = Math.max(vi.scroll, log.maxScroll || 0);
                 vi.tms = Math.max(vi.tms, log.temps_passe_ms || 0);
                 vi.touches_clavier = Math.max(vi.touches_clavier, log.touches_clavier || 0);
+                vi.tsSortie = log.timestamp || '';
             }
             else if (t === 'copie') vi.copies.push(log.texte || '');
             else if (t === 'collage') vi.collages.push(log.texte || '');
         }
     });
 
-    vis.forEach(function(v) {
+    vis.forEach(v => {
         navRows.push([
-            pid, v.q, v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.url, v.nom,
-            +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier,
-            v.copies.join('\n'), v.collages.join('\n'),
+            pid, v.q, v.vid,
+            v.tsEntree ? new Date(v.tsEntree).toTimeString().substring(0, 8) : '',
+            v.tsSortie ? new Date(v.tsSortie).toTimeString().substring(0, 8) : '',
+            +(v.tms / 1000).toFixed(2), v.url, v.nom, v.scroll, v.clics, v.touches_clavier,
+            v.copies.length, v.collages.length,
             v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : ''
         ]);
     });
 
-    sortedReps.forEach(function(r) {
-        var d = r.data || {};
-        var rs = "";
-        if (typeof d === 'object' && !Array.isArray(d)) {
-            var targetObj = (d.answers && typeof d.answers === 'object') ? d.answers : d;
-            rs = Object.entries(targetObj).map(function(e) {
-                var label = SKILLS_MAP[e[0]] || e[0];
-                return label + '=' + e[1];
-            }).join('; ');
-        } else {
-            rs = String(d);
-        }
+    // 3. Réponses de recherche + Diversité Lexicale
+    sortedReps.forEach(r => {
+        const d = r.data || {};
+        if (r.type === 'research_answer') {
+            const answerText = d.answerText || d.texte || (typeof d === 'string' ? d : '');
+            const wordCount = tokenizeText(answerText).length;
+            const mattr = calculateMATTR(answerText);
+            const mtld = calculateMTLD(answerText);
 
-        var rRow = [
-            pid, 
-            r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', 
-            r.type, 
-            r.questionId || '', 
-            r.questionLabel || '',
-            rs
-        ];
-        repRows.push(rRow);
+            // Copies / collages associés durant cette période de question
+            const qCopies = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'copie').map(row => row[5]).join(' | ');
+            const qPastes = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'collage').map(row => row[5]).join(' | ');
+
+            researchRows.push([
+                pid, r.questionId || '',
+                r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '',
+                answerText, wordCount, mattr, mtld, qCopies, qPastes
+            ]);
+        } else {
+            let rs = (typeof d === 'object' && !Array.isArray(d))
+                ? Object.entries(d.answers || d).map(e => (SKILLS_MAP[e[0]] || e[0]) + '=' + e[1]).join('; ')
+                : String(d);
+
+            evalRows.push([
+                pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '',
+                r.type, r.questionId || '', r.questionLabel || '', rs
+            ]);
+        }
     });
 
-    var items = [];
-    vis.forEach(function(v) {
+    // 4. Chronologie Globale
+    const items = [];
+    vis.forEach(v => {
         items.push({
-            ts: v.ts,
-            row: [pid, 'Navigation', v.ts ? new Date(v.ts).toTimeString().substring(0, 8) : '', v.q, 'navigation', v.url, v.nom,
-                  +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.join('\n'), v.collages.join('\n'),
-                  v.closed ? 'Oui' : '', v.ib ? 'Oui' : '', v.ifw ? 'Oui' : '', '']
+            ts: v.tsEntree,
+            row: [pid, 'Navigation', v.tsEntree ? new Date(v.tsEntree).toTimeString().substring(0, 8) : '', v.q, 'navigation', v.url, v.nom, +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.length, v.collages.length, v.closed ? 'Oui' : '', '']
         });
     });
-    sortedReps.forEach(function(r) {
-        var d = r.data || {};
-        var rs = "";
-        if (typeof d === 'object' && !Array.isArray(d)) {
-            var targetObj = (d.answers && typeof d.answers === 'object') ? d.answers : d;
-            rs = Object.entries(targetObj).map(function(e) { 
-                var label = SKILLS_MAP[e[0]] || e[0];
-                return label + '=' + e[1]; 
-            }).join('; ');
-        } else {
-            rs = String(d);
-        }
+    sortedReps.forEach(r => {
+        const d = r.data || {};
+        let rs = typeof d === 'object' ? JSON.stringify(d) : String(d);
         items.push({
             ts: r.timestamp || '',
-            row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type,
-                  '', '', '', '', '', '', '', '', '', '', '', rs]
+            row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type, '', '', '', '', '', '', '', '', '', rs]
         });
     });
-    items.sort(function(a, b) { return (a.ts || '').localeCompare(b.ts || ''); });
-    items.forEach(function(it) { globRows.push(it.row); });
+    items.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
+    items.forEach(it => globRows.push(it.row));
 
+    // Création des feuilles Excel
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navRows), 'Navigation');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(repRows), 'Réponses');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(globRows), 'Global');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(copyPasteRows), 'Copies_Collages');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(researchRows), 'Reponses_Recherche');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(evalRows), 'Auto_Evaluations');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(globRows), 'Chronologie_Globale');
 
     return wb;
 }

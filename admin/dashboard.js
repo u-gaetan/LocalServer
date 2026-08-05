@@ -769,12 +769,21 @@ function renderRep() {
     var h = '<div class="bar"><button class="bt bs" onclick="csvRep()">⬇ CSV Réponses</button>';
     h += '<span class="cnt">' + reps.length + ' réponses</span></div>';
     h += '<div class="tw"><table><thead><tr>';
-    h += '<th>Heure</th><th>Type</th><th>Question ID</th><th>Label</th><th>Données complètes</th>';
+    h += '<th>Heure</th><th>Type</th><th>Question ID</th><th>Réponse / Mots</th><th>MATTR</th><th>MTLD</th><th>Données complètes</th>';
     h += '</tr></thead><tbody>';
+
     reps.forEach(function(r) {
         var d = r.data || {};
         var ds = "";
-        if (typeof d === 'object' && !Array.isArray(d)) {
+        var mattr = "—", mtld = "—", wordCount = "—";
+
+        if (r.type === 'research_answer') {
+            var txt = d.answerText || d.texte || (typeof d === 'string' ? d : '');
+            wordCount = tokenizeText(txt).length;
+            mattr = calculateMATTR(txt);
+            mtld = calculateMTLD(txt);
+            ds = txt;
+        } else if (typeof d === 'object' && !Array.isArray(d)) {
             var targetObj = (d.answers && typeof d.answers === 'object') ? d.answers : d;
             ds = Object.entries(targetObj).map(function(e) {
                 var label = SKILLS_MAP[e[0]] || e[0];
@@ -783,12 +792,15 @@ function renderRep() {
         } else {
             ds = String(d);
         }
+
         h += '<tr>';
         h += '<td class="m">' + tsT(r.timestamp) + '</td>';
         h += '<td><span class="tg">' + esc(r.type) + '</span></td>';
         h += '<td><strong>' + esc(r.questionId || '') + '</strong></td>';
-        h += '<td>' + esc(r.questionLabel || '') + '</td>';
-        h += '<td class="w">' + esc(ds) + '</td>';
+        h += '<td>' + esc(ds) + (wordCount !== "—" ? '<br><small style="color:#64748b">(' + wordCount + ' mots)</small>' : '') + '</td>';
+        h += '<td class="r"><strong>' + mattr + '</strong></td>';
+        h += '<td class="r"><strong>' + mtld + '</strong></td>';
+        h += '<td class="w">' + esc(JSON.stringify(d)) + '</td>';
         h += '</tr>';
     });
     h += '</tbody></table></div>';
