@@ -200,54 +200,22 @@ router.post('/reponse', participantLimiter, auth, async (req, res) => {
         }
 
         if (isCompletionEvent && !alreadyHadCompletionEvent) {
-            console.log('[completion] Événement de fin détecté, récupération de la méthode de paiement...');
-
-            // 1. Essayer de lire la méthode de paiement transmise directement dans les données de fin
-            let paymentMethod = data.paymentMethod || data.compensation || data.paymentChoice || null;
-
-            // 2. Si non trouvée, chercher dans les réponses démographiques/compensation du participant dans MongoDB
-            if (!paymentMethod) {
-                try {
-                    const demoRep = await Reponse.findOne({
-                        participantId,
-                        type: { $in: ['demographics', 'debriefing', 'compensation'] }
-                    }).lean();
-
-                    if (demoRep && demoRep.data) {
-                        // Cherche les noms de champs fréquemment utilisés
-                        paymentMethod = demoRep.data.paymentMethod || 
-                                        demoRep.data.interacEmail || 
-                                        demoRep.data.compensationChoice || 
-                                        demoRep.data.payment || 
-                                        null;
-
-                        // Si c'est un objet (ex: { type: "Interac", email: "client@test.com" })
-                        if (typeof paymentMethod === 'object') {
-                            paymentMethod = JSON.stringify(paymentMethod);
-                        }
-                    }
-                } catch (e) {
-                    console.error('[completion] Erreur lors de la recherche de la méthode de paiement dans MongoDB:', e);
-                }
-            }
-
-            const finalPaymentMethod = paymentMethod || "Non spécifiée / À vérifier en base de données";
-
-            console.log('[completion] Envoi email...', {
+            console.log('[completion] Événement de fin détecté, envoi email...', {
                 participantId,
-                language: data.language,
-                paymentMethod: finalPaymentMethod
+                language: data.language
             });
 
-            // Envoi de l'email avec la méthode de paiement
             sendCompletionEmail({
                 participantId,
-                language: data.language,
-                paymentMethod: finalPaymentMethod
+                language: data.language
             }).then(() => {
                 console.log('[completion-email] Email envoyé avec succès.');
             }).catch(err => {
-                console.error('[completion-email] Erreur d\'envoi:', err);
+                console.error('[completion-email] Erreur:', err);
+            });
+        } else if (isCompletionEvent && alreadyHadCompletionEvent) {
+            console.log('[completion] Événement déjà existant, email non renvoyé.', {
+                participantId
             });
         }
 

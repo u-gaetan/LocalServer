@@ -154,27 +154,6 @@ async function decryptParticipantData(data) {
 }
 
 // =========================================================
-// HELPER : FORMATTAGE HEURE OFFICIELLE ÉTUDE (QUÉBEC/MONTRÉAL)
-// =========================================================
-function formatTime(ts) {
-    if (!ts) return '';
-    try {
-        const d = new Date(ts);
-        if (isNaN(d.getTime())) return '';
-        // Normalise vers l'heure exacte du Québec (America/Toronto)
-        return d.toLocaleTimeString('fr-CA', {
-            timeZone: 'America/Toronto',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-        });
-    } catch (e) {
-        return '';
-    }
-}
-
-// =========================================================
 // ÉCOUTEURS ET INITIALISATION CLÉ PRIVÉE
 // =========================================================
 
@@ -515,12 +494,6 @@ function calculateMTLD(text, factorThreshold = 0.72) {
 // =========================================================
 // GENERATEUR EXCEL 5 FEUILLES
 // =========================================================
-
-function formatExcerptList(arr) {
-    if (!arr || arr.length === 0) return '—';
-    return arr.map((txt, idx) => `[${idx + 1}] "${txt}"`).join('\n---\n');
-}
-
 function buildWorkbookForParticipant(pid, data) {
     const logs = data.events || [];
     const reps = data.reponses || [];
@@ -577,7 +550,7 @@ function buildWorkbookForParticipant(pid, data) {
         if (t === 'copie' || t === 'collage') {
             copyPasteRows.push([
                 pid, qLabel, t,
-                formatTime(log.timestamp),
+                log.timestamp ? new Date(log.timestamp).toTimeString().substring(0, 8) : '',
                 url, log.texte || ''
             ]);
         }
@@ -619,12 +592,13 @@ function buildWorkbookForParticipant(pid, data) {
         } else {
             heureSortieFormatted = heureEntreeFormatted;
         }
+
         navRows.push([
             pid, 
             v.q, 
             v.vid,
-            formatTime(v.tsEntree),
-            formatTime(heureSortieFormatted),
+            heureEntreeFormatted,
+            heureSortieFormatted,
             +(v.tms / 1000).toFixed(2), 
             v.url, 
             v.nom, 
@@ -654,22 +628,18 @@ function buildWorkbookForParticipant(pid, data) {
             const timeSpentSec = d.timeSpentSeconds !== undefined ? d.timeSpentSeconds : '—';
             const forcedTimeout = d.forcedTimeout ? 'Oui' : 'Non';
 
-            // Récupération et séparation propre par [1], [2]...
-            const qCopiesList = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'copie').map(row => row[5]);
-            const qPastesList = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'collage').map(row => row[5]);
-
-            const qCopies = formatExcerptList(qCopiesList);
-            const qPastes = formatExcerptList(qPastesList);
+            const qCopies = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'copie').map(row => row[5]).join(' | ');
+            const qPastes = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'collage').map(row => row[5]).join(' | ');
 
             researchRows.push([
                 pid, r.questionId || r.type, difficulty, lang,
-                formatTime(r.timestamp),
+                r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '',
                 timeSpentSec, forcedTimeout,
                 answerText, wordCount, mattr, mtld, qCopies, qPastes
             ]);
         } else {
             evalRows.push([
-                pid, formatTime(r.timestamp),
+                pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '',
                 r.type, r.questionId || '', r.questionLabel || '', answerText
             ]);
         }

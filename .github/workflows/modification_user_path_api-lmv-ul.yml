@@ -9,10 +9,6 @@ on:
       - modification_user_path
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
