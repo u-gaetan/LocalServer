@@ -1,4 +1,4 @@
-// dashboard.js (Corrigé et complet)
+// dashboard.js (Version complète et fidèle)
 
 'use strict';
 
@@ -59,7 +59,7 @@ async function decryptParticipantDataInPlace(data) {
 }
 
 // ═══════════════════════════════════════════════════════
-// UTILITAIRES D'AFFICHAGE ET HEURE LOCALE PARTICIPANT
+// UTILITAIRES D'AFFICHAGE & NOMS DE PAGES
 // ═══════════════════════════════════════════════════════
 function shortUrl(u) {
     if (!u) return '?';
@@ -67,16 +67,16 @@ function shortUrl(u) {
     if (u.includes('/questionnaire/')) {
         var sl = u.split('/questionnaire/')[1];
         if (sl) sl = sl.split('?')[0].replace(/\/$/, '');
-        return sl ? 'Questionnaire/' + sl : 'Questionnaire';
+        return sl ? 'Questionnaire / ' + sl : 'Questionnaire';
     }
     if (u.includes('google.') && u.includes('/search')) {
-        try { var q = new URL(u).searchParams.get('q'); return q ? 'Recherche: "' + q + '"' : 'Google'; } catch (e) { return 'Google'; }
+        try { var q = new URL(u).searchParams.get('q'); return q ? 'Recherche Google: "' + q + '"' : 'Google'; } catch (e) { return 'Google'; }
     }
     try {
         var p = new URL(u), d = p.hostname.replace('www.', ''), pt = p.pathname.replace(/\/$/, '');
-        if (pt && pt !== '/' && pt.length < 30) return d + pt;
-        return d || u.substring(0, 40);
-    } catch (e) { return u.substring(0, 40); }
+        if (pt && pt !== '/' && pt.length < 60) return d + pt;
+        return d + pt.substring(0, 50);
+    } catch (e) { return u.substring(0, 70); }
 }
 
 function tsT(ts, tz) {
@@ -194,7 +194,7 @@ function extractResponseText(d) {
 }
 
 // ═══════════════════════════════════════════════════════
-// PÉRIODES ET DONNÉES
+// TRAITEMENT DES ÉVÉNEMENTS
 // ═══════════════════════════════════════════════════════
 function mkPeriods(reps) {
     if (!reps || !reps.length) return [];
@@ -240,6 +240,21 @@ function process(raw) {
     var periods = mkPeriods(reps);
     var qc = {};
     periods.forEach((p, i) => { qc[p.label] = PAL[i % PAL.length]; });
+
+    // EXTRACTION DIRECTE DE 100% DES COPIES/COLLAGES
+    var copyPasteList = [];
+    logs.forEach(log => {
+        var t = log.type, url = log.url || '';
+        if (t === 'copie' || t === 'collage') {
+            copyPasteList.push({
+                q: getQL(log.timestamp || '', periods),
+                type: t,
+                ts: log.timestamp || '',
+                url: url,
+                texte: log.texte || ''
+            });
+        }
+    });
 
     var vis = [], vById = {}, prev = null, tStk = {}, tPtr = {};
     logs.forEach(log => {
@@ -331,7 +346,7 @@ function process(raw) {
         if (r.type === 'deception_consent') consent2 = (r.data && r.data.decision === 'maintain') ? "✅ Maintenu" : "🚨 RETIRÉ";
     });
 
-    S = { vis, reps, periods, qc, vr, tot, duree, consent1, consent2, participantTz };
+    S = { vis, reps, copyPasteList, periods, qc, vr, tot, duree, consent1, consent2, participantTz };
     return S;
 }
 
@@ -464,51 +479,143 @@ function renderTabs() {
 }
 
 // ═══════════════════════════════════════════════════════
-// ARBRE ET MÉTRIQUES CUMULÉES
+// ARBRE ORIGINEL RESTAURÉ AVEC INFOBULLES COMPLÈTES
 // ═══════════════════════════════════════════════════════
 function renderTree() {
     var EX = 180, EY = 140, nodes = [], links = [], bof = {}, my = 0;
-    S.vis.forEach((v, xi) => {
-        var nid = 'n' + v.id, src = null;
-        if (v.pchron !== null && v.id > 0) src = 'n' + v.pchron;
-        var yy = 0;
-        var nm = v.nom; if (v.q) nm = '[' + v.q + '] ' + nm;
+
+    S.vis.forEach(function(v, xi) {
+        var nid = 'n' + v.id, src = null, cv = 0;
+        if (v.purl && v.purl !== "Demarrage de l'experience" && v.purl !== 'Ouverture directe / Nouvel onglet') {
+            for (var i = v.id - 1; i >= 0; i--) {
+                if (S.vis[i].url === v.purl) {
+                    src = 'n' + S.vis[i].id;
+                    cv = (v.tid && S.vis[i].tid && v.tid === S.vis[i].tid) ? 0 : 0.3;
+                    break;
+                }
+            }
+        }
+        if (!src && v.pchron !== null) src = 'n' + v.pchron;
+        var yy;
+        if (src && bof[src] !== undefined) {
+            if (cv > 0) { my += EY; yy = my; } else { yy = bof[src]; }
+        } else { yy = 0; }
+        bof[nid] = yy;
+
+        var nm = v.nom;
+        if (v.q) nm = '[' + v.q + '] ' + nm;
+        if (v.closed) nm += ' [fermé]';
+        var hr = tsT(v.ts, S.participantTz), tss = fr(v.tms / 1000);
+        var us = v.url.length > 70 ? v.url.substring(0, 67) + '...' : v.url;
+
+        var tip = '<div style="max-width:380px;white-space:normal;padding:8px;font-size:13px;line-height:1.5;">';
+        tip += '<div style="font-weight:600;color:#e2e8f0;word-break:break-all;">' + esc(us) + '</div>';
+        if (v.q) {
+            tip += '<div style="display:inline-block;background:' + (S.qc[v.q] || '#94a3b8') + ';color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin:4px 0;">' + v.q + '</div>';
+        }
+        tip += '<hr style="border:none;border-top:1px solid #334155;margin:6px 0;">';
+        if (v.ib) tip += '<div style="color:#f97316;font-weight:600;">← Retour arrière</div>';
+        if (v.ifw) tip += '<div style="color:#3b82f6;font-weight:600;">→ Avant</div>';
+        if (v.closed) tip += '<div style="color:#f87171;font-weight:600;">✖ Onglet fermé</div>';
+        tip += '<table style="width:100%;font-size:12px;color:#cbd5e1;">';
+        tip += '<tr><td>Heure locale</td><td style="text-align:right;font-weight:600;">' + hr + '</td></tr>';
+        tip += '<tr><td>Temps passé</td><td style="text-align:right;font-weight:600;">' + tss + 's</td></tr>';
+        tip += '<tr><td>Scroll Max</td><td style="text-align:right;font-weight:600;">' + v.scroll + '%</td></tr>';
+        tip += '<tr><td>Clics</td><td style="text-align:right;font-weight:600;">' + v.clics + '</td></tr></table>';
+        v.copies.forEach(function(c) { tip += '<div style="font-size:11px;color:#6ee7b7;white-space:pre-wrap;">📋 Copié: "' + esc(c) + '"</div>'; });
+        v.collages.forEach(function(c) { tip += '<div style="font-size:11px;color:#67e8f9;white-space:pre-wrap;">📌 Collé: "' + esc(c) + '"</div>'; });
+        tip += '<div style="margin-top:6px;"><a href="' + esc(v.url) + '" target="_blank" style="background:#3b82f6;color:#fff;padding:3px 10px;border-radius:4px;text-decoration:none;font-size:12px;">Ouvrir la page</a></div></div>';
+
+        var ha = v.clics > 0 || v.copies.length > 0 || v.collages.length > 0;
         nodes.push({
             id: nid, name: nm, x: xi * EX, y: yy,
             symbol: svgSym(v.clics > 0, v.copies.length > 0, v.collages.length > 0, v.closed),
-            symbolSize: v.closed ? 28 : 20
+            symbolSize: v.closed ? 30 : (ha ? 26 : 18),
+            label: { show: true, position: 'bottom', rotate: 30, align: 'left', verticalAlign: 'top', distance: 8, fontSize: 11, color: '#475569' },
+            tip: tip
         });
-        if (src) links.push({ source: src, target: nid, lineStyle: { color: '#94a3b8', width: 1.5 } });
+
+        if (src) {
+            var ls, el;
+            if (v.ib) {
+                ls = { curveness: cv, color: '#e87623', width: 2.5, type: 'dashed' };
+                el = { show: true, formatter: '↩ BACK', fontSize: 10, fontWeight: 'bold', color: '#fff', backgroundColor: '#e87623', borderRadius: 3, padding: [2, 6] };
+            } else if (v.ifw) {
+                ls = { curveness: cv, color: '#2563eb', width: 2.5, type: 'dashed' };
+                el = { show: true, formatter: '↪ FWD', fontSize: 10, fontWeight: 'bold', color: '#fff', backgroundColor: '#2563eb', borderRadius: 3, padding: [2, 6] };
+            } else {
+                ls = { curveness: cv, color: '#94a3b8', width: 1.5, type: 'solid' };
+                el = null;
+            }
+            var lk = { source: src, target: nid, lineStyle: ls };
+            if (el) lk.label = el;
+            links.push(lk);
+        }
     });
 
     var cw = Math.max(1200, S.vis.length * 180 + 200);
-    document.getElementById('p-tree').innerHTML = '<div class="cb" style="height:550px;overflow:auto;"><div id="c-tree" style="width:' + cw + 'px;height:500px;"></div></div>';
+    var ch = Math.max(500, my + 300);
+    var h = '<div class="cb" style="height:600px;overflow:auto;">';
+    h += '<div id="c-tree" style="width:' + cw + 'px;height:' + ch + 'px;"></div></div>';
+    
+    h += '<div class="lg">';
+    h += '<div class="li"><div class="lc" style="background:#6366f1"></div>Clics</div>';
+    h += '<div class="li"><div class="lc" style="background:#059669"></div>Copies</div>';
+    h += '<div class="li"><div class="lc" style="background:#0891b2"></div>Collages</div>';
+    h += '<div class="li"><div class="lc" style="background:#64748b"></div>Aucune interaction</div>';
+    h += '<div class="li"><div class="lc" style="background:#fff;border:3px solid #dc2626"></div>Onglet fermé</div>';
+    h += '<div class="li"><span style="color:#e87623;font-weight:600;">- - ↩ BACK</span></div>';
+    h += '<div class="li"><span style="color:#2563eb;font-weight:600;">- - ↪ FWD</span></div></div>';
+    
+    document.getElementById('p-tree').innerHTML = h;
+
     var chart = echarts.init(document.getElementById('c-tree'));
     CHARTS.tree = chart;
     chart.setOption({
-        tooltip: { trigger: 'item' },
-        series: [{ type: 'graph', layout: 'none', data: nodes, links: links, roam: true, zoom: 0.9 }]
+        tooltip: {
+            trigger: 'item', backgroundColor: '#1e293b', borderColor: '#334155', padding: 0,
+            formatter: function(p) { return p.dataType === 'node' ? (p.data.tip || p.name) : ''; }
+        },
+        animationDuration: 600,
+        series: [{
+            type: 'graph', layout: 'none', data: nodes, links: links,
+            edgeSymbol: ['none', 'arrow'], edgeSymbolSize: [0, 8],
+            roam: true, zoom: 0.9, draggable: true,
+            emphasis: { focus: 'adjacency', lineStyle: { width: 3 } },
+            lineStyle: { opacity: 0.8 }
+        }]
     });
 }
 
+// ═══════════════════════════════════════════════════════
+// MÉTRIQUES RESTAURÉES COMPLÈTES (TEMPS, SCROLL, CLICS, PIE, DOMAINES)
+// ═══════════════════════════════════════════════════════
 function renderMetrics() {
     var t = S.tot;
     var h = '<div class="sr">';
     h += mkSC('Pages distinctes', t.pages, '');
     h += mkSC('Temps total', fr(t.temps / 1000, 0) + 's', '');
     h += mkSC('Clics cumulés', t.clics, '#6366f1');
+    h += mkSC('Touches Clavier', t.touches_clavier, '#f59e0b');
     h += mkSC('Copies cumulées', t.copies, '#059669');
+    h += mkSC('Collages cumulés', t.collages, '#0891b2');
+    h += mkSC('Back', t.back, '#ea580c');
+    h += mkSC('Fermés', t.closed, '#dc2626');
     h += '</div>';
 
-    var ch = Math.max(300, S.vr.length * 40 + 80);
+    var ch = Math.max(300, S.vr.length * 45 + 80);
     h += '<div class="cg">';
     h += '<div class="cb cf"><h3>Temps total cumulé par site (avec découpage par visite)</h3><div id="c-temps" style="height:' + ch + 'px"></div></div>';
+    h += '<div class="cb cf"><h3>Scroll Max (%) par site</h3><div id="c-scroll" style="height:' + ch + 'px"></div></div>';
     h += '<div class="cb cf"><h3>Clics totaux par site (avec découpage par visite)</h3><div id="c-clics" style="height:' + ch + 'px"></div></div>';
+    h += '<div class="cb"><h3>Interactions globales</h3><div id="c-pie" style="height:300px"></div></div>';
+    h += '<div class="cb"><h3>Domaines visités</h3><div id="c-dom" style="height:300px"></div></div>';
     h += '</div>';
     document.getElementById('p-met').innerHTML = h;
 
     var labs = S.vr.map(g => g.nom);
 
+    // 1. Graphique du Temps par visite (Barres empilées)
     var maxVisits = Math.max(...S.vr.map(g => g.visits.length));
     var tempsSeries = [];
     for (var i = 0; i < maxVisits; i++) {
@@ -523,12 +630,26 @@ function renderMetrics() {
     CHARTS.temps = echarts.init(document.getElementById('c-temps'));
     CHARTS.temps.setOption({
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        grid: { left: 180, right: 40, top: 20, bottom: 30 },
+        grid: { left: 250, right: 40, top: 20, bottom: 30 },
         xAxis: { type: 'value', name: 's' },
-        yAxis: { type: 'category', data: labs, inverse: true },
+        yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
         series: tempsSeries
     });
 
+    // 2. Graphique du Scroll Max
+    var scrolls = S.vr.map(g => {
+        return { value: g.scroll, itemStyle: { color: g.scroll >= 75 ? '#059669' : (g.scroll >= 40 ? '#d97706' : '#dc2626') } };
+    });
+    CHARTS.scroll = echarts.init(document.getElementById('c-scroll'));
+    CHARTS.scroll.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: 250, right: 40, top: 20, bottom: 30 },
+        xAxis: { type: 'value', max: 100, name: '%' },
+        yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
+        series: [{ type: 'bar', data: scrolls, label: { show: true, position: 'right', fontSize: 11, formatter: '{c}%' } }]
+    });
+
+    // 3. Graphique des Clics par visite (Barres empilées)
     var clicsSeries = [];
     for (var j = 0; j < maxVisits; j++) {
         clicsSeries.push({
@@ -542,10 +663,38 @@ function renderMetrics() {
     CHARTS.clics = echarts.init(document.getElementById('c-clics'));
     CHARTS.clics.setOption({
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        grid: { left: 180, right: 40, top: 20, bottom: 30 },
+        grid: { left: 250, right: 40, top: 20, bottom: 30 },
         xAxis: { type: 'value' },
-        yAxis: { type: 'category', data: labs, inverse: true },
+        yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
         series: clicsSeries
+    });
+
+    // 4. Camembert des interactions
+    var pie = [];
+    if (t.clics) pie.push({ name: 'Clics', value: t.clics });
+    if (t.touches_clavier) pie.push({ name: 'Touches Clavier', value: t.touches_clavier });
+    if (t.copies) pie.push({ name: 'Copies', value: t.copies });
+    if (t.collages) pie.push({ name: 'Collages', value: t.collages });
+    if (!pie.length) pie.push({ name: 'Aucune', value: 1 });
+    CHARTS.pie = echarts.init(document.getElementById('c-pie'));
+    CHARTS.pie.setOption({
+        tooltip: { trigger: 'item' }, color: ['#6366f1', '#f59e0b', '#059669', '#0891b2', '#94a3b8'],
+        series: [{ type: 'pie', radius: ['40%', '70%'], data: pie, label: { fontSize: 12 } }]
+    });
+
+    // 5. Domaines visités
+    var doms = {};
+    S.vr.forEach(g => {
+        try { var d = new URL(g.url).hostname.replace('www.', ''); doms[d] = (doms[d] || 0) + g.nb; } catch (e) {}
+    });
+    var ds = Object.entries(doms).sort((a, b) => b[1] - a[1]).slice(0, 10);
+    CHARTS.dom = echarts.init(document.getElementById('c-dom'));
+    CHARTS.dom.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { left: 140, right: 30, top: 10, bottom: 30 },
+        xAxis: { type: 'value' },
+        yAxis: { type: 'category', data: ds.map(d => d[0]), inverse: true },
+        series: [{ type: 'bar', data: ds.map(d => d[1]), color: '#8b5cf6', label: { show: true, position: 'right' } }]
     });
 }
 
@@ -554,9 +703,10 @@ function mkSC(l, v, c) {
 }
 
 // ═══════════════════════════════════════════════════════
-// RENDU DES 5 ONGLETS DU EXCEL
+// RENDU DES 5 ONGLETS DE LA FEUILLE EXCEL
 // ═══════════════════════════════════════════════════════
 
+// Onglet 1 : Navigation
 function renderNavTab() {
     var th = '<div class="tw"><table><thead><tr>';
     th += '<th>Question</th><th>Visite_ID</th><th>Heure_Entrée</th><th>Heure_Sortie</th><th>Durée (s)</th><th>URL</th><th>Nom_Page</th><th>Scroll_Max (%)</th><th>Clics</th><th>Copies</th><th>Collages</th>';
@@ -583,28 +733,35 @@ function renderNavTab() {
     document.getElementById('p-nav').innerHTML = th;
 }
 
+// Onglet 2 : Copies & Collages (100% des événements extraits)
 function renderCopyPasteTab() {
     var th = '<div class="tw"><table><thead><tr>';
     th += '<th>Question</th><th>Type_Action</th><th>Timestamp_Exact</th><th>URL</th><th>Texte_Extrait</th>';
     th += '</tr></thead><tbody>';
 
-    S.vis.forEach(v => {
-        var h = tsT(v.ts, S.participantTz);
-        v.copies.forEach(c => {
-            th += '<tr><td>' + v.q + '</td><td><span class="tg" style="background:#e6f4ea;color:#137333;">Copie</span></td><td class="m">' + h + '</td><td>' + esc(v.url) + '</td><td class="w">' + esc(c) + '</td></tr>';
-        });
-        v.collages.forEach(c => {
-            th += '<tr><td>' + v.q + '</td><td><span class="tg" style="background:#feefc3;color:#b06000;">Collage</span></td><td class="m">' + h + '</td><td>' + esc(v.url) + '</td><td class="w">' + esc(c) + '</td></tr>';
-        });
+    S.copyPasteList.forEach(cp => {
+        var h = tsT(cp.ts, S.participantTz);
+        var badge = cp.type === 'copie' 
+            ? '<span class="tg" style="background:#e6f4ea;color:#137333;">Copie</span>'
+            : '<span class="tg" style="background:#feefc3;color:#b06000;">Collage</span>';
+
+        th += '<tr>';
+        th += '<td><span class="qb" style="background:' + (S.qc[cp.q] || '#64748b') + '">' + cp.q + '</span></td>';
+        th += '<td>' + badge + '</td>';
+        th += '<td class="m">' + h + '</td>';
+        th += '<td><a href="' + esc(cp.url) + '" target="_blank" class="lk">' + esc(shortUrl(cp.url)) + '</a></td>';
+        th += '<td class="w"><strong>' + esc(cp.texte) + '</strong></td>';
+        th += '</tr>';
     });
     th += '</tbody></table></div>';
     document.getElementById('p-copypaste').innerHTML = th;
 }
 
+// Onglet 3 : Réponses Recherche (Conforme aux colonnes de l'Excel)
 function renderResearchTab() {
     var reps = S.reps.filter(r => r.type === 'research_answer' || r.type === 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th>Question_ID</th><th>Difficulté</th><th>Heure_Soumission</th><th>Temps (s)</th><th>Réponse Textuelle</th><th>Mots</th><th>MATTR</th><th>MTLD</th>';
+    th += '<th>Question_ID</th><th>Difficulté</th><th>Heure_Soumission</th><th>Temps (s)</th><th>Réponse Textuelle</th><th>Mots</th><th>MATTR</th><th>MTLD</th><th>Textes_Copies_Pendant_Q</th><th>Textes_Colles_Pendant_Q</th>';
     th += '</tr></thead><tbody>';
 
     reps.forEach(r => {
@@ -614,21 +771,28 @@ function renderResearchTab() {
         var mattr = calculateMATTR(answerText);
         var mtld = calculateMTLD(answerText);
 
+        var qLabel = getQL(r.timestamp, S.periods);
+        var qCopies = S.copyPasteList.filter(cp => cp.q === qLabel && cp.type === 'copie').map(cp => cp.texte).join(TEXT_DELIMITER);
+        var qPastes = S.copyPasteList.filter(cp => cp.q === qLabel && cp.type === 'collage').map(cp => cp.texte).join(TEXT_DELIMITER);
+
         th += '<tr>';
         th += '<td><strong>' + esc(r.questionId || r.type) + '</strong></td>';
         th += '<td>' + esc(r.difficulty || d.difficulty || '—') + '</td>';
         th += '<td class="m">' + tsT(r.timestamp, S.participantTz) + '</td>';
-        th += '<td class="r">' + (d.timeSpentSeconds || '—') + 's</td>';
+        th += '<td class="r">' + (d.timeSpentSeconds !== undefined ? d.timeSpentSeconds + 's' : '—') + '</td>';
         th += '<td class="w"><strong>' + esc(answerText) + '</strong></td>';
         th += '<td class="r">' + wordCount + '</td>';
         th += '<td class="r"><strong>' + mattr + '</strong></td>';
         th += '<td class="r"><strong>' + mtld + '</strong></td>';
+        th += '<td class="w">' + esc(qCopies || '—') + '</td>';
+        th += '<td class="w">' + esc(qPastes || '—') + '</td>';
         th += '</tr>';
     });
     th += '</tbody></table></div>';
     document.getElementById('p-research').innerHTML = th;
 }
 
+// Onglet 4 : Auto-Évaluations
 function renderEvalTab() {
     var reps = S.reps.filter(r => r.type !== 'research_answer' && r.type !== 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
@@ -647,6 +811,7 @@ function renderEvalTab() {
     document.getElementById('p-eval').innerHTML = th;
 }
 
+// Onglet 5 : Chronologie Globale
 function renderChronoTab() {
     var items = [];
     S.vis.forEach(v => {
@@ -675,7 +840,7 @@ function renderChronoTab() {
 }
 
 // ═══════════════════════════════════════════════════════
-// INITIALISATION AUTOMATIQUE & ÉCOUTEURS
+// INITIALISATION AUTOMATIQUE ET CHARGEMENT
 // ═══════════════════════════════════════════════════════
 (function init() {
     var dropbox = document.getElementById('dropbox');
@@ -740,12 +905,10 @@ function renderChronoTab() {
     var params = new URLSearchParams(window.location.search);
     var pid = params.get('pid');
 
-    // 1. Tente de charger depuis sessionStorage si redirigé par le bouton "Analyser"
     if (pid && loadFromSessionStorage()) {
         return;
     }
 
-    // 2. Sinon charge depuis l'API backend
     if (pid) {
         loadFromAPI(pid);
         return;
