@@ -1,4 +1,4 @@
-// dashboard.js (Version corrigée avec gestion multi-visites complète)
+// dashboard.js (Version corrigée)
 
 'use strict';
 
@@ -194,7 +194,7 @@ function extractResponseText(d) {
 }
 
 // ═══════════════════════════════════════════════════════
-// TRAITEMENT DES ÉVÉNEMENTS (CORRECTEMENT ALIGNÉ MULTI-VISITES)
+// TRAITEMENT DES ÉVÉNEMENTS
 // ═══════════════════════════════════════════════════════
 function mkPeriods(reps) {
     if (!reps || !reps.length) return [];
@@ -241,7 +241,6 @@ function process(raw) {
     var qc = {};
     periods.forEach((p, i) => { qc[p.label] = PAL[i % PAL.length]; });
 
-    // Extraction brute de TOUTES les copies et tous les collages
     var copyPasteList = [];
     logs.forEach(log => {
         var t = log.type, url = log.url || '';
@@ -260,7 +259,6 @@ function process(raw) {
     logs.forEach(log => {
         var t = log.type, url = log.url || '', vid = log.visitId;
         
-        // FIXE ESSENTIEL : Prise en compte de 'navigation' ET 'tab_activated' pour créer les visites
         if (t === 'navigation' || t === 'tab_activated') {
             var tid = log.tabId, ib = false, ifw = false;
             if (tid != null) {
@@ -299,7 +297,6 @@ function process(raw) {
         }
     });
 
-    // Regroupement par URL unique pour calculer le cumul ET la liste des visites individuelles
     var uO = [], uG = {};
     vis.forEach(v => {
         var u = v.url;
@@ -313,7 +310,7 @@ function process(raw) {
         }
         var g = uG[u];
         g.tms += v.tms; 
-        g.scroll = Math.max(g.scroll, v.scroll); // Max scroll atteint toutes visites confondues
+        g.scroll = Math.max(g.scroll, v.scroll);
         g.clics += v.clics; 
         g.touches_clavier += v.touches_clavier; 
         g.copies = g.copies.concat(v.copies);
@@ -591,7 +588,7 @@ function renderTree() {
 }
 
 // ═══════════════════════════════════════════════════════
-// MÉTRIQUES & VISUALISATIONS PAR SITE DECOUPÉES PAR VISITES
+// MÉTRIQUES ET GRAPHIQUES CORRIGÉS (SCROLL & COPIES/COLLAGES PAR VISITE)
 // ═══════════════════════════════════════════════════════
 function renderMetrics() {
     var t = S.tot;
@@ -606,12 +603,12 @@ function renderMetrics() {
     h += mkSC('Fermés', t.closed, '#dc2626');
     h += '</div>';
 
-    var ch = Math.max(320, S.vr.length * 45 + 80);
+    var ch = Math.max(340, S.vr.length * 48 + 80);
     h += '<div class="cg">';
     h += '<div class="cb cf"><h3>Temps total cumulé par site (découpé par visite)</h3><div id="c-temps" style="height:' + ch + 'px"></div></div>';
-    h += '<div class="cb cf"><h3>Scroll Max (%) par site</h3><div id="c-scroll" style="height:' + ch + 'px"></div></div>';
+    h += '<div class="cb cf"><h3>Scroll Max (%) par site (découpé par visite)</h3><div id="c-scroll" style="height:' + ch + 'px"></div></div>';
     h += '<div class="cb cf"><h3>Clics totaux par site (découpés par visite)</h3><div id="c-clics" style="height:' + ch + 'px"></div></div>';
-    h += '<div class="cb cf"><h3>Copies & Collages par site (découpés par visite)</h3><div id="c-copypaste-site" style="height:' + ch + 'px"></div></div>';
+    h += '<div class="cb cf"><h3>Copies (Vert) & Collages (Cyan) par site (découpés par visite)</h3><div id="c-copypaste-site" style="height:' + (ch + 40) + 'px"></div></div>';
     h += '<div class="cb"><h3>Interactions globales</h3><div id="c-pie" style="height:300px"></div></div>';
     h += '<div class="cb"><h3>Domaines visités</h3><div id="c-dom" style="height:300px"></div></div>';
     h += '</div>';
@@ -634,24 +631,32 @@ function renderMetrics() {
     CHARTS.temps = echarts.init(document.getElementById('c-temps'));
     CHARTS.temps.setOption({
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        legend: { top: 0 },
+        legend: { top: 0, type: 'scroll' },
         grid: { left: 250, right: 40, top: 35, bottom: 30 },
         xAxis: { type: 'value', name: 's' },
         yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
         series: tempsSeries
     });
 
-    // 2. Max Scroll par site
-    var scrolls = S.vr.map(g => {
-        return { value: g.scroll, itemStyle: { color: g.scroll >= 75 ? '#059669' : (g.scroll >= 40 ? '#d97706' : '#dc2626') } };
-    });
+    // 2. CORRECTION : Scroll Max par visite (Barres empilées)
+    var scrollSeries = [];
+    for (var s = 0; s < maxVisits; s++) {
+        scrollSeries.push({
+            name: 'Visite ' + (s + 1),
+            type: 'bar',
+            stack: 'totalScroll',
+            data: S.vr.map(g => g.visits[s] ? g.visits[s].scroll : 0)
+        });
+    }
+
     CHARTS.scroll = echarts.init(document.getElementById('c-scroll'));
     CHARTS.scroll.setOption({
-        tooltip: { trigger: 'axis' },
-        grid: { left: 250, right: 40, top: 20, bottom: 30 },
-        xAxis: { type: 'value', max: 100, name: '%' },
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        legend: { top: 0, type: 'scroll' },
+        grid: { left: 250, right: 40, top: 35, bottom: 30 },
+        xAxis: { type: 'value', name: '%' },
         yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
-        series: [{ type: 'bar', data: scrolls, label: { show: true, position: 'right', fontSize: 11, formatter: '{c}%' } }]
+        series: scrollSeries
     });
 
     // 3. Clics par visite (Barres empilées)
@@ -668,29 +673,39 @@ function renderMetrics() {
     CHARTS.clics = echarts.init(document.getElementById('c-clics'));
     CHARTS.clics.setOption({
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        legend: { top: 0 },
+        legend: { top: 0, type: 'scroll' },
         grid: { left: 250, right: 40, top: 35, bottom: 30 },
         xAxis: { type: 'value' },
         yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
         series: clicsSeries
     });
 
-    // 4. Graphique Copies & Collages par site (Empilés par visite)
+    // 4. CORRECTION : Graphique 2 barres séparées (1 pour Copies, 1 pour Collages) découpées par visite
+    var greenShades = ['#059669', '#10b981', '#34d399', '#047857', '#a7f3d0'];
+    var cyanShades  = ['#0891b2', '#06b6d4', '#22d3ee', '#0e7490', '#cffaff'];
+
     var copyPasteSeries = [];
+    
+    // Groupe 1 : Copies (Barre du haut)
     for (var k = 0; k < maxVisits; k++) {
         copyPasteSeries.push({
-            name: 'Visite ' + (k + 1) + ' (Copies)',
+            name: 'Visite ' + (k + 1) + ' (Copie)',
             type: 'bar',
-            stack: 'totalCopyPaste',
-            data: S.vr.map(g => g.visits[k] ? g.visits[k].copies.length : 0),
-            itemStyle: { color: '#059669' }
+            stack: 'copiesStack',
+            barGap: '20%',
+            itemStyle: { color: greenShades[k % greenShades.length] },
+            data: S.vr.map(g => g.visits[k] ? g.visits[k].copies.length : 0)
         });
+    }
+
+    // Groupe 2 : Collages (Barre du bas juste en dessous)
+    for (var k = 0; k < maxVisits; k++) {
         copyPasteSeries.push({
-            name: 'Visite ' + (k + 1) + ' (Collages)',
+            name: 'Visite ' + (k + 1) + ' (Collage)',
             type: 'bar',
-            stack: 'totalCopyPaste',
-            data: S.vr.map(g => g.visits[k] ? g.visits[k].collages.length : 0),
-            itemStyle: { color: '#0891b2' }
+            stack: 'collagesStack',
+            itemStyle: { color: cyanShades[k % cyanShades.length] },
+            data: S.vr.map(g => g.visits[k] ? g.visits[k].collages.length : 0)
         });
     }
 
@@ -738,13 +753,13 @@ function mkSC(l, v, c) {
 }
 
 // ═══════════════════════════════════════════════════════
-// ONGLETS TABLES (SYNCHRO EXCEL EN 5 FEUILLES)
+// ONGLETS TABLES (AVEC LARGEURS DE COLONNES CORRIGÉES)
 // ═══════════════════════════════════════════════════════
 
-// Onglet 1 : Navigation (Toutes les visites)
+// Onglet 1 : Navigation
 function renderNavTab() {
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th>Question</th><th>Visite_ID</th><th>Heure_Entrée</th><th>Heure_Sortie</th><th>Durée (s)</th><th>URL</th><th>Nom_Page</th><th>Scroll_Max (%)</th><th>Clics</th><th>Touches</th><th>Copies</th><th>Collages</th>';
+    th += '<th class="col-small">Question</th><th class="col-id">Visite_ID</th><th class="col-small">Heure_Entrée</th><th class="col-small">Heure_Sortie</th><th class="col-small">Durée (s)</th><th class="col-url">URL</th><th class="col-nom">Nom_Page</th><th class="col-small">Scroll (%)</th><th class="col-small">Clics</th><th class="col-small">Touches</th><th class="col-text">Copies</th><th class="col-text">Collages</th>';
     th += '</tr></thead><tbody>';
 
     S.vis.forEach((v, index) => {
@@ -756,23 +771,23 @@ function renderNavTab() {
         th += '<td class="m">' + hEntree + '</td>';
         th += '<td class="m">' + hSortie + '</td>';
         th += '<td class="r">' + fr(v.tms / 1000) + '</td>';
-        th += '<td><a href="' + esc(v.url) + '" target="_blank" class="lk">' + esc(v.nom) + '</a></td>';
-        th += '<td>' + esc(v.nom) + '</td>';
+        th += '<td class="col-url" title="' + esc(v.url) + '"><a href="' + esc(v.url) + '" target="_blank" class="lk">' + esc(v.url) + '</a></td>';
+        th += '<td class="col-nom" title="' + esc(v.nom) + '">' + esc(v.nom) + '</td>';
         th += '<td class="r">' + v.scroll + '%</td>';
         th += '<td class="r">' + v.clics + '</td>';
         th += '<td class="r">' + v.touches_clavier + '</td>';
-        th += '<td class="w">' + esc(v.copies.join(TEXT_DELIMITER) || '—') + '</td>';
-        th += '<td class="w">' + esc(v.collages.join(TEXT_DELIMITER) || '—') + '</td>';
+        th += '<td class="col-text">' + esc(v.copies.join(TEXT_DELIMITER) || '—') + '</td>';
+        th += '<td class="col-text">' + esc(v.collages.join(TEXT_DELIMITER) || '—') + '</td>';
         th += '</tr>';
     });
     th += '</tbody></table></div>';
     document.getElementById('p-nav').innerHTML = th;
 }
 
-// Onglet 2 : Copies & Collages (Liste exhaustive)
+// Onglet 2 : Copies & Collages
 function renderCopyPasteTab() {
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th>Question</th><th>Type_Action</th><th>Timestamp_Exact</th><th>URL</th><th>Texte_Extrait</th>';
+    th += '<th class="col-small">Question</th><th class="col-small">Type_Action</th><th class="col-small">Timestamp</th><th class="col-url">URL</th><th class="col-text">Texte_Extrait</th>';
     th += '</tr></thead><tbody>';
 
     S.copyPasteList.forEach(cp => {
@@ -785,8 +800,8 @@ function renderCopyPasteTab() {
         th += '<td><span class="qb" style="background:' + (S.qc[cp.q] || '#64748b') + '">' + cp.q + '</span></td>';
         th += '<td>' + badge + '</td>';
         th += '<td class="m">' + h + '</td>';
-        th += '<td><a href="' + esc(cp.url) + '" target="_blank" class="lk">' + esc(shortUrl(cp.url)) + '</a></td>';
-        th += '<td class="w"><strong>' + esc(cp.texte) + '</strong></td>';
+        th += '<td class="col-url" title="' + esc(cp.url) + '"><a href="' + esc(cp.url) + '" target="_blank" class="lk">' + esc(shortUrl(cp.url)) + '</a></td>';
+        th += '<td class="col-text"><strong>' + esc(cp.texte) + '</strong></td>';
         th += '</tr>';
     });
     th += '</tbody></table></div>';
@@ -797,7 +812,7 @@ function renderCopyPasteTab() {
 function renderResearchTab() {
     var reps = S.reps.filter(r => r.type === 'research_answer' || r.type === 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th>Question_ID</th><th>Difficulté</th><th>Heure_Soumission</th><th>Temps (s)</th><th>Réponse Textuelle</th><th>Mots</th><th>MATTR</th><th>MTLD</th><th>Textes_Copies_Pendant_Q</th><th>Textes_Colles_Pendant_Q</th>';
+    th += '<th class="col-small">Question_ID</th><th class="col-small">Difficulté</th><th class="col-small">Soumission</th><th class="col-small">Temps (s)</th><th class="col-text">Réponse Textuelle</th><th class="col-small">Mots</th><th class="col-small">MATTR</th><th class="col-small">MTLD</th><th class="col-text">Textes_Copies_Pendant_Q</th><th class="col-text">Textes_Colles_Pendant_Q</th>';
     th += '</tr></thead><tbody>';
 
     reps.forEach(r => {
@@ -816,12 +831,12 @@ function renderResearchTab() {
         th += '<td>' + esc(r.difficulty || d.difficulty || '—') + '</td>';
         th += '<td class="m">' + tsT(r.timestamp, S.participantTz) + '</td>';
         th += '<td class="r">' + (d.timeSpentSeconds !== undefined ? d.timeSpentSeconds + 's' : '—') + '</td>';
-        th += '<td class="w"><strong>' + esc(answerText) + '</strong></td>';
+        th += '<td class="col-text"><strong>' + esc(answerText) + '</strong></td>';
         th += '<td class="r">' + wordCount + '</td>';
         th += '<td class="r"><strong>' + mattr + '</strong></td>';
         th += '<td class="r"><strong>' + mtld + '</strong></td>';
-        th += '<td class="w">' + esc(qCopies || '—') + '</td>';
-        th += '<td class="w">' + esc(qPastes || '—') + '</td>';
+        th += '<td class="col-text">' + esc(qCopies || '—') + '</td>';
+        th += '<td class="col-text">' + esc(qPastes || '—') + '</td>';
         th += '</tr>';
     });
     th += '</tbody></table></div>';
@@ -832,7 +847,7 @@ function renderResearchTab() {
 function renderEvalTab() {
     var reps = S.reps.filter(r => r.type !== 'research_answer' && r.type !== 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th>Heure</th><th>Type_Evaluation</th><th>QuestionID</th><th>Données / Réponses</th>';
+    th += '<th class="col-small">Heure</th><th class="col-small">Type_Evaluation</th><th class="col-small">QuestionID</th><th class="col-text">Données / Réponses</th>';
     th += '</tr></thead><tbody>';
 
     reps.forEach(r => {
@@ -840,7 +855,7 @@ function renderEvalTab() {
         th += '<td class="m">' + tsT(r.timestamp, S.participantTz) + '</td>';
         th += '<td><span class="tg">' + esc(r.type) + '</span></td>';
         th += '<td>' + esc(r.questionId || '—') + '</td>';
-        th += '<td class="w">' + esc(JSON.stringify(r.data || {})) + '</td>';
+        th += '<td class="col-text">' + esc(JSON.stringify(r.data || {})) + '</td>';
         th += '</tr>';
     });
     th += '</tbody></table></div>';
@@ -859,7 +874,7 @@ function renderChronoTab() {
     items.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
 
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th>Source</th><th>Heure</th><th>Question</th><th>Type</th><th>Détails / URL</th>';
+    th += '<th class="col-small">Source</th><th class="col-small">Heure</th><th class="col-small">Question</th><th class="col-small">Type</th><th class="col-text">Détails / URL</th>';
     th += '</tr></thead><tbody>';
 
     items.forEach(it => {
@@ -868,7 +883,7 @@ function renderChronoTab() {
         th += '<td class="m">' + tsT(it.ts, S.participantTz) + '</td>';
         th += '<td>' + esc(it.q) + '</td>';
         th += '<td><span class="tg">' + esc(it.type) + '</span></td>';
-        th += '<td class="w">' + esc(it.details || it.url) + '</td>';
+        th += '<td class="col-text">' + esc(it.details || it.url) + '</td>';
         th += '</tr>';
     });
     th += '</tbody></table></div>';
