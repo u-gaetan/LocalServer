@@ -1,7 +1,10 @@
-// dashboard.js (Modifié)
+// dashboard.js (Corrigé et complet)
 
 'use strict';
 
+// ═══════════════════════════════════════════════════════
+// ÉTAT GLOBAL ET CRYPTO
+// ═══════════════════════════════════════════════════════
 var S = null;
 var CHARTS = {};
 var metInit = false;
@@ -10,6 +13,9 @@ var PAL = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444'
 
 const TEXT_DELIMITER = '\n--- [EXTRAIT] ---\n';
 
+// ═══════════════════════════════════════════════════════
+// DÉCHIFFREMENT WEB CRYPTO (CSFLE CLIENT-SIDE)
+// ═══════════════════════════════════════════════════════
 function base64ToArrayBuffer(base64) {
     const binaryString = window.atob(base64);
     const len = binaryString.length;
@@ -52,6 +58,9 @@ async function decryptParticipantDataInPlace(data) {
     return data;
 }
 
+// ═══════════════════════════════════════════════════════
+// UTILITAIRES D'AFFICHAGE ET HEURE LOCALE PARTICIPANT
+// ═══════════════════════════════════════════════════════
 function shortUrl(u) {
     if (!u) return '?';
     if (u.startsWith('chrome://')) return 'Nouvel onglet';
@@ -70,7 +79,6 @@ function shortUrl(u) {
     } catch (e) { return u.substring(0, 40); }
 }
 
-// Convertit la date UTC en heure locale du participant s'il existe une timezone enregistrée
 function tsT(ts, tz) {
     if (!ts) return '';
     try {
@@ -103,6 +111,10 @@ function svgSym(clic, copy, paste, closed) {
     } else if (cc.length === 2) {
         s += '<circle cx="50" cy="50" r="46" fill="' + cc[0] + '"/>';
         s += '<path d="M50 4A46 46 0 0 1 50 96Z" fill="' + cc[1] + '"/>';
+    } else if (cc.length === 3) {
+        s += '<circle cx="50" cy="50" r="46" fill="' + cc[0] + '"/>';
+        s += '<path d="M50 50L50 4A46 46 0 0 1 89.8 73Z" fill="' + cc[1] + '"/>';
+        s += '<path d="M50 50L89.8 73A46 46 0 0 1 10.2 73Z" fill="' + cc[2] + '"/>';
     }
     var bc = closed ? '#dc2626' : '#fff', sw = closed ? '6' : '3';
     s += '<circle cx="50" cy="50" r="46" fill="none" stroke="' + bc + '" stroke-width="' + sw + '"/>';
@@ -110,6 +122,80 @@ function svgSym(clic, copy, paste, closed) {
     return 'image://data:image/svg+xml;base64,' + btoa(s);
 }
 
+function tokenizeText(text) {
+    if (!text || typeof text !== 'string') return [];
+    return text.toLowerCase().replace(/[^\w\s\u00C0-\u024F]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+}
+
+function calculateMATTR(text, windowSize = 50) {
+    const tokens = tokenizeText(text);
+    if (tokens.length === 0) return 0;
+    if (tokens.length < windowSize) {
+        const unique = new Set(tokens);
+        return +(unique.size / tokens.length).toFixed(4);
+    }
+    let totalTTR = 0;
+    const numWindows = tokens.length - windowSize + 1;
+    for (let i = 0; i < numWindows; i++) {
+        const window = tokens.slice(i, i + windowSize);
+        const unique = new Set(window);
+        totalTTR += (unique.size / windowSize);
+    }
+    return +(totalTTR / numWindows).toFixed(4);
+}
+
+function calculateMTLD(text, factorThreshold = 0.72) {
+    const tokens = tokenizeText(text);
+    if (tokens.length === 0) return 0;
+
+    function getFactors(wordList) {
+        let factors = 0;
+        let currentTokens = [];
+        for (let i = 0; i < wordList.length; i++) {
+            currentTokens.push(wordList[i]);
+            const unique = new Set(currentTokens);
+            const ttr = unique.size / currentTokens.length;
+            if (ttr < factorThreshold) {
+                factors++;
+                currentTokens = [];
+            }
+        }
+        if (currentTokens.length > 0) {
+            const unique = new Set(currentTokens);
+            const ttr = unique.size / currentTokens.length;
+            const excess = (1 - ttr) / (1 - factorThreshold);
+            factors += Math.min(1, Math.max(0, excess));
+        }
+        return factors === 0 ? 1 : factors;
+    }
+
+    const forwardFactors = getFactors(tokens);
+    const backwardFactors = getFactors([...tokens].reverse());
+    const avgFactors = (forwardFactors + backwardFactors) / 2;
+    return +(tokens.length / avgFactors).toFixed(2);
+}
+
+function extractResponseText(d) {
+    if (!d) return '';
+    if (typeof d === 'string') return d.trim();
+    if (typeof d === 'object') {
+        if (d.answer && typeof d.answer === 'string') return d.answer.trim();
+        if (d.answerText && typeof d.answerText === 'string') return d.answerText.trim();
+        if (d.response && typeof d.response === 'string') return d.response.trim();
+        if (d.reponse && typeof d.reponse === 'string') return d.reponse.trim();
+        if (d.texte && typeof d.texte === 'string') return d.texte.trim();
+        if (d.userAnswer && typeof d.userAnswer === 'string') return d.userAnswer.trim();
+        if (d.answers) return extractResponseText(d.answers);
+
+        const stringValues = Object.values(d).filter(v => typeof v === 'string' && v.trim().length > 0);
+        if (stringValues.length > 0) return stringValues.join(' | ');
+    }
+    return JSON.stringify(d);
+}
+
+// ═══════════════════════════════════════════════════════
+// PÉRIODES ET DONNÉES
+// ═══════════════════════════════════════════════════════
 function mkPeriods(reps) {
     if (!reps || !reps.length) return [];
     var sorted = reps.filter(r => r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills'))
@@ -148,7 +234,6 @@ function process(raw) {
     var logs = raw.events || (Array.isArray(raw) ? raw : []);
     var reps = raw.reponses || [];
 
-    // Détection de la timezone participant depuis les données démographiques
     var demoRep = reps.find(r => r.type === 'demographics');
     var participantTz = demoRep && demoRep.data ? demoRep.data.timezone : null;
 
@@ -197,7 +282,6 @@ function process(raw) {
         }
     });
 
-    // CUMUL VÉRITABLE DES SITES (Correction du bug de première visite)
     var uO = [], uG = {};
     vis.forEach(v => {
         var u = v.url;
@@ -206,7 +290,7 @@ function process(raw) {
             uG[u] = { 
                 url: u, nom: v.nom, tms: 0, scroll: 0, clics: 0, touches_clavier: 0,
                 copies: [], collages: [], nb: 0, back: 0, fwd: 0, closed: 0, qs: {},
-                visits: [] // Stocke le détail de chaque visite pour la visualisation empilée
+                visits: []
             };
         }
         var g = uG[u];
@@ -241,11 +325,21 @@ function process(raw) {
         } catch (e) {}
     }
 
-    S = { vis, reps, periods, qc, vr, tot, duree, participantTz };
+    var consent1 = "Non spécifié", consent2 = "Non spécifié";
+    reps.forEach(function(r) {
+        if (r.type === 'consent') consent1 = (r.data && r.data.consent) ? "✅ Accepté" : "❌ Refusé";
+        if (r.type === 'deception_consent') consent2 = (r.data && r.data.decision === 'maintain') ? "✅ Maintenu" : "🚨 RETIRÉ";
+    });
+
+    S = { vis, reps, periods, qc, vr, tot, duree, consent1, consent2, participantTz };
     return S;
 }
 
+// ═══════════════════════════════════════════════════════
+// CHARGEMENT ET RÉCUPÉRATION DE SESSION
+// ═══════════════════════════════════════════════════════
 function handleFile(file) {
+    setLoading('Chargement du fichier...');
     var reader = new FileReader();
     reader.onload = async function(e) {
         try {
@@ -253,14 +347,56 @@ function handleFile(file) {
             if (researcherPrivateKey) raw = await decryptParticipantDataInPlace(raw);
             process(raw);
             showDash();
-        } catch (err) { alert('❌ Erreur : ' + err.message); }
+        } catch (err) { setLoading('❌ Erreur : ' + err.message); }
     };
     reader.readAsText(file);
+}
+
+function loadFromSessionStorage() {
+    var data = sessionStorage.getItem('dashboard_data');
+    if (!data) return false;
+    try {
+        var raw = JSON.parse(data);
+        process(raw);
+        sessionStorage.removeItem('dashboard_data');
+        sessionStorage.removeItem('dashboard_participant_id');
+        showDash();
+        return true;
+    } catch (err) {
+        setLoading('❌ Erreur données : ' + err.message);
+        return false;
+    }
+}
+
+function loadFromAPI(pid) {
+    setLoading('Chargement participant ' + pid + ' depuis l\'API...');
+    var token = sessionStorage.getItem('tracker_admin_token') || '';
+    fetch('/api/collecte/export/participant/' + encodeURIComponent(pid) + '?include_responses=true', {
+        headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+    })
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(async function(data) {
+            if (researcherPrivateKey) data = await decryptParticipantDataInPlace(data);
+            process(data);
+            showDash();
+        })
+        .catch(function(err) {
+            setLoading('❌ Erreur API : ' + err.message + ' — Utilisez le glisser-déposer.');
+        });
+}
+
+function setLoading(msg) {
+    var el = document.getElementById('loading');
+    if (el) el.textContent = msg;
 }
 
 function showDash() {
     document.getElementById('drop').style.display = 'none';
     document.getElementById('dash').style.display = 'block';
+    metInit = false;
     render();
 }
 
@@ -268,6 +404,7 @@ function resetDash() {
     S = null; CHARTS = {}; metInit = false;
     document.getElementById('dash').style.display = 'none';
     document.getElementById('drop').style.display = 'flex';
+    setLoading('');
 }
 
 function sw(id, btn) {
@@ -279,6 +416,9 @@ function sw(id, btn) {
     setTimeout(() => { Object.values(CHARTS).forEach(c => { if (c && c.resize) c.resize(); }); }, 100);
 }
 
+// ═══════════════════════════════════════════════════════
+// RENDU GLOBAL
+// ═══════════════════════════════════════════════════════
 function render() {
     renderHeader();
     renderTabs();
@@ -295,7 +435,20 @@ function renderHeader() {
     var tzInfo = S.participantTz ? ' (Fuseau: ' + S.participantTz + ')' : '';
     var h = '<span>' + S.vis.length + ' visites</span>';
     h += '<span>' + t.pages + ' pages distinctes</span>';
+    h += '<span>' + t.tabCount + ' onglets</span>';
     h += '<span>Durée : ' + S.duree + tzInfo + '</span>';
+    
+    var c1 = S.consent1 || "Non spécifié";
+    var c2 = S.consent2 || "Non spécifié";
+    var bg1 = c1.includes('✅') ? '#d1fae5' : (c1.includes('❌') ? '#fee2e2' : '#f8fafc');
+    var text1 = c1.includes('✅') ? '#065f46' : (c1.includes('❌') ? '#991b1b' : '#475569');
+    var bg2 = c2.includes('✅') ? '#d1fae5' : (c2.includes('🚨') ? '#fee2e2' : '#f8fafc');
+    var text2 = c2.includes('✅') ? '#065f46' : (c2.includes('🚨') ? '#991b1b' : '#475569');
+    
+    h += '<div style="margin-left:auto; display:flex; gap:10px;">';
+    h += '<span style="background:'+bg1+'; color:'+text1+'; font-weight:700; padding:4px 12px; border-radius:20px; font-size:13px;">C1 : ' + c1 + '</span>';
+    h += '<span style="background:'+bg2+'; color:'+text2+'; font-weight:700; padding:4px 12px; border-radius:20px; font-size:13px;">C2 : ' + c2 + '</span>';
+    h += '</div>';
     document.getElementById('header-meta').innerHTML = h;
 }
 
@@ -311,26 +464,31 @@ function renderTabs() {
 }
 
 // ═══════════════════════════════════════════════════════
-// ARBRE ET MÉTRIQUES
+// ARBRE ET MÉTRIQUES CUMULÉES
 // ═══════════════════════════════════════════════════════
 function renderTree() {
-    // Code de rendu de l'arbre graphique
     var EX = 180, EY = 140, nodes = [], links = [], bof = {}, my = 0;
     S.vis.forEach((v, xi) => {
         var nid = 'n' + v.id, src = null;
         if (v.pchron !== null && v.id > 0) src = 'n' + v.pchron;
         var yy = 0;
+        var nm = v.nom; if (v.q) nm = '[' + v.q + '] ' + nm;
         nodes.push({
-            id: nid, name: v.nom, x: xi * EX, y: yy,
+            id: nid, name: nm, x: xi * EX, y: yy,
             symbol: svgSym(v.clics > 0, v.copies.length > 0, v.collages.length > 0, v.closed),
-            symbolSize: 22
+            symbolSize: v.closed ? 28 : 20
         });
         if (src) links.push({ source: src, target: nid, lineStyle: { color: '#94a3b8', width: 1.5 } });
     });
-    document.getElementById('p-tree').innerHTML = '<div class="cb" style="height:550px;"><div id="c-tree" style="width:100%;height:100%;"></div></div>';
+
+    var cw = Math.max(1200, S.vis.length * 180 + 200);
+    document.getElementById('p-tree').innerHTML = '<div class="cb" style="height:550px;overflow:auto;"><div id="c-tree" style="width:' + cw + 'px;height:500px;"></div></div>';
     var chart = echarts.init(document.getElementById('c-tree'));
     CHARTS.tree = chart;
-    chart.setOption({ series: [{ type: 'graph', layout: 'none', data: nodes, links: links, roam: true }] });
+    chart.setOption({
+        tooltip: { trigger: 'item' },
+        series: [{ type: 'graph', layout: 'none', data: nodes, links: links, roam: true, zoom: 0.9 }]
+    });
 }
 
 function renderMetrics() {
@@ -351,7 +509,6 @@ function renderMetrics() {
 
     var labs = S.vr.map(g => g.nom);
 
-    // Calcul des séries empilées pour le temps par visite
     var maxVisits = Math.max(...S.vr.map(g => g.visits.length));
     var tempsSeries = [];
     for (var i = 0; i < maxVisits; i++) {
@@ -372,7 +529,6 @@ function renderMetrics() {
         series: tempsSeries
     });
 
-    // Calcul des séries empilées pour les clics par visite
     var clicsSeries = [];
     for (var j = 0; j < maxVisits; j++) {
         clicsSeries.push({
@@ -398,10 +554,9 @@ function mkSC(l, v, c) {
 }
 
 // ═══════════════════════════════════════════════════════
-// LES 5 FEUILLES EXCEL EN ONGLETS
+// RENDU DES 5 ONGLETS DU EXCEL
 // ═══════════════════════════════════════════════════════
 
-// Feuille 1 : Navigation
 function renderNavTab() {
     var th = '<div class="tw"><table><thead><tr>';
     th += '<th>Question</th><th>Visite_ID</th><th>Heure_Entrée</th><th>Heure_Sortie</th><th>Durée (s)</th><th>URL</th><th>Nom_Page</th><th>Scroll_Max (%)</th><th>Clics</th><th>Copies</th><th>Collages</th>';
@@ -428,7 +583,6 @@ function renderNavTab() {
     document.getElementById('p-nav').innerHTML = th;
 }
 
-// Feuille 2 : Copies_Collages
 function renderCopyPasteTab() {
     var th = '<div class="tw"><table><thead><tr>';
     th += '<th>Question</th><th>Type_Action</th><th>Timestamp_Exact</th><th>URL</th><th>Texte_Extrait</th>';
@@ -447,28 +601,34 @@ function renderCopyPasteTab() {
     document.getElementById('p-copypaste').innerHTML = th;
 }
 
-// Feuille 3 : Reponses_Recherche
 function renderResearchTab() {
     var reps = S.reps.filter(r => r.type === 'research_answer' || r.type === 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th>Question_ID</th><th>Difficulté</th><th>Heure_Soumission</th><th>Temps (s)</th><th>Réponse Textuelle</th>';
+    th += '<th>Question_ID</th><th>Difficulté</th><th>Heure_Soumission</th><th>Temps (s)</th><th>Réponse Textuelle</th><th>Mots</th><th>MATTR</th><th>MTLD</th>';
     th += '</tr></thead><tbody>';
 
     reps.forEach(r => {
         var d = r.data || {};
+        var answerText = extractResponseText(d);
+        var wordCount = tokenizeText(answerText).length;
+        var mattr = calculateMATTR(answerText);
+        var mtld = calculateMTLD(answerText);
+
         th += '<tr>';
         th += '<td><strong>' + esc(r.questionId || r.type) + '</strong></td>';
         th += '<td>' + esc(r.difficulty || d.difficulty || '—') + '</td>';
         th += '<td class="m">' + tsT(r.timestamp, S.participantTz) + '</td>';
         th += '<td class="r">' + (d.timeSpentSeconds || '—') + 's</td>';
-        th += '<td class="w"><strong>' + esc(d.answer || d.answerText || '') + '</strong></td>';
+        th += '<td class="w"><strong>' + esc(answerText) + '</strong></td>';
+        th += '<td class="r">' + wordCount + '</td>';
+        th += '<td class="r"><strong>' + mattr + '</strong></td>';
+        th += '<td class="r"><strong>' + mtld + '</strong></td>';
         th += '</tr>';
     });
     th += '</tbody></table></div>';
     document.getElementById('p-research').innerHTML = th;
 }
 
-// Feuille 4 : Auto_Evaluations
 function renderEvalTab() {
     var reps = S.reps.filter(r => r.type !== 'research_answer' && r.type !== 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
@@ -487,7 +647,6 @@ function renderEvalTab() {
     document.getElementById('p-eval').innerHTML = th;
 }
 
-// Feuille 5 : Chronologie_Globale
 function renderChronoTab() {
     var items = [];
     S.vis.forEach(v => {
@@ -515,8 +674,80 @@ function renderChronoTab() {
     document.getElementById('p-chrono').innerHTML = th;
 }
 
-// Initialisation
+// ═══════════════════════════════════════════════════════
+// INITIALISATION AUTOMATIQUE & ÉCOUTEURS
+// ═══════════════════════════════════════════════════════
 (function init() {
+    var dropbox = document.getElementById('dropbox');
     var filein = document.getElementById('filein');
-    if (filein) filein.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+    const privateKeyFileInput = document.getElementById('private-key-file');
+    const keyStatus = document.getElementById('key-status');
+
+    if (dropbox && filein) {
+        dropbox.addEventListener('click', function() { filein.click(); });
+        filein.addEventListener('change', function(e) {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        dropbox.addEventListener('dragover', function(e) { e.preventDefault(); dropbox.classList.add('over'); });
+        dropbox.addEventListener('dragleave', function() { dropbox.classList.remove('over'); });
+        dropbox.addEventListener('drop', function(e) {
+            e.preventDefault(); dropbox.classList.remove('over');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+    }
+
+    if (privateKeyFileInput) {
+        privateKeyFileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const content = e.target.result;
+                try {
+                    researcherPrivateKey = await importPrivateKey(content);
+                    sessionStorage.setItem('tracker_private_key_pem', content);
+                    if (keyStatus) {
+                        keyStatus.textContent = "✅ Clé privée active - Déchiffrement à la volée opérationnel";
+                        keyStatus.style.color = "#10b981";
+                    }
+                } catch (err) {
+                    if (keyStatus) {
+                        keyStatus.textContent = "❌ Clé de déchiffrement invalide";
+                        keyStatus.style.color = "#ef4444";
+                    }
+                    researcherPrivateKey = null;
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    const savedKeyPem = sessionStorage.getItem('tracker_private_key_pem');
+    if (savedKeyPem) {
+        importPrivateKey(savedKeyPem).then(function(cryptoKey) {
+            researcherPrivateKey = cryptoKey;
+            if (keyStatus) {
+                keyStatus.textContent = "✅ Clé privée héritée active";
+                keyStatus.style.color = "#10b981";
+            }
+        }).catch(function() {
+            sessionStorage.removeItem('tracker_private_key_pem');
+        });
+    }
+
+    var params = new URLSearchParams(window.location.search);
+    var pid = params.get('pid');
+
+    // 1. Tente de charger depuis sessionStorage si redirigé par le bouton "Analyser"
+    if (pid && loadFromSessionStorage()) {
+        return;
+    }
+
+    // 2. Sinon charge depuis l'API backend
+    if (pid) {
+        loadFromAPI(pid);
+        return;
+    }
 })();
