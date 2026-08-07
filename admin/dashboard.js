@@ -1,4 +1,4 @@
-// dashboard.js (Version complète et fidèle)
+// dashboard.js (Version corrigée avec gestion multi-visites complète)
 
 'use strict';
 
@@ -194,7 +194,7 @@ function extractResponseText(d) {
 }
 
 // ═══════════════════════════════════════════════════════
-// TRAITEMENT DES ÉVÉNEMENTS
+// TRAITEMENT DES ÉVÉNEMENTS (CORRECTEMENT ALIGNÉ MULTI-VISITES)
 // ═══════════════════════════════════════════════════════
 function mkPeriods(reps) {
     if (!reps || !reps.length) return [];
@@ -241,7 +241,7 @@ function process(raw) {
     var qc = {};
     periods.forEach((p, i) => { qc[p.label] = PAL[i % PAL.length]; });
 
-    // EXTRACTION DIRECTE DE 100% DES COPIES/COLLAGES
+    // Extraction brute de TOUTES les copies et tous les collages
     var copyPasteList = [];
     logs.forEach(log => {
         var t = log.type, url = log.url || '';
@@ -259,7 +259,9 @@ function process(raw) {
     var vis = [], vById = {}, prev = null, tStk = {}, tPtr = {};
     logs.forEach(log => {
         var t = log.type, url = log.url || '', vid = log.visitId;
-        if (t === 'navigation') {
+        
+        // FIXE ESSENTIEL : Prise en compte de 'navigation' ET 'tab_activated' pour créer les visites
+        if (t === 'navigation' || t === 'tab_activated') {
             var tid = log.tabId, ib = false, ifw = false;
             if (tid != null) {
                 if (!tStk[tid]) { tStk[tid] = []; tPtr[tid] = -1; }
@@ -297,6 +299,7 @@ function process(raw) {
         }
     });
 
+    // Regroupement par URL unique pour calculer le cumul ET la liste des visites individuelles
     var uO = [], uG = {};
     vis.forEach(v => {
         var u = v.url;
@@ -310,7 +313,7 @@ function process(raw) {
         }
         var g = uG[u];
         g.tms += v.tms; 
-        g.scroll = Math.max(g.scroll, v.scroll);
+        g.scroll = Math.max(g.scroll, v.scroll); // Max scroll atteint toutes visites confondues
         g.clics += v.clics; 
         g.touches_clavier += v.touches_clavier; 
         g.copies = g.copies.concat(v.copies);
@@ -448,7 +451,7 @@ function render() {
 function renderHeader() {
     var t = S.tot;
     var tzInfo = S.participantTz ? ' (Fuseau: ' + S.participantTz + ')' : '';
-    var h = '<span>' + S.vis.length + ' visites</span>';
+    var h = '<span>' + S.vis.length + ' visites totales</span>';
     h += '<span>' + t.pages + ' pages distinctes</span>';
     h += '<span>' + t.tabCount + ' onglets</span>';
     h += '<span>Durée : ' + S.duree + tzInfo + '</span>';
@@ -479,7 +482,7 @@ function renderTabs() {
 }
 
 // ═══════════════════════════════════════════════════════
-// ARBRE ORIGINEL RESTAURÉ AVEC INFOBULLES COMPLÈTES
+// ARBRE CHRONOLOGIQUE
 // ═══════════════════════════════════════════════════════
 function renderTree() {
     var EX = 180, EY = 140, nodes = [], links = [], bof = {}, my = 0;
@@ -588,7 +591,7 @@ function renderTree() {
 }
 
 // ═══════════════════════════════════════════════════════
-// MÉTRIQUES RESTAURÉES COMPLÈTES (TEMPS, SCROLL, CLICS, PIE, DOMAINES)
+// MÉTRIQUES & VISUALISATIONS PAR SITE DECOUPÉES PAR VISITES
 // ═══════════════════════════════════════════════════════
 function renderMetrics() {
     var t = S.tot;
@@ -603,20 +606,21 @@ function renderMetrics() {
     h += mkSC('Fermés', t.closed, '#dc2626');
     h += '</div>';
 
-    var ch = Math.max(300, S.vr.length * 45 + 80);
+    var ch = Math.max(320, S.vr.length * 45 + 80);
     h += '<div class="cg">';
-    h += '<div class="cb cf"><h3>Temps total cumulé par site (avec découpage par visite)</h3><div id="c-temps" style="height:' + ch + 'px"></div></div>';
+    h += '<div class="cb cf"><h3>Temps total cumulé par site (découpé par visite)</h3><div id="c-temps" style="height:' + ch + 'px"></div></div>';
     h += '<div class="cb cf"><h3>Scroll Max (%) par site</h3><div id="c-scroll" style="height:' + ch + 'px"></div></div>';
-    h += '<div class="cb cf"><h3>Clics totaux par site (avec découpage par visite)</h3><div id="c-clics" style="height:' + ch + 'px"></div></div>';
+    h += '<div class="cb cf"><h3>Clics totaux par site (découpés par visite)</h3><div id="c-clics" style="height:' + ch + 'px"></div></div>';
+    h += '<div class="cb cf"><h3>Copies & Collages par site (découpés par visite)</h3><div id="c-copypaste-site" style="height:' + ch + 'px"></div></div>';
     h += '<div class="cb"><h3>Interactions globales</h3><div id="c-pie" style="height:300px"></div></div>';
     h += '<div class="cb"><h3>Domaines visités</h3><div id="c-dom" style="height:300px"></div></div>';
     h += '</div>';
     document.getElementById('p-met').innerHTML = h;
 
     var labs = S.vr.map(g => g.nom);
-
-    // 1. Graphique du Temps par visite (Barres empilées)
     var maxVisits = Math.max(...S.vr.map(g => g.visits.length));
+
+    // 1. Temps passé par visite (Barres empilées)
     var tempsSeries = [];
     for (var i = 0; i < maxVisits; i++) {
         tempsSeries.push({
@@ -630,13 +634,14 @@ function renderMetrics() {
     CHARTS.temps = echarts.init(document.getElementById('c-temps'));
     CHARTS.temps.setOption({
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        grid: { left: 250, right: 40, top: 20, bottom: 30 },
+        legend: { top: 0 },
+        grid: { left: 250, right: 40, top: 35, bottom: 30 },
         xAxis: { type: 'value', name: 's' },
         yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
         series: tempsSeries
     });
 
-    // 2. Graphique du Scroll Max
+    // 2. Max Scroll par site
     var scrolls = S.vr.map(g => {
         return { value: g.scroll, itemStyle: { color: g.scroll >= 75 ? '#059669' : (g.scroll >= 40 ? '#d97706' : '#dc2626') } };
     });
@@ -649,7 +654,7 @@ function renderMetrics() {
         series: [{ type: 'bar', data: scrolls, label: { show: true, position: 'right', fontSize: 11, formatter: '{c}%' } }]
     });
 
-    // 3. Graphique des Clics par visite (Barres empilées)
+    // 3. Clics par visite (Barres empilées)
     var clicsSeries = [];
     for (var j = 0; j < maxVisits; j++) {
         clicsSeries.push({
@@ -663,13 +668,43 @@ function renderMetrics() {
     CHARTS.clics = echarts.init(document.getElementById('c-clics'));
     CHARTS.clics.setOption({
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-        grid: { left: 250, right: 40, top: 20, bottom: 30 },
+        legend: { top: 0 },
+        grid: { left: 250, right: 40, top: 35, bottom: 30 },
         xAxis: { type: 'value' },
         yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
         series: clicsSeries
     });
 
-    // 4. Camembert des interactions
+    // 4. Graphique Copies & Collages par site (Empilés par visite)
+    var copyPasteSeries = [];
+    for (var k = 0; k < maxVisits; k++) {
+        copyPasteSeries.push({
+            name: 'Visite ' + (k + 1) + ' (Copies)',
+            type: 'bar',
+            stack: 'totalCopyPaste',
+            data: S.vr.map(g => g.visits[k] ? g.visits[k].copies.length : 0),
+            itemStyle: { color: '#059669' }
+        });
+        copyPasteSeries.push({
+            name: 'Visite ' + (k + 1) + ' (Collages)',
+            type: 'bar',
+            stack: 'totalCopyPaste',
+            data: S.vr.map(g => g.visits[k] ? g.visits[k].collages.length : 0),
+            itemStyle: { color: '#0891b2' }
+        });
+    }
+
+    CHARTS.copypaste = echarts.init(document.getElementById('c-copypaste-site'));
+    CHARTS.copypaste.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        legend: { top: 0, type: 'scroll' },
+        grid: { left: 250, right: 40, top: 40, bottom: 30 },
+        xAxis: { type: 'value' },
+        yAxis: { type: 'category', data: labs, inverse: true, axisLabel: { fontSize: 11, width: 230, overflow: 'truncate' } },
+        series: copyPasteSeries
+    });
+
+    // 5. Camembert des interactions
     var pie = [];
     if (t.clics) pie.push({ name: 'Clics', value: t.clics });
     if (t.touches_clavier) pie.push({ name: 'Touches Clavier', value: t.touches_clavier });
@@ -682,7 +717,7 @@ function renderMetrics() {
         series: [{ type: 'pie', radius: ['40%', '70%'], data: pie, label: { fontSize: 12 } }]
     });
 
-    // 5. Domaines visités
+    // 6. Domaines visités
     var doms = {};
     S.vr.forEach(g => {
         try { var d = new URL(g.url).hostname.replace('www.', ''); doms[d] = (doms[d] || 0) + g.nb; } catch (e) {}
@@ -703,13 +738,13 @@ function mkSC(l, v, c) {
 }
 
 // ═══════════════════════════════════════════════════════
-// RENDU DES 5 ONGLETS DE LA FEUILLE EXCEL
+// ONGLETS TABLES (SYNCHRO EXCEL EN 5 FEUILLES)
 // ═══════════════════════════════════════════════════════
 
-// Onglet 1 : Navigation
+// Onglet 1 : Navigation (Toutes les visites)
 function renderNavTab() {
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th>Question</th><th>Visite_ID</th><th>Heure_Entrée</th><th>Heure_Sortie</th><th>Durée (s)</th><th>URL</th><th>Nom_Page</th><th>Scroll_Max (%)</th><th>Clics</th><th>Copies</th><th>Collages</th>';
+    th += '<th>Question</th><th>Visite_ID</th><th>Heure_Entrée</th><th>Heure_Sortie</th><th>Durée (s)</th><th>URL</th><th>Nom_Page</th><th>Scroll_Max (%)</th><th>Clics</th><th>Touches</th><th>Copies</th><th>Collages</th>';
     th += '</tr></thead><tbody>';
 
     S.vis.forEach((v, index) => {
@@ -717,7 +752,7 @@ function renderNavTab() {
         var hSortie = (v.ts && v.tms > 0) ? tsT(new Date(v.ts).getTime() + v.tms, S.participantTz) : hEntree;
         th += '<tr>';
         th += '<td><span class="qb" style="background:' + (S.qc[v.q] || '#64748b') + '">' + v.q + '</span></td>';
-        th += '<td class="m">' + v.vid + '</td>';
+        th += '<td class="m">' + (v.vid || 'visite_' + (index + 1)) + '</td>';
         th += '<td class="m">' + hEntree + '</td>';
         th += '<td class="m">' + hSortie + '</td>';
         th += '<td class="r">' + fr(v.tms / 1000) + '</td>';
@@ -725,6 +760,7 @@ function renderNavTab() {
         th += '<td>' + esc(v.nom) + '</td>';
         th += '<td class="r">' + v.scroll + '%</td>';
         th += '<td class="r">' + v.clics + '</td>';
+        th += '<td class="r">' + v.touches_clavier + '</td>';
         th += '<td class="w">' + esc(v.copies.join(TEXT_DELIMITER) || '—') + '</td>';
         th += '<td class="w">' + esc(v.collages.join(TEXT_DELIMITER) || '—') + '</td>';
         th += '</tr>';
@@ -733,7 +769,7 @@ function renderNavTab() {
     document.getElementById('p-nav').innerHTML = th;
 }
 
-// Onglet 2 : Copies & Collages (100% des événements extraits)
+// Onglet 2 : Copies & Collages (Liste exhaustive)
 function renderCopyPasteTab() {
     var th = '<div class="tw"><table><thead><tr>';
     th += '<th>Question</th><th>Type_Action</th><th>Timestamp_Exact</th><th>URL</th><th>Texte_Extrait</th>';
@@ -757,7 +793,7 @@ function renderCopyPasteTab() {
     document.getElementById('p-copypaste').innerHTML = th;
 }
 
-// Onglet 3 : Réponses Recherche (Conforme aux colonnes de l'Excel)
+// Onglet 3 : Réponses Recherche
 function renderResearchTab() {
     var reps = S.reps.filter(r => r.type === 'research_answer' || r.type === 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
@@ -840,7 +876,7 @@ function renderChronoTab() {
 }
 
 // ═══════════════════════════════════════════════════════
-// INITIALISATION AUTOMATIQUE ET CHARGEMENT
+// INITIALISATION AUTOMATIQUE
 // ═══════════════════════════════════════════════════════
 (function init() {
     var dropbox = document.getElementById('dropbox');
