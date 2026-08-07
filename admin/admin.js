@@ -619,7 +619,6 @@ function buildWorkbookForParticipant(pid, data) {
         } else {
             heureSortieFormatted = heureEntreeFormatted;
         }
-
         navRows.push([
             pid, 
             v.q, 
