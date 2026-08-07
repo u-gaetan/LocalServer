@@ -7,6 +7,10 @@ let AUTH_TOKEN = '';
 const BASE_URL = window.location.origin;
 let researcherPrivateKey = null; // Stocke l'objet CryptoKey en mémoire vive
 
+// Extrait de admin/admin.js (Génération Excel buildWorkbookForParticipant)
+
+const TEXT_DELIMITER = '\n--- [EXTRAIT] ---\n';
+
 // =========================================================
 // ÉLÉMENTS DU DOM
 // =========================================================
@@ -59,6 +63,20 @@ const SKILLS_MAP = {
     "item_26": "26_Suivi_Couts_App"
 };
 
+
+
+function formatParticipantTime(ts, timezone) {
+    if (!ts) return '';
+    try {
+        const d = new Date(ts);
+        if (timezone) {
+            return d.toLocaleTimeString('fr-FR', { timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        return d.toTimeString().substring(0, 8);
+    } catch (e) {
+        return '';
+    }
+}
 // =========================================================
 // MODULE CRYPTOGRAPHIQUE (Déchiffrement CSFLE)
 // =========================================================
@@ -499,6 +517,10 @@ function buildWorkbookForParticipant(pid, data) {
     const reps = data.reponses || [];
     const wb = XLSX.utils.book_new();
 
+    // Récupération du fuseau horaire du participant (ex: "America/Toronto")
+    const demoRep = reps.find(r => r.type === 'demographics');
+    const participantTz = demoRep && demoRep.data ? demoRep.data.timezone : null;
+
     // Entêtes des colonnes Excel
     const navRows = [['ParticipantID', 'Question', 'Visite_ID', 'Heure_Entree', 'Heure_Sortie', 'Duree_Sec', 'URL', 'Nom_Page', 'Scroll_Max_%', 'Clics', 'Touches_Clavier', 'Copies_Count', 'Collages_Count', 'Onglet_Ferme', 'Backward', 'Forward']];
     const copyPasteRows = [['ParticipantID', 'Question', 'Type_Action', 'Timestamp_Exact', 'URL', 'Texte_Extrait']];
@@ -539,7 +561,7 @@ function buildWorkbookForParticipant(pid, data) {
         return '';
     }
 
-    // 2. Traitement des Événements Navigation et calcul exact de l'heure de sortie
+    // 2. Traitement des Événements Navigation et calcul de l'heure locale de sortie
     const vis = [];
     const vById = {};
 
@@ -550,7 +572,7 @@ function buildWorkbookForParticipant(pid, data) {
         if (t === 'copie' || t === 'collage') {
             copyPasteRows.push([
                 pid, qLabel, t,
-                log.timestamp ? new Date(log.timestamp).toTimeString().substring(0, 8) : '',
+                log.timestamp ? formatParticipantTime(log.timestamp, participantTz) : '',
                 url, log.texte || ''
             ]);
         }
@@ -578,17 +600,15 @@ function buildWorkbookForParticipant(pid, data) {
     });
 
     vis.forEach((v, index) => {
-        let heureEntreeFormatted = v.tsEntree ? new Date(v.tsEntree).toTimeString().substring(0, 8) : '';
+        let heureEntreeFormatted = v.tsEntree ? formatParticipantTime(v.tsEntree, participantTz) : '';
         let heureSortieFormatted = '';
 
-        // RÈGLE D'OR : Sortie = Entrée + Temps passé
         if (v.tsEntree && v.tms > 0) {
             const entryMs = new Date(v.tsEntree).getTime();
             const exitMs = entryMs + v.tms;
-            heureSortieFormatted = new Date(exitMs).toTimeString().substring(0, 8);
+            heureSortieFormatted = formatParticipantTime(exitMs, participantTz);
         } else if (index < vis.length - 1 && vis[index + 1].tsEntree) {
-            // Fallback si le temps passé est 0s : prendre l'entrée de la page suivante
-            heureSortieFormatted = new Date(vis[index + 1].tsEntree).toTimeString().substring(0, 8);
+            heureSortieFormatted = formatParticipantTime(vis[index + 1].tsEntree, participantTz);
         } else {
             heureSortieFormatted = heureEntreeFormatted;
         }
@@ -613,7 +633,7 @@ function buildWorkbookForParticipant(pid, data) {
         ]);
     });
 
-    // 3. Extraction des Réponses de Recherche
+    // 3. Extraction des Réponses de Recherche (Délimitation propre avec TEXT_DELIMITER)
     sortedReps.forEach(r => {
         const d = r.data || {};
         const answerText = extractResponseText(d);
@@ -628,18 +648,19 @@ function buildWorkbookForParticipant(pid, data) {
             const timeSpentSec = d.timeSpentSeconds !== undefined ? d.timeSpentSeconds : '—';
             const forcedTimeout = d.forcedTimeout ? 'Oui' : 'Non';
 
-            const qCopies = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'copie').map(row => row[5]).join(' | ');
-            const qPastes = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'collage').map(row => row[5]).join(' | ');
+            // Séparation avec TEXT_DELIMITER pour découpage facile en Python
+            const qCopies = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'copie').map(row => row[5]).join(TEXT_DELIMITER);
+            const qPastes = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'collage').map(row => row[5]).join(TEXT_DELIMITER);
 
             researchRows.push([
                 pid, r.questionId || r.type, difficulty, lang,
-                r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '',
+                r.timestamp ? formatParticipantTime(r.timestamp, participantTz) : '',
                 timeSpentSec, forcedTimeout,
                 answerText, wordCount, mattr, mtld, qCopies, qPastes
             ]);
         } else {
             evalRows.push([
-                pid, r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '',
+                pid, r.timestamp ? formatParticipantTime(r.timestamp, participantTz) : '',
                 r.type, r.questionId || '', r.questionLabel || '', answerText
             ]);
         }
@@ -650,14 +671,14 @@ function buildWorkbookForParticipant(pid, data) {
     vis.forEach(v => {
         items.push({
             ts: v.tsEntree,
-            row: [pid, 'Navigation', v.tsEntree ? new Date(v.tsEntree).toTimeString().substring(0, 8) : '', v.q, 'navigation', v.url, v.nom, +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.length, v.collages.length, v.closed ? 'Oui' : '', '']
+            row: [pid, 'Navigation', v.tsEntree ? formatParticipantTime(v.tsEntree, participantTz) : '', v.q, 'navigation', v.url, v.nom, +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.length, v.collages.length, v.closed ? 'Oui' : '', '']
         });
     });
     sortedReps.forEach(r => {
         const answerText = extractResponseText(r.data);
         items.push({
             ts: r.timestamp || '',
-            row: [pid, 'Réponse', r.timestamp ? new Date(r.timestamp).toTimeString().substring(0, 8) : '', r.questionId || '', r.type, '', '', '', '', '', '', '', '', '', answerText]
+            row: [pid, 'Réponse', r.timestamp ? formatParticipantTime(r.timestamp, participantTz) : '', r.questionId || '', r.type, '', '', '', '', '', '', '', '', '', answerText]
         });
     });
     items.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
