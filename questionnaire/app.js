@@ -540,7 +540,8 @@ var RESEARCH_WARNING_SECONDS = 600;
                 age: parseInt(age),
                 langue: lang,
                 niveau_etudes: niveau,
-                paiement: payment
+                paiement: payment,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
             };
 
             await sendToServer('demographics', null, null, state.demographics);

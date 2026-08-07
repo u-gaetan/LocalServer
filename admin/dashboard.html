@@ -16,9 +16,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f8fafc;color:#1e293b;f
 .drop-box p{font-size:13px;color:#64748b}
 .drop-box input{display:none}
 .drop-or{font-size:13px;color:#94a3b8;margin-top:8px}
-.drop-loading{font-size:14px;color:#3b82f6;font-weight:600}
 
-/* Bloc d'import de clé harmonisé avec le Dashboard */
 .key-loader-dashboard {
     width: 500px;
     max-width: 90vw;
@@ -28,24 +26,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f8fafc;color:#1e293b;f
     padding: 20px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.key-loader-dashboard h3 {
-    font-size: 14px;
-    color: #1e293b;
-    margin-bottom: 5px;
-}
-.key-loader-dashboard p {
-    font-size: 12px;
-    color: #64748b;
-    margin-bottom: 12px;
-}
-.key-loader-dashboard input {
-    font-size: 12px;
-    color: #475569;
-}
+.key-loader-dashboard h3 { font-size: 14px; color: #1e293b; margin-bottom: 5px; }
+.key-loader-dashboard p { font-size: 12px; color: #64748b; margin-bottom: 12px; }
+.key-loader-dashboard input { font-size: 12px; color: #475569; }
 
 .hd{background:#1e293b;color:#f1f5f9;padding:16px 24px;border-bottom:3px solid #3b82f6}
 .hd h1{font-size:17px;font-weight:700}.hd-m{font-size:12px;color:#94a3b8;display:flex;gap:16px;margin-top:4px;flex-wrap:wrap}
-.hd-m span{white-space:nowrap}
 .tabs{display:flex;background:#fff;border-bottom:1px solid #e2e8f0;padding:0 16px;flex-wrap:wrap;gap:4px}
 .tb{padding:11px 18px;border:none;background:none;font-size:13px;font-weight:500;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;font-family:inherit}
 .tb:hover{color:#1e293b}.tb.on{color:#3b82f6;border-bottom-color:#3b82f6}
@@ -66,10 +52,6 @@ tr:hover td{background:#f8fafc}
 .w{max-width:350px;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#475569}
 .qb{display:inline-block;padding:2px 9px;border-radius:4px;font-size:11px;font-weight:700;color:#fff}
 .tg{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;background:#eff6ff;color:#1d4ed8}
-.qf{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#f1f5f9;border-radius:8px;margin-bottom:10px;flex-wrap:wrap}
-.qft{font-size:12px;font-weight:600;color:#334155}
-.qfc{font-size:12px;color:#475569;cursor:pointer;display:flex;align-items:center;gap:4px}
-.qd{display:inline-block;width:10px;height:10px;border-radius:50%}
 .bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
 .bt{padding:7px 14px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
 .bp{background:#3b82f6;color:#fff}.bp:hover{background:#2563eb}
@@ -90,25 +72,29 @@ tr:hover td{background:#f8fafc}
     <input type="file" id="filein" accept=".json">
   </div>
   
-  <!-- Bloc d'importation de clé pour décryptage de fichiers JSON importés manuellement -->
   <div class="key-loader-dashboard" id="keyLoaderDashboard">
     <h3>🔑 Déchiffrement CSFLE</h3>
     <p>Si le fichier JSON glissé est chiffré, chargez votre clé privée :</p>
     <input type="file" id="private-key-file" accept=".pem">
-    <div id="key-status" style="color: #ef4444; font-weight: bold; font-size: 12px; margin-top: 6px;">Clé non chargée - Les données sensibles apparaîtront chiffrées</div>
+    <div id="key-status" style="color: #ef4444; font-weight: bold; font-size: 12px; margin-top: 6px;">Clé non chargée</div>
   </div>
 
   <div class="drop-or" id="loading"></div>
 </div>
+
 <div id="dash" style="display:none">
   <button class="bt bs new-btn" onclick="resetDash()">↩ Nouveau fichier</button>
   <div class="hd"><h1>Analyse de session</h1><div class="hd-m" id="header-meta"></div></div>
   <div class="tabs" id="tabbar"></div>
+  
+  <!-- Les 7 panneaux correspondant à l'Arbre, aux Métriques et aux 5 Feuilles Excel -->
   <div id="p-tree" class="pan on"></div>
   <div id="p-met" class="pan"></div>
-  <div id="p-det" class="pan"></div>
-  <div id="p-agg" class="pan"></div>
-  <div id="p-rep" class="pan"></div>
+  <div id="p-nav" class="pan"></div>
+  <div id="p-copypaste" class="pan"></div>
+  <div id="p-research" class="pan"></div>
+  <div id="p-eval" class="pan"></div>
+  <div id="p-chrono" class="pan"></div>
 </div>
 <script src="dashboard.js"></script>
 </body>

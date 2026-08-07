@@ -199,23 +199,30 @@ router.post('/reponse', participantLimiter, auth, async (req, res) => {
             });
         }
 
+        // Extrait modifié dans routes/questionnaire.js au niveau de la route router.post('/reponse')
+
         if (isCompletionEvent && !alreadyHadCompletionEvent) {
-            console.log('[completion] Événement de fin détecté, envoi email...', {
+            console.log('[completion] Événement de fin détecté, récupération démographie et envoi email...', {
                 participantId,
                 language: data.language
             });
 
+            // Récupération des données démographiques (email + mode de paiement + timezone)
+            const demoReponse = await Reponse.findOne({
+                participantId,
+                type: 'demographics'
+            }).lean();
+
+            const demographics = demoReponse ? demoReponse.data : {};
+
             sendCompletionEmail({
                 participantId,
-                language: data.language
+                language: data.language,
+                demographics
             }).then(() => {
                 console.log('[completion-email] Email envoyé avec succès.');
             }).catch(err => {
                 console.error('[completion-email] Erreur:', err);
-            });
-        } else if (isCompletionEvent && alreadyHadCompletionEvent) {
-            console.log('[completion] Événement déjà existant, email non renvoyé.', {
-                participantId
             });
         }
 

@@ -43,13 +43,10 @@ function getTransporter() {
     return transporter;
 }
 
-async function sendCompletionEmail({ participantId, language }) {
+async function sendCompletionEmail({ participantId, language, demographics }) {
     console.log('[emailService] Tentative envoi email...', {
         participantId,
         language,
-        smtpHost: process.env.SMTP_HOST,
-        smtpUser: process.env.SMTP_USER,
-        smtpFrom: process.env.SMTP_FROM,
         recipients: process.env.COMPLETION_EMAIL_TO
     });
 
@@ -61,6 +58,9 @@ async function sendCompletionEmail({ participantId, language }) {
     }
 
     const recipients = getRecipients();
+    const emailParticipant = demographics?.email || 'Non renseigné';
+    const paiementChoisi = demographics?.paiement || 'Non renseigné';
+    const timezone = demographics?.timezone || 'Non spécifié';
 
     const info = await mailer.sendMail({
         from: process.env.SMTP_FROM,
@@ -69,19 +69,24 @@ async function sendCompletionEmail({ participantId, language }) {
         text:
 `Un participant a complété le questionnaire.
 
-Participant : ${participantId}
-Langue : ${language || 'non précisée'}
-Date UTC : ${new Date().toISOString()}`
+--------------------------------------------------
+INFORMATIONS DU PARTICIPANT
+--------------------------------------------------
+Identifiant : ${participantId}
+Courriel : ${emailParticipant}
+Mode de paiement souhaité : ${paiementChoisi}
+Langue de l'étude : ${language || 'non précisée'}
+Fuseau horaire du participant : ${timezone}
+Date UTC : ${new Date().toISOString()}
+--------------------------------------------------`
     });
 
     console.log('[emailService] Résultat envoi:', {
         messageId: info.messageId,
         accepted: info.accepted,
-        rejected: info.rejected,
-        response: info.response
+        rejected: info.rejected
     });
 }
-
 
 module.exports = {
     sendCompletionEmail
