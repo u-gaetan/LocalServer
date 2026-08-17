@@ -579,7 +579,10 @@ var RESEARCH_WARNING_SECONDS = 600;
             '</div>' +
             '<button class="btn btn-primary" id="btnDemo">' + t('btn_suivant') + '</button><div id="demoErr" style="color:red; display:none;"></div>';
 
-        document.getElementById('btnDemo').addEventListener('click', async function () {
+        const btnDemo = document.getElementById('btnDemo');
+        const demoErr = document.getElementById('demoErr');
+
+        btnDemo.addEventListener('click', async function () {
             var email = document.getElementById('email').value.trim();
             var age = document.getElementById('age').value;
             var lang = document.getElementById('lang_prof').value;
@@ -587,10 +590,16 @@ var RESEARCH_WARNING_SECONDS = 600;
             var payment = document.getElementById('payment').value;
 
             if (!email || !age || !lang || !niveau || !payment) {
-                document.getElementById('demoErr').textContent = t('demo_err_champs');
-                document.getElementById('demoErr').style.display = 'block';
+                demoErr.textContent = t('demo_err_champs');
+                demoErr.style.display = 'block';
                 return;
             }
+
+            // Désactivation du bouton et indicateur de chargement
+            btnDemo.disabled = true;
+            const originalBtnText = btnDemo.textContent;
+            btnDemo.textContent = state.language === 'en' ? '⏳ Loading questions...' : '⏳ Chargement des questions...';
+            demoErr.style.display = 'none';
 
             state.demographics = {
                 email: email,
@@ -601,20 +610,21 @@ var RESEARCH_WARNING_SECONDS = 600;
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
             };
 
-            await sendToServer('demographics', null, null, state.demographics);
-
             try {
+                await sendToServer('demographics', null, null, state.demographics);
                 await fetchBalancedQuestionsFromServer();
                 saveProgress();
                 goTo('instructions');
             } catch (err) {
                 console.error(err);
-                document.getElementById('demoErr').textContent = state.language === 'en'
-                    ? 'An error occurred while loading the questions. Please contact the research team.'
-                    : 'Une erreur est survenue lors du chargement des questions. Veuillez contacter l’équipe de recherche.';
-                document.getElementById('demoErr').style.display = 'block';
+                demoErr.textContent = state.language === 'en'
+                    ? 'The server is waking up. Please click "Next" again in a few seconds.'
+                    : 'Le serveur est en cours de réveil. Veuillez recliquer sur "Suivant" dans quelques secondes.';
+                demoErr.style.display = 'block';
+            } finally {
+                btnDemo.disabled = false;
+                btnDemo.textContent = originalBtnText;
             }
-
         });
     }
 
@@ -756,41 +766,64 @@ var RESEARCH_WARNING_SECONDS = 600;
     }
 
 
-    async function fetchBalancedQuestionsFromServer() {
+    async function fetchBalancedQuestionsFromServer(maxRetries = 3) {
         const headers = { 'Content-Type': 'application/json' };
-
         if (state.token) {
             headers['Authorization'] = 'Bearer ' + state.token;
         }
 
-        const response = await fetch(API_BASE + '/draw-questions', {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify({
-                participantId: state.participantId,
-                language: state.language
-            })
-        });
+        let lastError = null;
 
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error('Impossible de charger les questions : ' + errText);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`[Questions] Tentative de chargement ${attempt}/${maxRetries}...`);
+                
+                // On laisse jusqu'à 30 secondes au serveur pour se réveiller
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+                const response = await fetch(API_BASE + '/draw-questions', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        participantId: state.participantId,
+                        language: state.language
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`HTTP ${response.status} : ${errText}`);
+                }
+
+                const draw = await response.json();
+
+                state.researchQuestions = draw.researchQuestions || [];
+                state.memoryQuestions = draw.memoryQuestions || [];
+
+                if (state.researchQuestions.length !== 5 || state.memoryQuestions.length !== 5) {
+                    throw new Error('Nombre de questions invalide retourné par le serveur.');
+                }
+
+                saveProgress();
+                return; // Succès, on sort de la boucle !
+
+            } catch (err) {
+                lastError = err;
+                console.warn(`[Questions] Échec tentative ${attempt}/${maxRetries}:`, err.message);
+
+                // Si ce n'est pas la dernière tentative, on attend avant de réessayer (1.5s, puis 3s...)
+                if (attempt < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, attempt * 1500));
+                }
+            }
         }
 
-        const draw = await response.json();
-
-        state.researchQuestions = draw.researchQuestions || [];
-        state.memoryQuestions = draw.memoryQuestions || [];
-
-        if (state.researchQuestions.length !== 5) {
-            throw new Error('Le serveur doit retourner exactement 5 questions principales.');
-        }
-
-        if (state.memoryQuestions.length !== 5) {
-            throw new Error('Le serveur doit retourner exactement 5 questions de mémorisation.');
-        }
-        saveProgress();
-
+        // Si toutes les tentatives ont échoué
+        throw new Error('Impossible de charger les questions après plusieurs tentatives : ' + (lastError ? lastError.message : 'Erreur inconnue'));
     }
 
 
