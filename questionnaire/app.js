@@ -64,6 +64,28 @@ var RESEARCH_WARNING_SECONDS = 600;
         }
     }
 
+    // Vérification silencieuse et non-bloquante de la présence de l'extension
+    function checkExtensionAlive(timeoutMs = 1000) {
+        return new Promise((resolve) => {
+            let answered = false;
+            const handler = (e) => {
+                if (e.origin !== window.location.origin) return;
+                if (e.data && e.data.type === "PONG_EXTENSION") {
+                    answered = true;
+                    window.removeEventListener("message", handler);
+                    resolve(true);
+                }
+            };
+            window.addEventListener("message", handler);
+            window.postMessage({ type: "PING_EXTENSION" }, window.location.origin);
+
+            setTimeout(() => {
+                window.removeEventListener("message", handler);
+                resolve(answered);
+            }, timeoutMs);
+        });
+    }
+
     async function init() {
         // 1. Tenter de charger la progression existante
         const saved = localStorage.getItem('questionnaire_progress');
@@ -71,14 +93,49 @@ var RESEARCH_WARNING_SECONDS = 600;
             try {
                 const parsed = JSON.parse(saved);
                 if (parsed.participantId && parsed.token) {
-                    state = parsed; // Restaure l'état, y compris le participantId et le token
+                    state = parsed; // Restaure temporairement l'état
                 }
             } catch (e) {
                 console.error("Échec de lecture du stockage local", e);
             }
         }
 
-        // 2. Si AUCUNE session n'existe en mémoire, on demande au serveur d'en créer une
+        // 2. Si l'état restauré avait déjà dépassé l'étape du tutoriel (ex: démographie, questions...)
+        // On vérifie si l'extension est TOUJOURS installée dans le navigateur.
+        const requiresExtension = state.phase && !['language', 'consent', 'tutorial'].includes(state.phase);
+        
+        if (state.participantId && requiresExtension) {
+            const isAlive = await checkExtensionAlive(1000);
+            if (!isAlive) {
+                console.warn("[Étude] Extension désinstallée détectée ! Nettoyage du cache et création d'une nouvelle session.");
+                localStorage.removeItem('questionnaire_progress');
+                localStorage.removeItem('study_global_start');
+                sessionStorage.clear();
+                
+                // Remise à zéro de l'état
+                state = {
+                    phase: 'language',
+                    participantId: null,
+                    token: null,
+                    language: 'fr',
+                    consentGiven: false,
+                    deceptionConsentGiven: false,
+                    demographics: null,
+                    researchQuestions: [],
+                    memoryQuestions: [],
+                    currentResearchIndex: 0,
+                    currentMemoryIndex: 0,
+                    answers: [],
+                    selfAssessments: [],
+                    internetSkills: null,
+                    memoryAnswers: [],
+                    questionStartTime: null,
+                    drawnQuestionIds: []
+                };
+            }
+        }
+
+        // 3. Si AUCUNE session n'existe (première visite ou après purge automatique), on demande un nouveau PID
         if (!state.participantId || !state.token) {
             try {
                 const response = await fetch(API_BASE + '/init-session', {
@@ -90,7 +147,7 @@ var RESEARCH_WARNING_SECONDS = 600;
                 if (data.participantId && data.token) {
                     state.participantId = data.participantId;
                     state.token = data.token;
-                    saveProgress(); // Sauvegarde immédiate dans localStorage
+                    saveProgress();
                 }
             } catch (err) {
                 console.error("Erreur d'initialisation de session :", err);
@@ -99,7 +156,7 @@ var RESEARCH_WARNING_SECONDS = 600;
             }
         }
 
-        // 3. Synchronisation avec l'extension
+        // 4. Synchronisation et affichage
         await fetchAndSyncToken();
         renderPhase();
         updateUrl();
