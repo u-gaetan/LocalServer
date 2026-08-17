@@ -29,15 +29,16 @@ function getTransporter() {
     const config = {
         host: process.env.SMTP_HOST,
         port,
-        secure
-    };
-
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        config.auth = {
+        secure, // false pour le port 587
+        auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS
-        };
-    }
+        },
+        tls: {
+            ciphers: 'SSLv3',
+            rejectUnauthorized: false // Évite les soucis de certificats intermédiaires
+        }
+    };
 
     transporter = nodemailer.createTransport(config);
     return transporter;
