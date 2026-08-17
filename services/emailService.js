@@ -1,73 +1,51 @@
 // services/emailService.js
-const nodemailer = require('nodemailer');
+const { EmailClient } = require('@azure/communication-email');
 
-let transporter = null;
+let emailClient = null;
+
+function getEmailClient() {
+    if (emailClient) return emailClient;
+
+    const connectionString = process.env.AZURE_COMMUNICATION_CONNECTION_STRING;
+    if (!connectionString) return null;
+
+    emailClient = new EmailClient(connectionString);
+    return emailClient;
+}
 
 function getRecipients() {
     return String(process.env.COMPLETION_EMAIL_TO || '')
         .split(',')
         .map(x => x.trim())
-        .filter(Boolean);
-}
-
-function isEmailEnabled() {
-    return Boolean(
-        process.env.SMTP_HOST &&
-        process.env.SMTP_FROM &&
-        getRecipients().length > 0
-    );
-}
-
-function getTransporter() {
-    if (transporter) return transporter;
-
-    if (!isEmailEnabled()) return null;
-
-    const port = Number(process.env.SMTP_PORT || 587);
-    const secure = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true';
-
-    const config = {
-        host: process.env.SMTP_HOST,
-        port,
-        secure, // false pour le port 587
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS
-        },
-        tls: {
-            ciphers: 'SSLv3',
-            rejectUnauthorized: false // Évite les soucis de certificats intermédiaires
-        }
-    };
-
-    transporter = nodemailer.createTransport(config);
-    return transporter;
+        .filter(Boolean)
+        .map(address => ({ address }));
 }
 
 async function sendCompletionEmail({ participantId, language, demographics }) {
-    console.log('[emailService] Tentative envoi email...', {
+    console.log('[emailService] Tentative envoi email via Azure Communication Services...', {
         participantId,
         language,
         recipients: process.env.COMPLETION_EMAIL_TO
     });
 
-    const mailer = getTransporter();
+    const client = getEmailClient();
+    const recipientsList = getRecipients();
+    const senderAddress = process.env.AZURE_SENDER_EMAIL;
 
-    if (!mailer) {
-        console.log('[emailService] Email non envoyé : configuration SMTP absente.');
+    if (!client || recipientsList.length === 0 || !senderAddress) {
+        console.log('[emailService] Email non envoyé : configuration Azure Communication Services absente.');
         return;
     }
 
-    const recipients = getRecipients();
     const emailParticipant = demographics?.email || 'Non renseigné';
     const paiementChoisi = demographics?.paiement || 'Non renseigné';
     const timezone = demographics?.timezone || 'Non spécifié';
 
-    const info = await mailer.sendMail({
-        from: process.env.SMTP_FROM,
-        to: recipients,
-        subject: `[Questionnaire] Complétion participant ${participantId}`,
-        text:
+    const emailMessage = {
+        senderAddress: senderAddress,
+        content: {
+            subject: `[Questionnaire] Complétion participant ${participantId}`,
+            plainText:
 `Un participant a complété le questionnaire.
 
 --------------------------------------------------
@@ -80,13 +58,23 @@ Langue de l'étude : ${language || 'non précisée'}
 Fuseau horaire du participant : ${timezone}
 Date UTC : ${new Date().toISOString()}
 --------------------------------------------------`
-    });
+        },
+        recipients: {
+            to: recipientsList
+        }
+    };
 
-    console.log('[emailService] Résultat envoi:', {
-        messageId: info.messageId,
-        accepted: info.accepted,
-        rejected: info.rejected
-    });
+    try {
+        const poller = await client.beginSend(emailMessage);
+        const response = await poller.pollUntilDone();
+
+        console.log('[emailService] Email Azure envoyé avec succès !', {
+            id: response.id,
+            status: response.status
+        });
+    } catch (err) {
+        console.error('[emailService] Erreur lors de l\'envoi Azure:', err);
+    }
 }
 
 module.exports = {
