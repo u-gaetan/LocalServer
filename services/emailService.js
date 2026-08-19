@@ -39,7 +39,14 @@ async function sendCompletionEmail({ participantId, language, demographics }) {
 
     const emailParticipant = demographics?.email || 'Non renseigné';
     const paiementChoisi = demographics?.paiement || 'Non renseigné';
+    const contactInterac = demographics?.interacContact || 'Non précisé';
     const timezone = demographics?.timezone || 'Non spécifié';
+
+    // Formattage du texte de paiement avec le contact Interac si présent
+    let detailPaiementTexte = `Mode de paiement souhaité : ${paiementChoisi}`;
+    if (demographics?.interacContact) {
+        detailPaiementTexte += `\nCoordonnées Interac (Email/Tél) : ${contactInterac}`;
+    }
 
     const emailMessage = {
         senderAddress: senderAddress,
@@ -52,8 +59,8 @@ async function sendCompletionEmail({ participantId, language, demographics }) {
 INFORMATIONS DU PARTICIPANT
 --------------------------------------------------
 Identifiant : ${participantId}
-Courriel : ${emailParticipant}
-Mode de paiement souhaité : ${paiementChoisi}
+Courriel de contact : ${emailParticipant}
+${detailPaiementTexte}
 Langue de l'étude : ${language || 'non précisée'}
 Fuseau horaire du participant : ${timezone}
 Date UTC : ${new Date().toISOString()}

@@ -577,20 +577,46 @@ var RESEARCH_WARNING_SECONDS = 600;
                     '<option value="cheque">' + t('demo_pay_cheque') + '</option>' +
                 '</select>' +
             '</div>' +
-            '<button class="btn btn-primary" id="btnDemo">' + t('btn_suivant') + '</button><div id="demoErr" style="color:red; display:none;"></div>';
+            // NOUVEL ENCADRÉ INTERAC DYNAMIQUE
+            '<div class="form-group" id="interacGroup" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-left:4px solid #0284c7; padding:15px; border-radius:6px; margin-bottom:20px;">' +
+                '<label style="font-weight:600; color:#0f172a;" for="interacContact">' + t('demo_interac_contact') + '</label>' +
+                '<input type="text" id="interacContact" placeholder="' + t('demo_interac_placeholder') + '" style="margin-top:6px;">' +
+            '</div>' +
+            '<button class="btn btn-primary" id="btnDemo">' + t('btn_suivant') + '</button><div id="demoErr" style="color:red; display:none; margin-top:10px;"></div>';
 
+        const paymentSelect = document.getElementById('payment');
+        const interacGroup = document.getElementById('interacGroup');
+        const interacContactInput = document.getElementById('interacContact');
         const btnDemo = document.getElementById('btnDemo');
         const demoErr = document.getElementById('demoErr');
+
+        // Gestion de l'affichage/masquage dynamique selon le choix
+        paymentSelect.addEventListener('change', function () {
+            if (paymentSelect.value === 'interac') {
+                interacGroup.style.display = 'block';
+            } else {
+                interacGroup.style.display = 'none';
+                interacContactInput.value = '';
+            }
+        });
 
         btnDemo.addEventListener('click', async function () {
             var email = document.getElementById('email').value.trim();
             var age = document.getElementById('age').value;
             var lang = document.getElementById('lang_prof').value;
             var niveau = document.getElementById('niveau').value;
-            var payment = document.getElementById('payment').value;
+            var payment = paymentSelect.value;
+            var interacContact = interacContactInput.value.trim();
 
             if (!email || !age || !lang || !niveau || !payment) {
                 demoErr.textContent = t('demo_err_champs');
+                demoErr.style.display = 'block';
+                return;
+            }
+
+            // Vérification spécifique si Interac est sélectionné
+            if (payment === 'interac' && !interacContact) {
+                demoErr.textContent = t('demo_err_interac');
                 demoErr.style.display = 'block';
                 return;
             }
@@ -607,6 +633,7 @@ var RESEARCH_WARNING_SECONDS = 600;
                 langue: lang,
                 niveau_etudes: niveau,
                 paiement: payment,
+                interacContact: payment === 'interac' ? interacContact : null,
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
             };
 

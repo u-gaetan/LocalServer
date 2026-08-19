@@ -107,6 +107,9 @@ const i18n = {
         demo_pay_interac: "Virement Interac",
         demo_pay_pickup: "Venir chercher à l'Université Laval",
         demo_pay_cheque: "Chèque par la poste",
+        demo_interac_contact: "Courriel ou numéro de téléphone pour le virement Interac :",
+        demo_interac_placeholder: "Ex : moncourriel@domaine.com ou 418-123-4567",
+        demo_err_interac: "Veuillez préciser le courriel ou le numéro de téléphone pour le virement Interac.",
         demo_err_champs: "Veuillez remplir tous les champs.",
         btn_suivant: "Suivant",
 
@@ -437,6 +440,9 @@ const i18n = {
         demo_pay_interac: "Interac e-Transfer",
         demo_pay_pickup: "Pick up at Université Laval",
         demo_pay_cheque: "Cheque by mail",
+        demo_interac_contact: "Email or phone number for the Interac e-Transfer:",
+        demo_interac_placeholder: "e.g., name@email.com or 418-123-4567",
+        demo_err_interac: "Please provide an email or phone number for the Interac e-Transfer.",
         demo_err_champs: "Please fill out all fields.",
         btn_suivant: "Next",
 
