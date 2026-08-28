@@ -116,10 +116,10 @@ const i18n = {
         // --- Instructions ---
         instr_titre: "Instructions",
         instr_texte: "Vous allez répondre à <strong>{count} questions de recherche</strong>.",
-        instr_item_1: "<strong>Naviguez librement</strong> dans d'autres onglets (Google, Wikipédia, etc.) pour trouver vos informations.",
+        instr_item_1: "<strong>Il est impossible de faire l'expérience sur un téléphone cellulaire.</strong> Via le navigateur Google Chrome sur votre PC, Naviguez librement sur d'autres onglets (Google, Wikipédia, etc.) pour trouver vos informations.",
         instr_item_2: "<strong style='color:#dc2626;'>Règles strictes :</strong> La navigation privée est interdite. L'usage d'Intelligences Artificielles (ChatGPT, Gemini, Claude, etc.) est <strong>strictement interdit</strong>.",
         instr_item_3: "L'étude doit être réalisée <strong>d'une seule traite</strong> (en une seule session continue).",
-        instr_item_4: "Vous avez 12 minutes pour répondre à chaque question. Votre réponse doit faire entre <strong>150 et 200 mots</strong>. Une réponse de moins de 150 mots ou de plus de 200 mots ne peut pas être soumise manuellement.",
+        instr_item_4: "Vous avez 12 minutes pour répondre à chaque question. Votre réponse doit faire entre <strong>150 et 200 mots</strong>. Une réponse de moins de 150 mots ou de plus de 200 mots ne peut pas être soumise.",
         instr_item_5: "La collecte de données se coupe automatiquement après <strong>1 heure d'inactivité</strong> ou après un maximum de <strong>4 heures d'activité</strong> (c'est une sécurité, l'étude prend en réalité beaucoup moins de temps que cela !).",
         btn_commencer: "Commencer",
 
@@ -449,10 +449,10 @@ const i18n = {
         // --- Instructions ---
         instr_titre: "Instructions",
         instr_texte: "You will answer <strong>{count} research questions</strong>.",
-        instr_item_1: "<strong>Browse freely</strong> in other tabs (Google, Wikipedia, etc.) to find your information.",
+        instr_item_1: "<strong> It is impossible to perform the experiment on a phone.</strong> On your PC, <strong>browse freely</strong> in other tabs (Google, Wikipedia, etc.) to find your information.",
         instr_item_2: "<strong style='color:#dc2626;'>Strict Rules:</strong> Private browsing is prohibited. The use of Artificial Intelligence tools (ChatGPT, Gemini, Claude, etc.) is <strong>strictly prohibited</strong>.",
         instr_item_3: "The study must be completed <strong>in one single run</strong> (in one continuous session).",
-        instr_item_4: "You have 12 minutes to answer each question. Your answer must be between <strong>150 and 200 words</strong>. An answer with fewer than 150 words or more than 200 words cannot be submitted manually.",
+        instr_item_4: "You have 12 minutes to answer each question. Your answer must be between <strong>150 and 200 words</strong>. An answer with fewer than 150 words or more than 200 words cannot be submitted.",
         instr_item_5: "Data collection stops automatically after <strong>1 hour of inactivity</strong> or after a maximum of <strong>4 hours of activity</strong> (don't worry this is a safety measure, the study actually takes much less time than that!).",
         btn_commencer: "Start",
 

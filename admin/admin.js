@@ -1,13 +1,9 @@
-// admin.js (Modifié)
-
 // =========================================================
 // VARIABLES GLOBALES
 // =========================================================
 let AUTH_TOKEN = '';
 const BASE_URL = window.location.origin;
 let researcherPrivateKey = null; // Stocke l'objet CryptoKey en mémoire vive
-
-// Extrait de admin/admin.js (Génération Excel buildWorkbookForParticipant)
 
 const TEXT_DELIMITER = '\n--- [EXTRAIT] ---\n';
 
@@ -18,6 +14,7 @@ const usernameInput          = document.getElementById('usernameInput');
 const passwordInput          = document.getElementById('passwordInput');
 const connectBtn             = document.getElementById('connectBtn');
 const logoutBtn              = document.getElementById('logoutBtn');
+const downloadCompiledExcelBtn = document.getElementById('downloadCompiledExcelBtn');
 const downloadSelectedExcelBtn = document.getElementById('downloadSelectedExcelBtn');
 const downloadSelectedJsonBtn  = document.getElementById('downloadSelectedJsonBtn');
 const refreshBtn             = document.getElementById('refreshBtn');
@@ -32,55 +29,49 @@ const privateKeyFile         = document.getElementById('private-key-file');
 const keyStatus              = document.getElementById('key-status');
 
 // =========================================================
-// DICTIONNAIRE DE TRADUCTION DES COMPÉTENCES INTERNET
+// FORMATAGE HORODATAGE COMPLET (YYYY-MM-DD HH:mm:ss)
 // =========================================================
-const SKILLS_MAP = {
-    "item_1": "1_Telecharger_Fichiers",
-    "item_2": "2_Sauvegarder_Photos",
-    "item_3": "3_Raccourcis_Clavier",
-    "item_4": "4_Ouvrir_Onglet",
-    "item_5": "5_Signet_Favoris",
-    "item_6": "6_Cliquer_Lien",
-    "item_7": "7_Diff_Mots_Cles",
-    "item_8": "8_Diff_Retrouver_Site",
-    "item_9": "9_Fatigue_Recherche",
-    "item_10": "10_Nav_Involontaire",
-    "item_11": "11_Confusion_Ergo",
-    "item_12": "12_Besoin_Cours",
-    "item_13": "13_Diff_Verif_Info",
-    "item_14": "14_Partage_Securite",
-    "item_15": "15_Quand_Partager",
-    "item_16": "16_Comportement_Net",
-    "item_17": "17_Reglage_Confid",
-    "item_18": "18_Supprimer_Amis",
-    "item_19": "19_Creation_Contenu",
-    "item_20": "20_Modif_Contenu",
-    "item_21": "21_Concevoir_Site",
-    "item_22": "22_Licences_Web",
-    "item_23": "23_Confiance_Publier",
-    "item_24": "24_Installer_App",
-    "item_25": "25_Telecharger_App",
-    "item_26": "26_Suivi_Couts_App"
-};
-
-
-
 function formatParticipantTime(ts, timezone) {
     if (!ts) return '';
     try {
         const d = new Date(ts);
+        if (isNaN(d.getTime())) return '';
+
+        const pad = (n) => String(n).padStart(2, '0');
+
         if (timezone) {
-            return d.toLocaleTimeString('fr-FR', { timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            // Utiliser Intl.DateTimeFormat pour obtenir les parties dans le fuseau du participant
+            const dtf = new Intl.DateTimeFormat('en-CA', {
+                timeZone: timezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            const parts = dtf.formatToParts(d);
+            const get = (type) => parts.find(p => p.type === type)?.value || '00';
+            return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
         }
-        return d.toTimeString().substring(0, 8);
+
+        const year = d.getFullYear();
+        const month = pad(d.getMonth() + 1);
+        const day = pad(d.getDate());
+        const hours = pad(d.getHours());
+        const minutes = pad(d.getMinutes());
+        const seconds = pad(d.getSeconds());
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (e) {
         return '';
     }
 }
+
 // =========================================================
 // MODULE CRYPTOGRAPHIQUE (Déchiffrement CSFLE)
 // =========================================================
-
 function base64ToArrayBuffer(base64) {
     const binaryString = window.atob(base64);
     const len = binaryString.length;
@@ -115,7 +106,7 @@ async function importPrivateKey(pem) {
 
 async function decryptField(encryptedString) {
     if (!encryptedString || !encryptedString.startsWith("ENC:")) {
-        return encryptedString; // Non chiffré
+        return encryptedString;
     }
     if (!researcherPrivateKey) {
         return "[🔒 Champ Chiffré - Chargez la clé]";
@@ -126,14 +117,12 @@ async function decryptField(encryptedString) {
         const ivBuffer = base64ToArrayBuffer(parts[2]);
         const ciphertextBuffer = base64ToArrayBuffer(parts[3]);
 
-        // 1. Déchiffrer la clé de session AES avec la clé privée du chercheur
         const rawAesKey = await window.crypto.subtle.decrypt(
             { name: "RSA-OAEP" },
             researcherPrivateKey,
             encAesKeyBuffer
         );
 
-        // 2. Importer cette clé AES
         const aesKey = await window.crypto.subtle.importKey(
             "raw",
             rawAesKey,
@@ -142,7 +131,6 @@ async function decryptField(encryptedString) {
             ["decrypt"]
         );
 
-        // 3. Déchiffrer la donnée originale
         const decryptedBuffer = await window.crypto.subtle.decrypt(
             { name: "AES-GCM", iv: new Uint8Array(ivBuffer) },
             aesKey,
@@ -156,11 +144,8 @@ async function decryptField(encryptedString) {
     }
 }
 
-/**
- * Déchiffre de façon asynchrone l'intégralité du pack de données d'un participant
- */
 async function decryptParticipantData(data) {
-    if (!researcherPrivateKey) return data; // On retourne brut si aucune clé n'est configurée
+    if (!researcherPrivateKey) return data;
 
     const events = data.events || [];
     for (const event of events) {
@@ -174,7 +159,6 @@ async function decryptParticipantData(data) {
 // =========================================================
 // ÉCOUTEURS ET INITIALISATION CLÉ PRIVÉE
 // =========================================================
-
 privateKeyFile.addEventListener('change', function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -184,7 +168,7 @@ privateKeyFile.addEventListener('change', function(event) {
         const content = e.target.result;
         try {
             researcherPrivateKey = await importPrivateKey(content);
-            sessionStorage.setItem('tracker_private_key_pem', content); // Persistance temporaire
+            sessionStorage.setItem('tracker_private_key_pem', content);
             keyStatus.textContent = "✅ Clé privée active - Données déchiffrées automatiquement";
             keyStatus.style.color = "#34d399";
         } catch (err) {
@@ -197,7 +181,6 @@ privateKeyFile.addEventListener('change', function(event) {
     reader.readAsText(file);
 });
 
-// Auto-restauration de la clé privée au rafraîchissement
 const savedKeyPem = sessionStorage.getItem('tracker_private_key_pem');
 if (savedKeyPem) {
     importPrivateKey(savedKeyPem).then(function(cryptoKey) {
@@ -225,6 +208,7 @@ if (savedToken) {
 // =========================================================
 connectBtn.addEventListener('click', login);
 logoutBtn.addEventListener('click', logout);
+if (downloadCompiledExcelBtn) downloadCompiledExcelBtn.addEventListener('click', downloadCompiledExcel);
 downloadSelectedExcelBtn.addEventListener('click', downloadSelectedExcel);
 downloadSelectedJsonBtn.addEventListener('click', downloadSelectedJson);
 refreshBtn.addEventListener('click', refreshData);
@@ -288,7 +272,7 @@ function logout() {
     AUTH_TOKEN = '';
     sessionStorage.removeItem('tracker_admin_token');
     sessionStorage.removeItem('tracker_admin_user');
-    sessionStorage.removeItem('tracker_private_key_pem'); // Effacer la clé par sécurité
+    sessionStorage.removeItem('tracker_private_key_pem');
     researcherPrivateKey = null;
     keyStatus.textContent = "Clé non chargée - Les données sensibles apparaîtront chiffrées";
     keyStatus.style.color = "#f87171";
@@ -326,9 +310,6 @@ async function apiCall(path) {
 // =========================================================
 // CHARGER LES DONNÉES DU TABLEAU
 // =========================================================
-// =========================================================
-// CHARGER LES DONNÉES DU TABLEAU
-// =========================================================
 async function refreshData() {
     try {
         if (selectAllCheckbox) selectAllCheckbox.checked = false;
@@ -349,7 +330,7 @@ async function refreshData() {
         data.sessions.forEach(function(s) {
             totalEvents += s.nbEvenements;
             const row = document.createElement('tr');
-            const debut = s.debut ? new Date(s.debut).toLocaleString('fr-FR') : '-';
+            const debut = s.debut ? formatParticipantTime(s.debut) : '-';
             const pid = s._id.participant;
 
             const cellCheck = document.createElement('td');
@@ -364,13 +345,11 @@ async function refreshData() {
             const cellPid = document.createElement('td');
             cellPid.innerHTML = '<strong>' + pid + '</strong>';
 
-            // Nouvelle cellule Consentement C1
             const cellC1 = document.createElement('td');
             cellC1.textContent = s.c1 || "Non spécifié";
             if (s.c1 && s.c1.includes('✅')) cellC1.style.color = '#34d399';
             if (s.c1 && s.c1.includes('❌')) cellC1.style.color = '#f87171';
 
-            // Nouvelle cellule Consentement C2
             const cellC2 = document.createElement('td');
             cellC2.textContent = s.c2 || "Non spécifié";
             if (s.c2 && s.c2.includes('✅')) cellC2.style.color = '#34d399';
@@ -427,13 +406,13 @@ async function refreshData() {
 }
 
 // =========================================================
-// EXTRACTION DES RÉPONSES (ADAPTÉ AU FORMAT MONGODB)
+// EXTRACTION DES RÉPONSES & DONNÉES D'ÉVALUATION (CORRIGÉ)
 // =========================================================
-function extractResponseText(d) {
+function extractResponseText(d, type) {
     if (!d) return '';
     if (typeof d === 'string') return d.trim();
     if (typeof d === 'object') {
-        // Ta clé MongoDB exacte est d.answer
+        // Pour les questions de recherche / mémoire
         if (d.answer && typeof d.answer === 'string') return d.answer.trim();
         if (d.answerText && typeof d.answerText === 'string') return d.answerText.trim();
         if (d.response && typeof d.response === 'string') return d.response.trim();
@@ -441,10 +420,31 @@ function extractResponseText(d) {
         if (d.texte && typeof d.texte === 'string') return d.texte.trim();
         if (d.userAnswer && typeof d.userAnswer === 'string') return d.userAnswer.trim();
         
-        if (d.answers) return extractResponseText(d.answers);
-        
-        const stringValues = Object.values(d).filter(v => typeof v === 'string' && v.trim().length > 0);
-        if (stringValues.length > 0) return stringValues.join(' | ');
+        // Pour l'auto-évaluation et NASA-TLX : sérialisation claire et lisible
+        if (type === 'self_assessment' || d.perceivedDifficulty !== undefined || d.knowledgeBase !== undefined) {
+            const parts = [];
+            if (d.knowledgeBase !== undefined) parts.push(`ConnaissanceBase: ${d.knowledgeBase}/100`);
+            if (d.perceivedDifficulty !== undefined) parts.push(`DifficultePercue: ${d.perceivedDifficulty}/7`);
+            if (d.tlx_mental !== undefined) parts.push(`TLX_Mental: ${d.tlx_mental}`);
+            if (d.tlx_phys !== undefined) parts.push(`TLX_Phys: ${d.tlx_phys}`);
+            if (d.tlx_temp !== undefined) parts.push(`TLX_Temp: ${d.tlx_temp}`);
+            if (d.tlx_effort !== undefined) parts.push(`TLX_Effort: ${d.tlx_effort}`);
+            if (d.tlx_perf !== undefined) parts.push(`TLX_Perf: ${d.tlx_perf}`);
+            if (d.tlx_frust !== undefined) parts.push(`TLX_Frust: ${d.tlx_frust}`);
+            if (parts.length > 0) return parts.join(' | ');
+        }
+
+        // Pour les données de compétences internet
+        if (type === 'internet_skills' || (d.item_1 !== undefined)) {
+            return Object.entries(d).map(([k, v]) => `${k}:${v}`).join(' | ');
+        }
+
+        // Pour la démographie
+        if (type === 'demographics') {
+            return Object.entries(d).map(([k, v]) => `${k}:${v}`).join(' | ');
+        }
+
+        return JSON.stringify(d);
     }
     return JSON.stringify(d);
 }
@@ -510,23 +510,20 @@ function calculateMTLD(text, factorThreshold = 0.72) {
 }
 
 // =========================================================
-// GENERATEUR EXCEL 5 FEUILLES
+// EXTRACTION DES LIGNES POUR UN PARTICIPANT
 // =========================================================
-function buildWorkbookForParticipant(pid, data) {
+function extractParticipantRows(pid, data) {
     const logs = data.events || [];
     const reps = data.reponses || [];
-    const wb = XLSX.utils.book_new();
 
-    // Récupération du fuseau horaire du participant (ex: "America/Toronto")
     const demoRep = reps.find(r => r.type === 'demographics');
     const participantTz = demoRep && demoRep.data ? demoRep.data.timezone : null;
 
-    // Entêtes des colonnes Excel
-    const navRows = [['ParticipantID', 'Question', 'Visite_ID', 'Heure_Entree', 'Heure_Sortie', 'Duree_Sec', 'URL', 'Nom_Page', 'Scroll_Max_%', 'Clics', 'Touches_Clavier', 'Copies_Count', 'Collages_Count', 'Onglet_Ferme', 'Backward', 'Forward']];
-    const copyPasteRows = [['ParticipantID', 'Question', 'Type_Action', 'Timestamp_Exact', 'URL', 'Texte_Extrait']];
-    const researchRows = [['ParticipantID', 'Question_ID', 'Difficulte', 'Langue', 'Heure_Soumission', 'Temps_Reponse_Sec', 'Temps_Ecoule_Timeout', 'Reponse_Textuelle', 'Nombre_Mots', 'MATTR', 'MTLD', 'Textes_Copies_Pendant_Q', 'Textes_Colles_Pendant_Q']];
-    const evalRows = [['ParticipantID', 'Heure', 'Type_Evaluation', 'QuestionID', 'QuestionLabel', 'Donnees_Reponses']];
-    const globRows = [['ParticipantID', 'Source', 'Heure', 'Question', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Réponse_Donnees']];
+    const navRows = [];
+    const copyPasteRows = [];
+    const researchRows = [];
+    const evalRows = [];
+    const globRows = [];
 
     // 1. Périodes par Question
     const sortedReps = reps.filter(r => r.type !== 'questionnaire_event' || (r.data && r.data.event === 'internet_skills'))
@@ -545,35 +542,48 @@ function buildWorkbookForParticipant(pid, data) {
         else if (r.type === 'internet_skills') { lb = 'Compétences Internet'; }
         else { lb = 'R' + (i + 1); }
         periods.push({
-            label: lb, type: r.type, qid: r.questionId || '',
+            label: lb, 
+            type: r.type, 
+            qid: r.questionId || '',
+            difficulty: r.difficulty || (r.data ? r.data.difficulty : '') || '',
             start: i > 0 ? sortedReps[i - 1].timestamp : null,
-            end: r.timestamp, data: r.data || {}
+            end: r.timestamp, 
+            data: r.data || {}
         });
     });
 
-    function getQL(ts) {
-        if (!periods.length || !ts) return '';
+    function getPeriodInfo(ts) {
+        if (!periods.length || !ts) return { label: '', qid: '', difficulty: '' };
         for (let i = 0; i < periods.length; i++) {
             let p = periods[i];
-            if ((p.start === null || ts >= p.start) && ts <= p.end) return p.label;
+            if ((p.start === null || ts >= p.start) && ts <= p.end) {
+                return { label: p.label, qid: p.qid, difficulty: p.difficulty };
+            }
         }
-        if (ts > periods[periods.length - 1].end) return 'Post-Q';
-        return '';
+        if (ts > periods[periods.length - 1].end) {
+            return { label: 'Post-Q', qid: '', difficulty: '' };
+        }
+        return { label: '', qid: '', difficulty: '' };
     }
 
-    // 2. Traitement des Événements Navigation et calcul de l'heure locale de sortie
+    // 2. Traitement des événements
     const vis = [];
     const vById = {};
 
     logs.forEach(log => {
         const t = log.type, url = log.url || '', vid = log.visitId;
-        const qLabel = getQL(log.timestamp || '');
+        const pInfo = getPeriodInfo(log.timestamp || '');
 
         if (t === 'copie' || t === 'collage') {
             copyPasteRows.push([
-                pid, qLabel, t,
+                pid, 
+                pInfo.label, 
+                pInfo.qid || '—', 
+                pInfo.difficulty || '—', 
+                t,
                 log.timestamp ? formatParticipantTime(log.timestamp, participantTz) : '',
-                url, log.texte || ''
+                url, 
+                log.texte || ''
             ]);
         }
 
@@ -582,7 +592,11 @@ function buildWorkbookForParticipant(pid, data) {
                 id: vis.length, url: url, vid: vid,
                 clics: 0, scroll: 0, tms: 0, touches_clavier: 0, copies: [], collages: [],
                 closed: t === 'tab_closed', ib: log.transitionType === 'back_forward', ifw: false,
-                nom: url.substring(0, 40), q: qLabel, tsEntree: log.timestamp || ''
+                nom: url.substring(0, 40), 
+                q: pInfo.label, 
+                qid: pInfo.qid || '', 
+                diff: pInfo.difficulty || '',
+                tsEntree: log.timestamp || ''
             };
             vis.push(v);
             if (vid) vById[vid] = v;
@@ -616,6 +630,8 @@ function buildWorkbookForParticipant(pid, data) {
         navRows.push([
             pid, 
             v.q, 
+            v.qid || '—', 
+            v.diff || '—', 
             v.vid,
             heureEntreeFormatted,
             heureSortieFormatted,
@@ -633,12 +649,15 @@ function buildWorkbookForParticipant(pid, data) {
         ]);
     });
 
-    // 3. Extraction des Réponses de Recherche (Délimitation propre avec TEXT_DELIMITER)
+    // 3. Extraction des Réponses de Recherche
+    let rIndex = 0;
     sortedReps.forEach(r => {
         const d = r.data || {};
-        const answerText = extractResponseText(d);
+        const answerText = extractResponseText(d, r.type);
 
         if (r.type === 'research_answer' || r.type === 'memory_answer') {
+            if (r.type === 'research_answer') rIndex++;
+            const positionQ = r.type === 'research_answer' ? ('Q' + rIndex) : 'Mém';
             const wordCount = tokenizeText(answerText).length;
             const mattr = calculateMATTR(answerText);
             const mtld = calculateMTLD(answerText);
@@ -648,20 +667,34 @@ function buildWorkbookForParticipant(pid, data) {
             const timeSpentSec = d.timeSpentSeconds !== undefined ? d.timeSpentSeconds : '—';
             const forcedTimeout = d.forcedTimeout ? 'Oui' : 'Non';
 
-            // Séparation avec TEXT_DELIMITER pour découpage facile en Python
-            const qCopies = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'copie').map(row => row[5]).join(TEXT_DELIMITER);
-            const qPastes = copyPasteRows.filter(row => row[1] === getQL(r.timestamp) && row[2] === 'collage').map(row => row[5]).join(TEXT_DELIMITER);
+            const pLabel = getPeriodInfo(r.timestamp).label;
+            const qCopies = copyPasteRows.filter(row => row[1] === pLabel && row[4] === 'copie').map(row => row[7]).join(TEXT_DELIMITER);
+            const qPastes = copyPasteRows.filter(row => row[1] === pLabel && row[4] === 'collage').map(row => row[7]).join(TEXT_DELIMITER);
 
             researchRows.push([
-                pid, r.questionId || r.type, difficulty, lang,
+                pid, 
+                positionQ,
+                r.questionId || r.type, 
+                difficulty, 
+                lang,
                 r.timestamp ? formatParticipantTime(r.timestamp, participantTz) : '',
-                timeSpentSec, forcedTimeout,
-                answerText, wordCount, mattr, mtld, qCopies, qPastes
+                timeSpentSec, 
+                forcedTimeout,
+                answerText, 
+                wordCount, 
+                mattr, 
+                mtld, 
+                qCopies, 
+                qPastes
             ]);
         } else {
             evalRows.push([
-                pid, r.timestamp ? formatParticipantTime(r.timestamp, participantTz) : '',
-                r.type, r.questionId || '', r.questionLabel || '', answerText
+                pid, 
+                r.timestamp ? formatParticipantTime(r.timestamp, participantTz) : '',
+                r.type, 
+                r.questionId || '', 
+                r.questionLabel || '', 
+                answerText
             ]);
         }
     });
@@ -671,38 +704,87 @@ function buildWorkbookForParticipant(pid, data) {
     vis.forEach(v => {
         items.push({
             ts: v.tsEntree,
-            row: [pid, 'Navigation', v.tsEntree ? formatParticipantTime(v.tsEntree, participantTz) : '', v.q, 'navigation', v.url, v.nom, +(v.tms / 1000).toFixed(2), v.scroll, v.clics, v.touches_clavier, v.copies.length, v.collages.length, v.closed ? 'Oui' : '', '']
+            row: [
+                pid, 
+                'Navigation', 
+                v.tsEntree ? formatParticipantTime(v.tsEntree, participantTz) : '', 
+                v.q, 
+                v.qid || '—', 
+                'navigation', 
+                v.url, 
+                v.nom, 
+                +(v.tms / 1000).toFixed(2), 
+                v.scroll, 
+                v.clics, 
+                v.touches_clavier, 
+                v.copies.length, 
+                v.collages.length, 
+                v.closed ? 'Oui' : '', 
+                ''
+            ]
         });
     });
     sortedReps.forEach(r => {
-        const answerText = extractResponseText(r.data);
+        const answerText = extractResponseText(r.data, r.type);
         items.push({
             ts: r.timestamp || '',
-            row: [pid, 'Réponse', r.timestamp ? formatParticipantTime(r.timestamp, participantTz) : '', r.questionId || '', r.type, '', '', '', '', '', '', '', '', '', answerText]
+            row: [
+                pid, 
+                'Réponse', 
+                r.timestamp ? formatParticipantTime(r.timestamp, participantTz) : '', 
+                getPeriodInfo(r.timestamp).label || '', 
+                r.questionId || '', 
+                r.type, 
+                '', 
+                '', 
+                '', 
+                '', 
+                '', 
+                '', 
+                '', 
+                '', 
+                '', 
+                answerText
+            ]
         });
     });
     items.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
     items.forEach(it => globRows.push(it.row));
 
-    // Génération du classeur Excel
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(navRows), 'Navigation');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(copyPasteRows), 'Copies_Collages');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(researchRows), 'Reponses_Recherche');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(evalRows), 'Auto_Evaluations');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(globRows), 'Chronologie_Globale');
+    return { navRows, copyPasteRows, researchRows, evalRows, globRows };
+}
+
+// Entêtes standardisées
+const HEADERS_NAV = ['ParticipantID', 'Position_Q', 'Question_ID', 'Difficulte', 'Visite_ID', 'Heure_Entree', 'Heure_Sortie', 'Duree_Sec', 'URL', 'Nom_Page', 'Scroll_Max_%', 'Clics', 'Touches_Clavier', 'Copies_Count', 'Collages_Count', 'Onglet_Ferme', 'Backward', 'Forward'];
+const HEADERS_COPY_PASTE = ['ParticipantID', 'Position_Q', 'Question_ID', 'Difficulte', 'Type_Action', 'Timestamp_Exact', 'URL', 'Texte_Extrait'];
+const HEADERS_RESEARCH = ['ParticipantID', 'Position_Q', 'Question_ID', 'Difficulte', 'Langue', 'Heure_Soumission', 'Temps_Reponse_Sec', 'Temps_Ecoule_Timeout', 'Reponse_Textuelle', 'Nombre_Mots', 'MATTR', 'MTLD', 'Textes_Copies_Pendant_Q', 'Textes_Colles_Pendant_Q'];
+const HEADERS_EVAL = ['ParticipantID', 'Heure', 'Type_Evaluation', 'QuestionID', 'QuestionLabel', 'Donnees_Reponses'];
+const HEADERS_GLOB = ['ParticipantID', 'Source', 'Heure', 'Position_Q', 'Question_ID', 'Type', 'URL', 'Page', 'Temps_s', 'Scroll_pct', 'Clics', 'Touches_clavier', 'Copies', 'Collages', 'Fermé', 'Réponse_Donnees'];
+
+// =========================================================
+// GENERATEUR EXCEL INDIVIDUEL 5 FEUILLES
+// =========================================================
+function buildWorkbookForParticipant(pid, data) {
+    const wb = XLSX.utils.book_new();
+    const rows = extractParticipantRows(pid, data);
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([HEADERS_NAV, ...rows.navRows]), 'Navigation');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([HEADERS_COPY_PASTE, ...rows.copyPasteRows]), 'Copies_Collages');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([HEADERS_RESEARCH, ...rows.researchRows]), 'Reponses_Recherche');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([HEADERS_EVAL, ...rows.evalRows]), 'Auto_Evaluations');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([HEADERS_GLOB, ...rows.globRows]), 'Chronologie_Globale');
 
     return wb;
 }
 
 // =========================================================
-// EXTRACTION INDIVIDUELLE (DÉCHIFFREMENT INTÉGRÉ)
+// EXPORTS INDIVIDUELS ET GROUPÉS
 // =========================================================
 async function downloadParticipant(pid) {
     try {
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
         let data = await response.json();
         
-        // Déchiffrement CSFLE transparent
         data = await decryptParticipantData(data);
 
         downloadJSON(data, 'participant_' + pid);
@@ -718,7 +800,6 @@ async function downloadParticipantExcel(pid) {
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
         let data = await response.json();
         
-        // Déchiffrement CSFLE transparent
         data = await decryptParticipantData(data);
         
         const wb = buildWorkbookForParticipant(pid, data);
@@ -728,10 +809,6 @@ async function downloadParticipantExcel(pid) {
         showStatus('❌ ' + e.message, 'err');
     }
 }
-
-// =========================================================
-// EXPORTS GROUPÉS (DÉCHIFFREMENT BATCH INTÉGRÉ)
-// =========================================================
 
 async function fetchSelectedData() {
     const checkboxes = document.querySelectorAll('.participant-checkbox:checked');
@@ -749,15 +826,58 @@ async function fetchSelectedData() {
             const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
             let data = await response.json();
             
-            // Déchiffrement batch CSFLE transparent
             data = await decryptParticipantData(data);
-
             records.push({ pid: pid, data: data });
         } catch (err) {
             console.error("Erreur de récupération pour le participant : " + pid, err);
         }
     }
     return records;
+}
+
+// =========================================================
+// NOUVEAU : EXPORT EXCEL COMPILÉ (TOUT-EN-UN EMPILÉ)
+// =========================================================
+async function downloadCompiledExcel() {
+    const selected = await fetchSelectedData();
+    if (!selected) return;
+
+    if (typeof XLSX === 'undefined') {
+        showStatus('❌ Erreur: La bibliothèque XLSX (SheetJS) n\'est pas disponible.', 'err');
+        return;
+    }
+
+    try {
+        showStatus('📊 Compilation des données de ' + selected.length + ' participant(s)...', 'info');
+
+        const allNav = [HEADERS_NAV];
+        const allCopyPaste = [HEADERS_COPY_PASTE];
+        const allResearch = [HEADERS_RESEARCH];
+        const allEval = [HEADERS_EVAL];
+        const allGlob = [HEADERS_GLOB];
+
+        selected.forEach(item => {
+            const rows = extractParticipantRows(item.pid, item.data);
+            allNav.push(...rows.navRows);
+            allCopyPaste.push(...rows.copyPasteRows);
+            allResearch.push(...rows.researchRows);
+            allEval.push(...rows.evalRows);
+            allGlob.push(...rows.globRows);
+        });
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(allNav), 'Navigation');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(allCopyPaste), 'Copies_Collages');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(allResearch), 'Reponses_Recherche');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(allEval), 'Auto_Evaluations');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(allGlob), 'Chronologie_Globale');
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `export_compile_participants_${selected.length}_${dateStr}.xlsx`);
+        showStatus('✅ Fichier Excel compilé généré pour ' + selected.length + ' participant(s)', 'ok');
+    } catch (err) {
+        showStatus('❌ Erreur lors de la compilation Excel : ' + err.message, 'err');
+    }
 }
 
 async function downloadSelectedJson() {
@@ -848,7 +968,6 @@ async function viewParticipant(pid) {
         const response = await apiCall('/export/participant/' + pid + '?include_responses=true');
         let data = await response.json();
 
-        // Déchiffrement CSFLE transparent avant stockage dans la session locale
         data = await decryptParticipantData(data);
 
         sessionStorage.setItem('dashboard_data', JSON.stringify(data));

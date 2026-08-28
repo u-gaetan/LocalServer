@@ -1,5 +1,3 @@
-// dashboard.js (Version corrigée)
-
 'use strict';
 
 // ═══════════════════════════════════════════════════════
@@ -83,10 +81,34 @@ function tsT(ts, tz) {
     if (!ts) return '';
     try {
         const d = new Date(ts);
+        if (isNaN(d.getTime())) return '';
+
+        const pad = (n) => String(n).padStart(2, '0');
+
         if (tz) {
-            return d.toLocaleTimeString('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dtf = new Intl.DateTimeFormat('en-CA', {
+                timeZone: tz,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            const parts = dtf.formatToParts(d);
+            const get = (type) => parts.find(p => p.type === type)?.value || '00';
+            return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
         }
-        return d.toTimeString().substring(0, 8);
+
+        const year = d.getFullYear();
+        const month = pad(d.getMonth() + 1);
+        const day = pad(d.getDate());
+        const hours = pad(d.getHours());
+        const minutes = pad(d.getMinutes());
+        const seconds = pad(d.getSeconds());
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     } catch (e) { return ''; }
 }
 
@@ -175,7 +197,7 @@ function calculateMTLD(text, factorThreshold = 0.72) {
     return +(tokens.length / avgFactors).toFixed(2);
 }
 
-function extractResponseText(d) {
+function extractResponseText(d, type) {
     if (!d) return '';
     if (typeof d === 'string') return d.trim();
     if (typeof d === 'object') {
@@ -185,10 +207,29 @@ function extractResponseText(d) {
         if (d.reponse && typeof d.reponse === 'string') return d.reponse.trim();
         if (d.texte && typeof d.texte === 'string') return d.texte.trim();
         if (d.userAnswer && typeof d.userAnswer === 'string') return d.userAnswer.trim();
-        if (d.answers) return extractResponseText(d.answers);
 
-        const stringValues = Object.values(d).filter(v => typeof v === 'string' && v.trim().length > 0);
-        if (stringValues.length > 0) return stringValues.join(' | ');
+        if (type === 'self_assessment' || d.perceivedDifficulty !== undefined || d.knowledgeBase !== undefined) {
+            const parts = [];
+            if (d.knowledgeBase !== undefined) parts.push(`ConnaissanceBase: ${d.knowledgeBase}/100`);
+            if (d.perceivedDifficulty !== undefined) parts.push(`DifficultePercue: ${d.perceivedDifficulty}/7`);
+            if (d.tlx_mental !== undefined) parts.push(`TLX_Mental: ${d.tlx_mental}`);
+            if (d.tlx_phys !== undefined) parts.push(`TLX_Phys: ${d.tlx_phys}`);
+            if (d.tlx_temp !== undefined) parts.push(`TLX_Temp: ${d.tlx_temp}`);
+            if (d.tlx_effort !== undefined) parts.push(`TLX_Effort: ${d.tlx_effort}`);
+            if (d.tlx_perf !== undefined) parts.push(`TLX_Perf: ${d.tlx_perf}`);
+            if (d.tlx_frust !== undefined) parts.push(`TLX_Frust: ${d.tlx_frust}`);
+            if (parts.length > 0) return parts.join(' | ');
+        }
+
+        if (type === 'internet_skills' || (d.item_1 !== undefined)) {
+            return Object.entries(d).map(([k, v]) => `${k}:${v}`).join(' | ');
+        }
+
+        if (type === 'demographics') {
+            return Object.entries(d).map(([k, v]) => `${k}:${v}`).join(' | ');
+        }
+
+        return JSON.stringify(d);
     }
     return JSON.stringify(d);
 }
@@ -212,22 +253,28 @@ function mkPeriods(reps) {
         else if (r.type === 'internet_skills') { lb = 'Compétences Internet'; }
         else { lb = 'R' + (i + 1); }
         periods.push({
-            label: lb, type: r.type, qid: r.questionId || '',
+            label: lb, 
+            type: r.type, 
+            qid: r.questionId || '',
+            difficulty: r.difficulty || (r.data ? r.data.difficulty : '') || '',
             start: i > 0 ? sorted[i - 1].timestamp : null,
-            end: r.timestamp, data: r.data || {}
+            end: r.timestamp, 
+            data: r.data || {}
         });
     });
     return periods;
 }
 
-function getQL(ts, periods) {
-    if (!periods.length || !ts) return '';
+function getPeriodInfo(ts, periods) {
+    if (!periods || !periods.length || !ts) return { label: '', qid: '', difficulty: '' };
     for (var i = 0; i < periods.length; i++) {
         var p = periods[i];
-        if ((p.start === null || ts >= p.start) && ts <= p.end) return p.label;
+        if ((p.start === null || ts >= p.start) && ts <= p.end) {
+            return { label: p.label, qid: p.qid, difficulty: p.difficulty };
+        }
     }
-    if (ts > periods[periods.length - 1].end) return 'Post-Q';
-    return '';
+    if (ts > periods[periods.length - 1].end) return { label: 'Post-Q', qid: '', difficulty: '' };
+    return { label: '', qid: '', difficulty: '' };
 }
 
 function process(raw) {
@@ -245,8 +292,11 @@ function process(raw) {
     logs.forEach(log => {
         var t = log.type, url = log.url || '';
         if (t === 'copie' || t === 'collage') {
+            var pInfo = getPeriodInfo(log.timestamp || '', periods);
             copyPasteList.push({
-                q: getQL(log.timestamp || '', periods),
+                q: pInfo.label,
+                qid: pInfo.qid,
+                diff: pInfo.difficulty,
                 type: t,
                 ts: log.timestamp || '',
                 url: url,
@@ -269,12 +319,18 @@ function process(raw) {
                 else { tStk[tid] = stk.slice(0, ptr + 1).concat([url]); tPtr[tid] = ptr + 1; }
             }
             if (log.transitionType === 'back_forward' && !ib && !ifw) ib = true;
+            
+            var pInfo = getPeriodInfo(log.timestamp || '', periods);
+
             var v = {
                 id: vis.length, url: url, vid: vid, purl: log.parentUrl || '',
                 tid: tid, ib: ib, ifw: ifw, ts: log.timestamp || '',
                 clics: 0, scroll: 0, tms: 0, touches_clavier: 0, copies: [], collages: [],
                 closed: false, pchron: prev ? prev.id : null,
-                nom: shortUrl(url), q: getQL(log.timestamp || '', periods)
+                nom: shortUrl(url), 
+                q: pInfo.label,
+                qid: pInfo.qid,
+                diff: pInfo.difficulty
             };
             vis.push(v);
             if (vid) vById[vid] = v;
@@ -588,7 +644,7 @@ function renderTree() {
 }
 
 // ═══════════════════════════════════════════════════════
-// MÉTRIQUES ET GRAPHIQUES CORRIGÉS (SCROLL & COPIES/COLLAGES PAR VISITE)
+// MÉTRIQUES ET GRAPHIQUES
 // ═══════════════════════════════════════════════════════
 function renderMetrics() {
     var t = S.tot;
@@ -617,7 +673,6 @@ function renderMetrics() {
     var labs = S.vr.map(g => g.nom);
     var maxVisits = Math.max(...S.vr.map(g => g.visits.length));
 
-    // 1. Temps passé par visite (Barres empilées)
     var tempsSeries = [];
     for (var i = 0; i < maxVisits; i++) {
         tempsSeries.push({
@@ -638,7 +693,6 @@ function renderMetrics() {
         series: tempsSeries
     });
 
-    // 2. CORRECTION : Scroll Max par visite (Barres empilées)
     var scrollSeries = [];
     for (var s = 0; s < maxVisits; s++) {
         scrollSeries.push({
@@ -659,7 +713,6 @@ function renderMetrics() {
         series: scrollSeries
     });
 
-    // 3. Clics par visite (Barres empilées)
     var clicsSeries = [];
     for (var j = 0; j < maxVisits; j++) {
         clicsSeries.push({
@@ -680,13 +733,10 @@ function renderMetrics() {
         series: clicsSeries
     });
 
-    // 4. CORRECTION : Graphique 2 barres séparées (1 pour Copies, 1 pour Collages) découpées par visite
     var greenShades = ['#059669', '#10b981', '#34d399', '#047857', '#a7f3d0'];
     var cyanShades  = ['#0891b2', '#06b6d4', '#22d3ee', '#0e7490', '#cffaff'];
 
     var copyPasteSeries = [];
-    
-    // Groupe 1 : Copies (Barre du haut)
     for (var k = 0; k < maxVisits; k++) {
         copyPasteSeries.push({
             name: 'Visite ' + (k + 1) + ' (Copie)',
@@ -697,8 +747,6 @@ function renderMetrics() {
             data: S.vr.map(g => g.visits[k] ? g.visits[k].copies.length : 0)
         });
     }
-
-    // Groupe 2 : Collages (Barre du bas juste en dessous)
     for (var k = 0; k < maxVisits; k++) {
         copyPasteSeries.push({
             name: 'Visite ' + (k + 1) + ' (Collage)',
@@ -719,7 +767,6 @@ function renderMetrics() {
         series: copyPasteSeries
     });
 
-    // 5. Camembert des interactions
     var pie = [];
     if (t.clics) pie.push({ name: 'Clics', value: t.clics });
     if (t.touches_clavier) pie.push({ name: 'Touches Clavier', value: t.touches_clavier });
@@ -732,7 +779,6 @@ function renderMetrics() {
         series: [{ type: 'pie', radius: ['40%', '70%'], data: pie, label: { fontSize: 12 } }]
     });
 
-    // 6. Domaines visités
     var doms = {};
     S.vr.forEach(g => {
         try { var d = new URL(g.url).hostname.replace('www.', ''); doms[d] = (doms[d] || 0) + g.nb; } catch (e) {}
@@ -753,13 +799,11 @@ function mkSC(l, v, c) {
 }
 
 // ═══════════════════════════════════════════════════════
-// ONGLETS TABLES (AVEC LARGEURS DE COLONNES CORRIGÉES)
+// ONGLETS TABLES
 // ═══════════════════════════════════════════════════════
-
-// Onglet 1 : Navigation
 function renderNavTab() {
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th class="col-small">Question</th><th class="col-id">Visite_ID</th><th class="col-small">Heure_Entrée</th><th class="col-small">Heure_Sortie</th><th class="col-small">Durée (s)</th><th class="col-url">URL</th><th class="col-nom">Nom_Page</th><th class="col-small">Scroll (%)</th><th class="col-small">Clics</th><th class="col-small">Touches</th><th class="col-text">Copies</th><th class="col-text">Collages</th>';
+    th += '<th class="col-small">Position_Q</th><th class="col-id">Question_ID</th><th class="col-small">Difficulté</th><th class="col-id">Visite_ID</th><th class="col-small">Heure_Entrée</th><th class="col-small">Heure_Sortie</th><th class="col-small">Durée (s)</th><th class="col-url">URL</th><th class="col-nom">Nom_Page</th><th class="col-small">Scroll (%)</th><th class="col-small">Clics</th><th class="col-small">Touches</th><th class="col-text">Copies</th><th class="col-text">Collages</th>';
     th += '</tr></thead><tbody>';
 
     S.vis.forEach((v, index) => {
@@ -767,6 +811,8 @@ function renderNavTab() {
         var hSortie = (v.ts && v.tms > 0) ? tsT(new Date(v.ts).getTime() + v.tms, S.participantTz) : hEntree;
         th += '<tr>';
         th += '<td><span class="qb" style="background:' + (S.qc[v.q] || '#64748b') + '">' + v.q + '</span></td>';
+        th += '<td>' + esc(v.qid || '—') + '</td>';
+        th += '<td>' + esc(v.diff || '—') + '</td>';
         th += '<td class="m">' + (v.vid || 'visite_' + (index + 1)) + '</td>';
         th += '<td class="m">' + hEntree + '</td>';
         th += '<td class="m">' + hSortie + '</td>';
@@ -784,10 +830,9 @@ function renderNavTab() {
     document.getElementById('p-nav').innerHTML = th;
 }
 
-// Onglet 2 : Copies & Collages
 function renderCopyPasteTab() {
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th class="col-small">Question</th><th class="col-small">Type_Action</th><th class="col-small">Timestamp</th><th class="col-url">URL</th><th class="col-text">Texte_Extrait</th>';
+    th += '<th class="col-small">Position_Q</th><th class="col-id">Question_ID</th><th class="col-small">Difficulté</th><th class="col-small">Type_Action</th><th class="col-small">Timestamp</th><th class="col-url">URL</th><th class="col-text">Texte_Extrait</th>';
     th += '</tr></thead><tbody>';
 
     S.copyPasteList.forEach(cp => {
@@ -798,6 +843,8 @@ function renderCopyPasteTab() {
 
         th += '<tr>';
         th += '<td><span class="qb" style="background:' + (S.qc[cp.q] || '#64748b') + '">' + cp.q + '</span></td>';
+        th += '<td>' + esc(cp.qid || '—') + '</td>';
+        th += '<td>' + esc(cp.diff || '—') + '</td>';
         th += '<td>' + badge + '</td>';
         th += '<td class="m">' + h + '</td>';
         th += '<td class="col-url" title="' + esc(cp.url) + '"><a href="' + esc(cp.url) + '" target="_blank" class="lk">' + esc(shortUrl(cp.url)) + '</a></td>';
@@ -808,25 +855,28 @@ function renderCopyPasteTab() {
     document.getElementById('p-copypaste').innerHTML = th;
 }
 
-// Onglet 3 : Réponses Recherche
 function renderResearchTab() {
     var reps = S.reps.filter(r => r.type === 'research_answer' || r.type === 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th class="col-small">Question_ID</th><th class="col-small">Difficulté</th><th class="col-small">Soumission</th><th class="col-small">Temps (s)</th><th class="col-text">Réponse Textuelle</th><th class="col-small">Mots</th><th class="col-small">MATTR</th><th class="col-small">MTLD</th><th class="col-text">Textes_Copies_Pendant_Q</th><th class="col-text">Textes_Colles_Pendant_Q</th>';
+    th += '<th class="col-small">Position_Q</th><th class="col-small">Question_ID</th><th class="col-small">Difficulté</th><th class="col-small">Soumission</th><th class="col-small">Temps (s)</th><th class="col-text">Réponse Textuelle</th><th class="col-small">Mots</th><th class="col-small">MATTR</th><th class="col-small">MTLD</th><th class="col-text">Textes_Copies_Pendant_Q</th><th class="col-text">Textes_Colles_Pendant_Q</th>';
     th += '</tr></thead><tbody>';
 
+    let rCount = 0;
     reps.forEach(r => {
+        if (r.type === 'research_answer') rCount++;
+        const posQ = r.type === 'research_answer' ? ('Q' + rCount) : 'Mém';
         var d = r.data || {};
-        var answerText = extractResponseText(d);
+        var answerText = extractResponseText(d, r.type);
         var wordCount = tokenizeText(answerText).length;
         var mattr = calculateMATTR(answerText);
         var mtld = calculateMTLD(answerText);
 
-        var qLabel = getQL(r.timestamp, S.periods);
-        var qCopies = S.copyPasteList.filter(cp => cp.q === qLabel && cp.type === 'copie').map(cp => cp.texte).join(TEXT_DELIMITER);
-        var qPastes = S.copyPasteList.filter(cp => cp.q === qLabel && cp.type === 'collage').map(cp => cp.texte).join(TEXT_DELIMITER);
+        var pInfo = getPeriodInfo(r.timestamp, S.periods);
+        var qCopies = S.copyPasteList.filter(cp => cp.q === pInfo.label && cp.type === 'copie').map(cp => cp.texte).join(TEXT_DELIMITER);
+        var qPastes = S.copyPasteList.filter(cp => cp.q === pInfo.label && cp.type === 'collage').map(cp => cp.texte).join(TEXT_DELIMITER);
 
         th += '<tr>';
+        th += '<td><span class="qb" style="background:#3b82f6">' + posQ + '</span></td>';
         th += '<td><strong>' + esc(r.questionId || r.type) + '</strong></td>';
         th += '<td>' + esc(r.difficulty || d.difficulty || '—') + '</td>';
         th += '<td class="m">' + tsT(r.timestamp, S.participantTz) + '</td>';
@@ -843,7 +893,6 @@ function renderResearchTab() {
     document.getElementById('p-research').innerHTML = th;
 }
 
-// Onglet 4 : Auto-Évaluations
 function renderEvalTab() {
     var reps = S.reps.filter(r => r.type !== 'research_answer' && r.type !== 'memory_answer');
     var th = '<div class="tw"><table><thead><tr>';
@@ -855,26 +904,42 @@ function renderEvalTab() {
         th += '<td class="m">' + tsT(r.timestamp, S.participantTz) + '</td>';
         th += '<td><span class="tg">' + esc(r.type) + '</span></td>';
         th += '<td>' + esc(r.questionId || '—') + '</td>';
-        th += '<td class="col-text">' + esc(JSON.stringify(r.data || {})) + '</td>';
+        th += '<td class="col-text">' + esc(extractResponseText(r.data, r.type)) + '</td>';
         th += '</tr>';
     });
     th += '</tbody></table></div>';
     document.getElementById('p-eval').innerHTML = th;
 }
 
-// Onglet 5 : Chronologie Globale
 function renderChronoTab() {
     var items = [];
     S.vis.forEach(v => {
-        items.push({ ts: v.ts, src: 'Navigation', q: v.q, type: 'navigation', url: v.url, details: v.nom });
+        items.push({ 
+            ts: v.ts, 
+            src: 'Navigation', 
+            q: v.q, 
+            qid: v.qid, 
+            type: 'navigation', 
+            url: v.url, 
+            details: v.nom 
+        });
     });
     S.reps.forEach(r => {
-        items.push({ ts: r.timestamp, src: 'Réponse', q: r.questionId || '', type: r.type, url: '', details: JSON.stringify(r.data || {}) });
+        var pInfo = getPeriodInfo(r.timestamp, S.periods);
+        items.push({ 
+            ts: r.timestamp, 
+            src: 'Réponse', 
+            q: pInfo.label, 
+            qid: r.questionId || '', 
+            type: r.type, 
+            url: '', 
+            details: extractResponseText(r.data, r.type) 
+        });
     });
     items.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
 
     var th = '<div class="tw"><table><thead><tr>';
-    th += '<th class="col-small">Source</th><th class="col-small">Heure</th><th class="col-small">Question</th><th class="col-small">Type</th><th class="col-text">Détails / URL</th>';
+    th += '<th class="col-small">Source</th><th class="col-small">Heure</th><th class="col-small">Position_Q</th><th class="col-small">Question_ID</th><th class="col-small">Type</th><th class="col-text">Détails / URL</th>';
     th += '</tr></thead><tbody>';
 
     items.forEach(it => {
@@ -882,6 +947,7 @@ function renderChronoTab() {
         th += '<td>' + it.src + '</td>';
         th += '<td class="m">' + tsT(it.ts, S.participantTz) + '</td>';
         th += '<td>' + esc(it.q) + '</td>';
+        th += '<td>' + esc(it.qid || '—') + '</td>';
         th += '<td><span class="tg">' + esc(it.type) + '</span></td>';
         th += '<td class="col-text">' + esc(it.details || it.url) + '</td>';
         th += '</tr>';
