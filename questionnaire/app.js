@@ -93,49 +93,14 @@ var RESEARCH_WARNING_SECONDS = 600;
             try {
                 const parsed = JSON.parse(saved);
                 if (parsed.participantId && parsed.token) {
-                    state = parsed; // Restaure temporairement l'état
+                    state = parsed; // Restaure l'état complet
                 }
             } catch (e) {
                 console.error("Échec de lecture du stockage local", e);
             }
         }
 
-        // 2. Si l'état restauré avait déjà dépassé l'étape du tutoriel (ex: démographie, questions...)
-        // On vérifie si l'extension est TOUJOURS installée dans le navigateur.
-        const requiresExtension = state.phase && !['language', 'consent', 'tutorial'].includes(state.phase);
-        
-        if (state.participantId && requiresExtension) {
-            const isAlive = await checkExtensionAlive(1000);
-            if (!isAlive) {
-                console.warn("[Étude] Extension désinstallée détectée ! Nettoyage du cache et création d'une nouvelle session.");
-                localStorage.removeItem('questionnaire_progress');
-                localStorage.removeItem('study_global_start');
-                sessionStorage.clear();
-                
-                // Remise à zéro de l'état
-                state = {
-                    phase: 'language',
-                    participantId: null,
-                    token: null,
-                    language: 'fr',
-                    consentGiven: false,
-                    deceptionConsentGiven: false,
-                    demographics: null,
-                    researchQuestions: [],
-                    memoryQuestions: [],
-                    currentResearchIndex: 0,
-                    currentMemoryIndex: 0,
-                    answers: [],
-                    selfAssessments: [],
-                    internetSkills: null,
-                    memoryAnswers: [],
-                    questionStartTime: null,
-                    drawnQuestionIds: []
-                };
-            }
-        }
-
-        // 3. Si AUCUNE session n'existe (première visite ou après purge automatique), on demande un nouveau PID
+        // 2. Si AUCUNE session n'existe (première visite absolue), on demande un nouveau PID
         if (!state.participantId || !state.token) {
             try {
                 const response = await fetch(API_BASE + '/init-session', {
@@ -156,7 +121,7 @@ var RESEARCH_WARNING_SECONDS = 600;
             }
         }
 
-        // 4. Synchronisation et affichage
+        // 3. Synchronisation avec l'extension et affichage de la phase courante
         await fetchAndSyncToken();
         renderPhase();
         updateUrl();
@@ -291,16 +256,53 @@ var RESEARCH_WARNING_SECONDS = 600;
     }
 
     function startTimer(phaseType) {
-        elapsedSeconds = 0;
-        popup10MinShown = false;
         currentTimerPhase = phaseType;
-        state.questionStartTime = Date.now();
+
+        // Si la question démarre pour la première fois, on fixe le startTime
+        if (!state.questionStartTime) {
+            state.questionStartTime = Date.now();
+            saveProgress();
+        }
+
+        // Calcul exact du temps écoulé depuis le début réel de la question
+        elapsedSeconds = Math.max(0, Math.floor((Date.now() - state.questionStartTime) / 1000));
+        popup10MinShown = (phaseType === 'research' && elapsedSeconds >= RESEARCH_WARNING_SECONDS);
+
         timerEl.classList.remove('hidden');
-        timerEl.className = 'timer green';
         updateTimerDisplay();
 
+        // Application immédiate de la couleur en fonction du temps déjà écoulé
+        if (currentTimerPhase === 'research') {
+            if (elapsedSeconds < 480) {
+                timerEl.className = 'timer green';
+            } else if (elapsedSeconds < RESEARCH_WARNING_SECONDS) {
+                timerEl.className = 'timer orange';
+            } else {
+                timerEl.className = 'timer red blink';
+            }
+        } else if (currentTimerPhase === 'memory') {
+            if (elapsedSeconds < 45) {
+                timerEl.className = 'timer green';
+            } else {
+                timerEl.className = 'timer red blink';
+            }
+        }
+
+        // Si le temps limite a expiré pendant que l'onglet était fermé
+        if (currentTimerPhase === 'research' && elapsedSeconds >= RESEARCH_TIME_LIMIT_SECONDS) {
+            alert(t('alert_temps_ecoule_recherche'));
+            forceSubmitResearch();
+            return;
+        } else if (currentTimerPhase === 'memory' && elapsedSeconds >= 60) {
+            alert(t('alert_temps_ecoule_memoire'));
+            forceSubmitMemory();
+            return;
+        }
+
+        if (timerInterval) clearInterval(timerInterval);
+
         timerInterval = setInterval(function () {
-            elapsedSeconds = Math.floor((Date.now() - state.questionStartTime) / 1000);
+            elapsedSeconds = Math.max(0, Math.floor((Date.now() - state.questionStartTime) / 1000));
             updateTimerDisplay();
 
             if (currentTimerPhase === 'research') {
@@ -322,9 +324,7 @@ var RESEARCH_WARNING_SECONDS = 600;
                     alert(t('alert_temps_ecoule_recherche'));
                     forceSubmitResearch();
                 }
-            }
-
-            else if (currentTimerPhase === 'memory') {
+            } else if (currentTimerPhase === 'memory') {
                 if (elapsedSeconds < 45) timerEl.className = 'timer green';
                 else timerEl.className = 'timer red blink';
 
@@ -716,6 +716,9 @@ var RESEARCH_WARNING_SECONDS = 600;
         var existing = state.answers[idx];
         if (existing && existing.data && existing.data.answer) {
             textarea.value = existing.data.answer;
+        } else if (state.currentDraftAnswer) {
+            // Restaure le texte qui était en cours de rédaction avant la fermeture
+            textarea.value = state.currentDraftAnswer;
         }
 
         function updateWordCounter() {
@@ -731,7 +734,12 @@ var RESEARCH_WARNING_SECONDS = 600;
             }
         }
 
-        textarea.addEventListener('input', updateWordCounter);
+        textarea.addEventListener('input', function () {
+            updateWordCounter();
+            // Sauvegarde automatique du texte au fil de la frappe
+            state.currentDraftAnswer = textarea.value;
+            saveProgress();
+        });
 
         btn.addEventListener('click', async function () {
             var text = textarea.value.trim();
@@ -787,6 +795,11 @@ var RESEARCH_WARNING_SECONDS = 600;
             difficulty: question.difficulty || null,
             data: data
         };
+
+        // Réinitialisation propre pour la prochaine question
+        state.questionStartTime = null;
+        state.currentDraftAnswer = null;
+        saveProgress();
 
         await sendToServer('research_answer', question.id, question.difficulty || null, data);
         goTo('self_assessment');
@@ -1032,6 +1045,9 @@ var RESEARCH_WARNING_SECONDS = 600;
             timeSpentSeconds: timeSpent,
             forcedTimeout: timeSpent >= 60
         };
+
+        state.questionStartTime = null;
+        saveProgress();
 
         await sendToServer('memory_answer', memoryQ.id, null, payload);
 
