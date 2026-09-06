@@ -911,18 +911,16 @@ var RESEARCH_WARNING_SECONDS = 600;
             ? (q.text[state.language] || q.text['fr'] || q.text['en'] || '')
             : q.text;
 
-        // Récupération du brouillon de l'évaluation pour cette question
+        // Récupération de l'état sauvegardé pour cette question
         state.draftSelfAssessments = state.draftSelfAssessments || {};
         var draft = state.draftSelfAssessments[idx] || {};
-
-        var initialKBase = draft.knowledgeBase !== undefined ? draft.knowledgeBase : 0;
 
         var html = '<h2>' + t('eval_titre') + '</h2><p>' + t('eval_concerne') + ' <em>' + qText + '</em></p>';
 
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
             '<h3>' + t('q_connaissance_titre') + '</h3>' +
             '<div class="slider-group"><label class="slider-label">' + t('q_connaissance_item') + '</label>' +
-            '<div class="slider-container"><input type="range" id="k_base" class="slider" min="0" max="100" value="' + initialKBase + '"><div class="slider-value" id="vk_base">' + initialKBase + '</div></div>' +
+            '<div class="slider-container"><input type="range" id="k_base" class="slider" min="0" max="100" value="0"><div class="slider-value" id="vk_base">0</div></div>' +
             '<div class="slider-labels"><span>0</span><span>100</span></div></div>';
 
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
@@ -936,7 +934,7 @@ var RESEARCH_WARNING_SECONDS = 600;
                 '<div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:8px; text-align:center;">';
 
         for (var d = 1; d <= 7; d++) {
-            var isChecked = draft.perceivedDifficulty === d ? ' checked' : '';
+            var isChecked = (draft.perceivedDifficulty === d) ? ' checked' : '';
             html += '<label style="display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer;">' +
                 '<input type="radio" name="perceivedDifficulty" value="' + d + '"' + isChecked + '>' +
                 '<span>' + d + '</span>' +
@@ -951,9 +949,8 @@ var RESEARCH_WARNING_SECONDS = 600;
             '<p style="font-size:0.9em; color:#64748b; margin-bottom:10px;">' + t('q_nasa_legende') + '</p>';
 
         nasaItems.forEach(function(item) {
-            var initialVal = draft[item.id] !== undefined ? draft[item.id] : 1;
             html += '<div class="slider-group"><label style="margin-bottom:4px;"><strong>' + item.titre + ' :</strong> ' + item.desc + '</label>' +
-                '<div class="slider-container"><input type="range" id="' + item.id + '" class="slider" min="1" max="100" value="' + initialVal + '"><div class="slider-value" id="v' + item.id + '">' + initialVal + '</div></div>' +
+                '<div class="slider-container"><input type="range" id="' + item.id + '" class="slider" min="1" max="100" value="1"><div class="slider-value" id="v' + item.id + '">1</div></div>' +
                 '<div class="slider-labels"><span>1</span><span>100</span></div></div>';
         });
 
@@ -962,22 +959,51 @@ var RESEARCH_WARNING_SECONDS = 600;
 
         app.innerHTML = html;
 
-        // Liaison et sauvegarde des curseurs
-        bindSlider('k_base', function(val) {
-            state.draftSelfAssessments[idx] = state.draftSelfAssessments[idx] || {};
-            state.draftSelfAssessments[idx].knowledgeBase = parseInt(val);
-            saveProgress();
-        });
+        // ── 1. RESTAURATION ET ÉCOUTE DU SLIDER K_BASE ──
+        var kSlider = document.getElementById('k_base');
+        var kVal = document.getElementById('vk_base');
+        if (kSlider && kVal) {
+            // Restaure la valeur s'il y a un brouillon sauvegardé
+            if (draft.knowledgeBase !== undefined) {
+                kSlider.value = draft.knowledgeBase;
+                kVal.textContent = draft.knowledgeBase;
+            }
 
-        nasaItems.forEach(function(item) {
-            bindSlider(item.id, function(val) {
+            function updateKBase() {
+                kVal.textContent = kSlider.value;
                 state.draftSelfAssessments[idx] = state.draftSelfAssessments[idx] || {};
-                state.draftSelfAssessments[idx][item.id] = parseInt(val);
+                state.draftSelfAssessments[idx].knowledgeBase = parseInt(kSlider.value);
                 saveProgress();
-            });
+            }
+
+            kSlider.addEventListener('input', updateKBase);
+            kSlider.addEventListener('change', updateKBase);
+        }
+
+        // ── 2. RESTAURATION ET ÉCOUTE DES SLIDERS NASA-TLX ──
+        nasaItems.forEach(function(item) {
+            var slider = document.getElementById(item.id);
+            var valDisplay = document.getElementById('v' + item.id);
+            if (slider && valDisplay) {
+                // Restaure la valeur s'il y a un brouillon sauvegardé
+                if (draft[item.id] !== undefined) {
+                    slider.value = draft[item.id];
+                    valDisplay.textContent = draft[item.id];
+                }
+
+                function updateNasaItem() {
+                    valDisplay.textContent = slider.value;
+                    state.draftSelfAssessments[idx] = state.draftSelfAssessments[idx] || {};
+                    state.draftSelfAssessments[idx][item.id] = parseInt(slider.value);
+                    saveProgress();
+                }
+
+                slider.addEventListener('input', updateNasaItem);
+                slider.addEventListener('change', updateNasaItem);
+            }
         });
 
-        // Sauvegarde des boutons radio de difficulté perçue
+        // ── 3. ÉCOUTE DES BOUTONS RADIO (DIFFICULTÉ) ──
         var radios = document.querySelectorAll('input[name="perceivedDifficulty"]');
         radios.forEach(function(r) {
             r.addEventListener('change', function() {
@@ -987,6 +1013,7 @@ var RESEARCH_WARNING_SECONDS = 600;
             });
         });
 
+        // ── 4. VALIDATION ET SOUMISSION ──
         document.getElementById('btnSubmitScale').addEventListener('click', async function () {
             var perceivedDifficulty = document.querySelector('input[name="perceivedDifficulty"]:checked');
 
@@ -1008,7 +1035,7 @@ var RESEARCH_WARNING_SECONDS = 600;
 
             await sendToServer('self_assessment', q.id, q.difficulty || null, payload);
 
-            // Nettoyage du brouillon de cette évaluation
+            // Nettoie le brouillon pour cette question
             if (state.draftSelfAssessments) {
                 delete state.draftSelfAssessments[idx];
             }
