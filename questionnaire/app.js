@@ -577,7 +577,6 @@ var RESEARCH_WARNING_SECONDS = 600;
                     '<option value="cheque">' + t('demo_pay_cheque') + '</option>' +
                 '</select>' +
             '</div>' +
-            // NOUVEL ENCADRÉ INTERAC DYNAMIQUE
             '<div class="form-group" id="interacGroup" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-left:4px solid #0284c7; padding:15px; border-radius:6px; margin-bottom:20px;">' +
                 '<label style="font-weight:600; color:#0f172a;" for="interacContact">' + t('demo_interac_contact') + '</label>' +
                 '<input type="text" id="interacContact" placeholder="' + t('demo_interac_placeholder') + '" style="margin-top:6px;">' +
@@ -587,10 +586,48 @@ var RESEARCH_WARNING_SECONDS = 600;
         const paymentSelect = document.getElementById('payment');
         const interacGroup = document.getElementById('interacGroup');
         const interacContactInput = document.getElementById('interacContact');
+        const emailInput = document.getElementById('email');
+        const ageInput = document.getElementById('age');
+        const langSelect = document.getElementById('lang_prof');
+        const niveauSelect = document.getElementById('niveau');
         const btnDemo = document.getElementById('btnDemo');
         const demoErr = document.getElementById('demoErr');
 
-        // Gestion de l'affichage/masquage dynamique selon le choix
+        // Récupération du brouillon existant
+        state.draftDemographics = state.draftDemographics || state.demographics || {};
+        const draft = state.draftDemographics;
+
+        if (draft.email) emailInput.value = draft.email;
+        if (draft.age) ageInput.value = draft.age;
+        if (draft.langue) langSelect.value = draft.langue;
+        if (draft.niveau_etudes) niveauSelect.value = draft.niveau_etudes;
+        if (draft.paiement) {
+            paymentSelect.value = draft.paiement;
+            if (draft.paiement === 'interac') {
+                interacGroup.style.display = 'block';
+                if (draft.interacContact) interacContactInput.value = draft.interacContact;
+            }
+        }
+
+        // Sauvegarde automatique à la moindre modification
+        function saveDraft() {
+            state.draftDemographics = {
+                email: emailInput.value.trim(),
+                age: ageInput.value ? parseInt(ageInput.value) : '',
+                langue: langSelect.value,
+                niveau_etudes: niveauSelect.value,
+                paiement: paymentSelect.value,
+                interacContact: interacContactInput.value.trim()
+            };
+            saveProgress();
+        }
+
+        emailInput.addEventListener('input', saveDraft);
+        ageInput.addEventListener('input', saveDraft);
+        langSelect.addEventListener('change', saveDraft);
+        niveauSelect.addEventListener('change', saveDraft);
+        interacContactInput.addEventListener('input', saveDraft);
+
         paymentSelect.addEventListener('change', function () {
             if (paymentSelect.value === 'interac') {
                 interacGroup.style.display = 'block';
@@ -598,13 +635,14 @@ var RESEARCH_WARNING_SECONDS = 600;
                 interacGroup.style.display = 'none';
                 interacContactInput.value = '';
             }
+            saveDraft();
         });
 
         btnDemo.addEventListener('click', async function () {
-            var email = document.getElementById('email').value.trim();
-            var age = document.getElementById('age').value;
-            var lang = document.getElementById('lang_prof').value;
-            var niveau = document.getElementById('niveau').value;
+            var email = emailInput.value.trim();
+            var age = ageInput.value;
+            var lang = langSelect.value;
+            var niveau = niveauSelect.value;
             var payment = paymentSelect.value;
             var interacContact = interacContactInput.value.trim();
 
@@ -614,14 +652,12 @@ var RESEARCH_WARNING_SECONDS = 600;
                 return;
             }
 
-            // Vérification spécifique si Interac est sélectionné
             if (payment === 'interac' && !interacContact) {
                 demoErr.textContent = t('demo_err_interac');
                 demoErr.style.display = 'block';
                 return;
             }
 
-            // Désactivation du bouton et indicateur de chargement
             btnDemo.disabled = true;
             const originalBtnText = btnDemo.textContent;
             btnDemo.textContent = state.language === 'en' ? '⏳ Loading questions...' : '⏳ Chargement des questions...';
@@ -640,6 +676,7 @@ var RESEARCH_WARNING_SECONDS = 600;
             try {
                 await sendToServer('demographics', null, null, state.demographics);
                 await fetchBalancedQuestionsFromServer();
+                delete state.draftDemographics; // Nettoyage une fois validé
                 saveProgress();
                 goTo('instructions');
             } catch (err) {
@@ -874,12 +911,18 @@ var RESEARCH_WARNING_SECONDS = 600;
             ? (q.text[state.language] || q.text['fr'] || q.text['en'] || '')
             : q.text;
 
+        // Récupération du brouillon de l'évaluation pour cette question
+        state.draftSelfAssessments = state.draftSelfAssessments || {};
+        var draft = state.draftSelfAssessments[idx] || {};
+
+        var initialKBase = draft.knowledgeBase !== undefined ? draft.knowledgeBase : 0;
+
         var html = '<h2>' + t('eval_titre') + '</h2><p>' + t('eval_concerne') + ' <em>' + qText + '</em></p>';
 
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
             '<h3>' + t('q_connaissance_titre') + '</h3>' +
             '<div class="slider-group"><label class="slider-label">' + t('q_connaissance_item') + '</label>' +
-            '<div class="slider-container"><input type="range" id="k_base" class="slider" min="0" max="100" value="0"><div class="slider-value" id="vk_base">0</div></div>' +
+            '<div class="slider-container"><input type="range" id="k_base" class="slider" min="0" max="100" value="' + initialKBase + '"><div class="slider-value" id="vk_base">' + initialKBase + '</div></div>' +
             '<div class="slider-labels"><span>0</span><span>100</span></div></div>';
 
         html += '<hr style="margin:30px 0; border:1px solid #e2e8f0;">' +
@@ -893,8 +936,9 @@ var RESEARCH_WARNING_SECONDS = 600;
                 '<div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:8px; text-align:center;">';
 
         for (var d = 1; d <= 7; d++) {
+            var isChecked = draft.perceivedDifficulty === d ? ' checked' : '';
             html += '<label style="display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer;">' +
-                '<input type="radio" name="perceivedDifficulty" value="' + d + '">' +
+                '<input type="radio" name="perceivedDifficulty" value="' + d + '"' + isChecked + '>' +
                 '<span>' + d + '</span>' +
             '</label>';
         }
@@ -907,8 +951,9 @@ var RESEARCH_WARNING_SECONDS = 600;
             '<p style="font-size:0.9em; color:#64748b; margin-bottom:10px;">' + t('q_nasa_legende') + '</p>';
 
         nasaItems.forEach(function(item) {
+            var initialVal = draft[item.id] !== undefined ? draft[item.id] : 1;
             html += '<div class="slider-group"><label style="margin-bottom:4px;"><strong>' + item.titre + ' :</strong> ' + item.desc + '</label>' +
-                '<div class="slider-container"><input type="range" id="' + item.id + '" class="slider" min="1" max="100" value="1"><div class="slider-value" id="v' + item.id + '">1</div></div>' +
+                '<div class="slider-container"><input type="range" id="' + item.id + '" class="slider" min="1" max="100" value="' + initialVal + '"><div class="slider-value" id="v' + item.id + '">' + initialVal + '</div></div>' +
                 '<div class="slider-labels"><span>1</span><span>100</span></div></div>';
         });
 
@@ -917,8 +962,30 @@ var RESEARCH_WARNING_SECONDS = 600;
 
         app.innerHTML = html;
 
-        bindSlider('k_base');
-        nasaItems.forEach(function(item) { bindSlider(item.id); });
+        // Liaison et sauvegarde des curseurs
+        bindSlider('k_base', function(val) {
+            state.draftSelfAssessments[idx] = state.draftSelfAssessments[idx] || {};
+            state.draftSelfAssessments[idx].knowledgeBase = parseInt(val);
+            saveProgress();
+        });
+
+        nasaItems.forEach(function(item) {
+            bindSlider(item.id, function(val) {
+                state.draftSelfAssessments[idx] = state.draftSelfAssessments[idx] || {};
+                state.draftSelfAssessments[idx][item.id] = parseInt(val);
+                saveProgress();
+            });
+        });
+
+        // Sauvegarde des boutons radio de difficulté perçue
+        var radios = document.querySelectorAll('input[name="perceivedDifficulty"]');
+        radios.forEach(function(r) {
+            r.addEventListener('change', function() {
+                state.draftSelfAssessments[idx] = state.draftSelfAssessments[idx] || {};
+                state.draftSelfAssessments[idx].perceivedDifficulty = parseInt(r.value);
+                saveProgress();
+            });
+        });
 
         document.getElementById('btnSubmitScale').addEventListener('click', async function () {
             var perceivedDifficulty = document.querySelector('input[name="perceivedDifficulty"]:checked');
@@ -941,6 +1008,12 @@ var RESEARCH_WARNING_SECONDS = 600;
 
             await sendToServer('self_assessment', q.id, q.difficulty || null, payload);
 
+            // Nettoyage du brouillon de cette évaluation
+            if (state.draftSelfAssessments) {
+                delete state.draftSelfAssessments[idx];
+            }
+            saveProgress();
+
             state.currentResearchIndex++;
 
             if (state.currentResearchIndex < state.researchQuestions.length) {
@@ -949,6 +1022,17 @@ var RESEARCH_WARNING_SECONDS = 600;
                 goTo('internet_skills');
             }
         });
+    }
+
+    function bindSlider(id, onInputCallback) {
+        var s = document.getElementById(id);
+        var v = document.getElementById('v' + id);
+        if (s && v) {
+            s.addEventListener('input', function () {
+                v.textContent = s.value;
+                if (onInputCallback) onInputCallback(s.value);
+            });
+        }
     }
 
 
@@ -963,28 +1047,51 @@ var RESEARCH_WARNING_SECONDS = 600;
         var html = '<h2>' + t('q_internet_titre') + '</h2>';
         html += '<p style="font-size:0.9em; color:#64748b; margin-bottom:10px;">' + t('q_internet_legende') + '</p>';
         html += '<table class="likert-table"><tr><th>Énoncé / Statement</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>';
-        
+
+        state.draftInternetSkills = state.draftInternetSkills || {};
+        var draft = state.draftInternetSkills;
+
         skills.forEach(function(item, i) {
             html += '<tr><td>' + item + '</td>';
-            for(var v=1; v<=5; v++) html += '<td><input type="radio" name="iskill_' + i + '" value="' + v + '"></td>';
+            for (var v = 1; v <= 5; v++) {
+                var isChecked = draft['item_' + (i + 1)] === v ? ' checked' : '';
+                html += '<td><input type="radio" name="iskill_' + i + '" value="' + v + '"' + isChecked + '></td>';
+            }
             html += '</tr>';
         });
-        
+
         html += '</table><button class="btn btn-primary" id="btnSubmitSkills">' + t('btn_suivant') + '</button><div id="skillsErr" style="color:red; display:none; margin-top:10px;">' + t('eval_err_radio') + '</div>';
         app.innerHTML = html;
+
+        // Sauvegarde au fur et à mesure que le participant coche les items
+        skills.forEach(function(item, i) {
+            var radios = document.querySelectorAll('input[name="iskill_' + i + '"]');
+            radios.forEach(function(r) {
+                r.addEventListener('change', function() {
+                    state.draftInternetSkills = state.draftInternetSkills || {};
+                    state.draftInternetSkills['item_' + (i + 1)] = parseInt(r.value);
+                    saveProgress();
+                });
+            });
+        });
 
         document.getElementById('btnSubmitSkills').addEventListener('click', async function() {
             var answers = {};
             var allAnswered = true;
-            for(var i=0; i<skills.length; i++) {
+            for (var i = 0; i < skills.length; i++) {
                 var checked = document.querySelector('input[name="iskill_' + i + '"]:checked');
-                if(!checked) { allAnswered = false; break; }
-                answers['item_' + (i+1)] = parseInt(checked.value);
+                if (!checked) { allAnswered = false; break; }
+                answers['item_' + (i + 1)] = parseInt(checked.value);
             }
 
-            if(!allAnswered) { document.getElementById('skillsErr').style.display = 'block'; return; }
+            if (!allAnswered) {
+                document.getElementById('skillsErr').style.display = 'block';
+                return;
+            }
 
             await sendToServer('internet_skills', null, null, answers);
+            delete state.draftInternetSkills; // Nettoyage une fois validé
+            saveProgress();
             goTo('memory_intro');
         });
     }
